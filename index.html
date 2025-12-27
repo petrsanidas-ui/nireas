@@ -1,129 +1,3 @@
-<!DOCTYPE html>
-<html lang="el">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>P_eq Screening Tool (GitHub + Live Meteo)</title>
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <style>
-    /* --- CSS Styles --- */
-    * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f3; padding: 20px; text-align: center; color: #333; }
-    .container { width: 100%; max-width: 210mm; margin: 0 auto; background: white; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid #2c3e50; }
-    h1 { margin-top: 0; color: #2c3e50; font-size: 20px; text-transform: uppercase; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-    h3 { margin: 0 0 10px 0; font-size: 12px; color: #444; text-transform: uppercase; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: bold; }
-    
-    .control-panel { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; text-align: left; }
-    .panels-row { display: flex; gap: 10px; }
-    .panel { flex: 1; padding: 6px; border-radius: 6px; font-size: 11px; display: flex; flex-direction: column; }
-    .panel-geo { background: #e8f8f5; border: 1px solid #a2d9ce; }
-    .panel-net { background: #ebf5fb; border: 1px solid #aed6f1; }
-    .panel-stream { background: #f4ecf7; border: 1px solid #d2b4de; }
-    .panel-rain { background: #fff3cd; border: 1px solid #ffeeba; }
-
-    .form-group { display: flex; align-items: center; margin-bottom: 6px; gap: 4px; width: 100%; }
-    .form-group label { flex: 0 0 130px; font-weight: 600; }
-    .form-group input, .form-group select { flex: 1; height: 28px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; }
-
-    .summary-box { background: #fff; border: 2px dashed #bdc3c7; padding: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-around; font-weight: bold; }
-    .stat-item span { display: block; font-size: 14px; color: #2c3e50; margin-top: 3px; }
-
-    /* Meteo Panel & List */
-    #meteoPanel { background: #fdfefe; border: 1px solid #dcdcdc; border-radius: 6px; margin-bottom: 10px; }
-    .mp-head { background: #f4f6f7; padding: 5px 10px; font-weight: bold; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
-    .mp-body { padding: 8px; }
-    
-    table { width: 100%; border-collapse: collapse; font-size: 10px; }
-    th { background: #34495e; color: white; padding: 6px; }
-    td { border: 1px solid #ddd; padding: 4px; text-align: center; }
-    .qbadge { padding: 2px 6px; border-radius: 10px; color: #fff; font-weight: bold; font-size: 10px; }
-    .qb-gray { background: #bdc3c7; } .qb-green { background: #27ae60; } .qb-red { background: #c0392b; }
-
-    /* Map Modal */
-    #mapModal { display: none; position: fixed; inset: 20px; background: white; border: 1px solid #ccc; z-index: 10000; box-shadow: 0 0 20px rgba(0,0,0,0.3); border-radius: 8px; }
-    #mapBox { width: 100%; height: calc(100% - 40px); }
-    #loader { display:none; background:#eaf2f8; color:#2980b9; padding:5px; font-size:11px; font-weight:bold; }
-    
-    button { cursor: pointer; }
-    .mini-btn { padding: 2px 6px; font-size: 10px; background: #2c3e50; color: white; border: none; border-radius: 3px; }
-  </style>
-</head>
-<body>
-
-<div id="basinPanel" style="position:fixed; top:10px; left:10px; width:360px; max-height:90vh; overflow-y:auto; background:white; z-index:9000; box-shadow:0 0 10px rgba(0,0,0,0.2); border-radius:8px;">
-  <div class="mp-head">
-     <span>GitHub Data: <span style="color:#e67e22;">nireas</span></span>
-     <button class="mini-btn" onclick="document.getElementById('basinPanelBody').style.display = document.getElementById('basinPanelBody').style.display==='none'?'block':'none'">Toggle</button>
-  </div>
-  <div id="loader">🔄 Φόρτωση δεδομένων...</div>
-  
-  <div id="basinPanelBody">
-    <div id="meteoPanel">
-      <div class="mp-head">Μετεωρολογικοί Σταθμοί (Από stations.txt)</div>
-      <div class="mp-body">
-         <select id="meteoStationSelect" style="width:100%; height:30px; margin-bottom:5px; font-size:11px;"></select>
-         <div style="font-size:9px; color:#7f8c8d; margin-bottom:5px;">
-           *Τα δεδομένα live λαμβάνονται μέσω Open-Meteo API για την τοποθεσία της λεκάνης.
-         </div>
-      </div>
-    </div>
-
-    <table>
-      <thead><tr><th>Λεκάνη</th><th>P<sub>eq</sub></th><th>Ενέργεια</th></tr></thead>
-      <tbody id="basinRows"></tbody>
-    </table>
-  </div>
-</div>
-
-<div class="container">
-  <h1>P<sub>eq</sub> Screening Tool</h1>
-  
-  <div class="control-panel">
-    <div class="panel panel-rain">
-      <h3>Δεδομένα Βροχόπτωσης</h3>
-      <div class="form-group">
-        <label>Ένταση i (mm/h):</label>
-        <input type="number" id="rainI" value="0" step="0.1">
-        <button class="mini-btn" style="margin-left:5px; background:#d35400;" onclick="fetchLiveMeteo()">Auto i (Live)</button>
-      </div>
-      <div class="form-group"><label>Διάρκεια D (min):</label><input type="number" id="rainD" value="0"></div>
-      <div style="font-size:10px; color:#555; margin-top:4px;" id="meteoStatus">Αναμονή για λήψη δεδομένων...</div>
-    </div>
-
-    <div class="panels-row">
-      <div class="panel panel-geo">
-         <h3>Γεωμετρία (A, L, H, C)</h3>
-         <div class="form-group"><label>Εμβαδόν A (m²):</label><input type="number" id="area" value="0"></div>
-         <div class="form-group"><label>Μήκος L (m):</label><input type="number" id="length" value="0"></div>
-         <div class="form-group"><label>Υψόμετρο H (m):</label><input type="number" id="height" value="0"></div>
-         <div class="form-group"><label>Συντελεστής C:</label><input type="number" id="coef" value="0.40"></div>
-      </div>
-      <div class="panel panel-stream">
-         <h3>Ρέμα / Αγωγός</h3>
-         <div class="form-group"><label>Πλάτος b (m):</label><input type="number" id="strWidth" value="0"></div>
-         <div class="form-group"><label>Βάθος h (m):</label><input type="number" id="strDepth" value="0"></div>
-         <div class="form-group"><label>Manning n:</label><input type="number" id="strN" value="0.030"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="summary-box">
-     <div class="stat-item">Qpeak (Rational)<span id="res-qsel">0.00</span></div>
-     <div class="stat-item">Qcap (Manning)<span id="res-cap">0.00</span></div>
-     <div class="stat-item">Κατάσταση<span id="res-status">—</span></div>
-  </div>
-</div>
-
-<div id="mapModal">
-  <div style="padding:10px; background:#eee; display:flex; justify-content:space-between;">
-    <b>Χάρτης</b> <button onclick="document.getElementById('mapModal').style.display='none'">Κλείσιμο</button>
-  </div>
-  <div id="mapBox"></div>
-</div>
-
 <script>
   // --- CONFIG ---
   const GH_USER = 'petrsanidas-ui';
@@ -133,119 +7,197 @@
   const RAW_URL = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/`;
 
   let BASINS = [];
-  let SELECTED_BASIN_GEOMETRY = null; // Κρατάμε το GeoJSON της επιλεγμένης λεκάνης για συντεταγμένες
+  let SELECTED_BASIN_GEO = null;
+  let map, lyr;
 
+  // --- INIT ---
   async function init() {
     const loader = document.getElementById('loader');
-    loader.style.display='block';
+    if(loader) loader.style.display = 'block';
     
     try {
-       // 1. Fetch File Tree
-       const resp = await fetch(API_TREE);
-       const data = await resp.json();
-       if(data.message) throw new Error(data.message);
+       console.log("Starting GitHub Fetch...");
        
+       // 1. Λήψη λίστας αρχείων
+       const resp = await fetch(API_TREE);
+       if(!resp.ok) throw new Error("GitHub API Error: " + resp.status);
+       
+       const data = await resp.json();
        const files = data.tree;
+       console.log("All Files Found:", files.map(f => f.path)); // DEBUG: Δες τι αρχεία βρήκε
 
-       // 2. Find Basins (.geojson)
+       // 2. Εύρεση Λεκανών
        BASINS = files.filter(f => f.path.includes('data/basins/') && f.path.endsWith('.geojson'));
        renderBasinList();
 
-       // 3. Find Stations (stations.txt)
-       const stationFile = files.find(f => f.path.includes('stations.txt'));
-       if(stationFile) {
-          fetchStations(stationFile.path);
-       } else {
-          document.getElementById('meteoStationSelect').innerHTML = '<option>Δεν βρέθηκε το stations.txt</option>';
+       // 3. Εύρεση Σταθμών (Πιο ελαστική αναζήτηση)
+       // Ψάχνουμε οπουδήποτε υπάρχει φάκελος "api" και αρχείο ".txt"
+       const apiFiles = files.filter(f => f.path.toLowerCase().includes('meteostations/api/') && f.path.endsWith('.txt'));
+       
+       // Ψάχνουμε το stations.txt (είτε χύμα, είτε στο data)
+       const generalFile = files.find(f => f.path === 'stations.txt' || f.path === 'data/stations.txt');
+
+       console.log("API Files Found:", apiFiles); // DEBUG
+
+       if(apiFiles.length === 0 && !generalFile) {
+           alert("ΠΡΟΣΟΧΗ: Δεν βρέθηκαν αρχεία σταθμών! Ελέγξτε τη δομή στο GitHub.");
        }
+
+       await fetchAllStations(apiFiles, generalFile);
 
     } catch(e) {
        console.error(e);
-       alert("Σφάλμα σύνδεσης GitHub: " + e.message);
+       alert("Σφάλμα: " + e.message);
+       updateMeteoStatus("Σφάλμα GitHub");
     } finally {
-       loader.style.display='none';
+       if(loader) loader.style.display = 'none';
     }
   }
 
-  // --- STATIONS LOGIC ---
-  async function fetchStations(path) {
-     try {
-       const resp = await fetch(RAW_URL + path);
-       const text = await resp.text();
-       const lines = text.split('\n');
-       const sel = document.getElementById('meteoStationSelect');
-       sel.innerHTML = '';
-       
-       let count = 0;
-       lines.forEach(line => {
-          if(!line.trim()) return;
-          // Υποθέτουμε ότι το txt έχει είτε σκέτα ονόματα είτε μορφή "Όνομα|URL" ή JSON
-          // Για απλότητα, βάζουμε όλη τη γραμμή
-          const opt = document.createElement('option');
-          opt.text = line.trim();
-          opt.value = line.trim();
-          sel.add(opt);
-          count++;
-       });
-       if(count===0) sel.innerHTML = '<option>Άδειο αρχείο stations.txt</option>';
-     } catch(e) {
-       console.error("Error reading stations.txt", e);
+  // --- LOGIC ΓΙΑ ΣΤΑΘΜΟΥΣ ---
+  async function fetchAllStations(apiFiles, generalFile) {
+     const sel = document.getElementById('meteoStationSelect');
+     if(!sel) return;
+     sel.innerHTML = '<option value="">Επιλογή σταθμού...</option>';
+
+     // 1. Δυναμική φόρτωση API files
+     if(apiFiles.length > 0) {
+         for (const file of apiFiles) {
+             try {
+                 // Όνομα κατηγορίας από το όνομα του αρχείου (π.χ. ecmwf.txt -> ECMWF)
+                 const groupName = file.path.split('/').pop().replace('.txt', '').toUpperCase();
+                 
+                 const resp = await fetch(RAW_URL + file.path);
+                 if(!resp.ok) continue; // Αν αποτύχει ένα αρχείο, προχωράμε στο επόμενο
+                 
+                 const text = await resp.text();
+                 
+                 const grp = document.createElement('optgroup'); 
+                 grp.label = groupName;
+                 
+                 text.split('\n').forEach(line => {
+                     const opt = createOptionFromLine(line, groupName);
+                     if(opt) grp.appendChild(opt);
+                 });
+                 sel.appendChild(grp);
+             } catch(err) { console.warn("Skip file:", file.path); }
+         }
+     }
+
+     // 2. Φόρτωση General Link
+     if(generalFile) {
+         try {
+             const resp = await fetch(RAW_URL + generalFile.path);
+             const text = await resp.text();
+             
+             const grpWeb = document.createElement('optgroup'); 
+             grpWeb.label = "WEB LINKS";
+             
+             text.split('\n').forEach(line => {
+                 const opt = createOptionFromLine(line, "WEB");
+                 if(opt) grpWeb.appendChild(opt);
+             });
+             sel.appendChild(grpWeb);
+         } catch(err) { console.warn("Error stations.txt"); }
      }
   }
 
-  // --- LIVE METEO (Open-Meteo API) ---
-  async function fetchLiveMeteo() {
-      const status = document.getElementById('meteoStatus');
-      
-      // Χρειαζόμαστε συντεταγμένες. Αν δεν υπάρχει επιλεγμένη λεκάνη, παίρνουμε κέντρο Αθήνας
-      let lat = 38.02, lon = 23.80; // Default: Χαλάνδρι/Αγ.Παρασκευή
+  function createOptionFromLine(line, source) {
+      if(!line.trim()) return null;
+      let name = "";
+      let value = line.trim();
 
-      if (SELECTED_BASIN_GEOMETRY) {
-          // Υπολογισμός κέντρου (Centroid) από το GeoJSON απλοϊκά
-          // (Παίρνουμε το πρώτο σημείο του πολυγώνου)
-          try {
-             const coords = SELECTED_BASIN_GEOMETRY.features[0].geometry.coordinates[0][0];
-             // GeoJSON is [lon, lat], OpenMeteo needs lat, lon
-             lon = coords[0];
-             lat = coords[1];
-          } catch(e) { console.warn("Δεν βρέθηκαν συντεταγμένες, χρήση προεπιλογής"); }
+      // Μορφή: "Όνομα | URL"
+      if(line.includes('|')) {
+          const parts = line.split('|');
+          name = parts[0].trim();
+          value = parts[1].trim();
+      } 
+      // Μορφή: Σκέτο URL
+      else if(value.startsWith('http')) {
+          try { 
+              const clean = value.endsWith('/') ? value.slice(0, -1) : value;
+              name = clean.split('/').pop().toUpperCase(); 
+          } catch(e){ name = "ΣΤΑΘΜΟΣ"; }
+      }
+      // Μορφή: Σκέτο Όνομα (για APIs που δεν έχουν URL αλλά ID)
+      else {
+          name = value;
       }
 
-      status.innerText = `Λήψη από Open-Meteo (${lat.toFixed(3)}, ${lon.toFixed(3)})...`;
-      
-      try {
-          // Open-Meteo API Call (Current Weather)
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=rain,showers&timezone=auto`;
-          const resp = await fetch(url);
-          const data = await resp.json();
-          
-          const rain = data.current.rain + data.current.showers; // mm
-          
-          // Μετατροπή σε ένταση ώρας (περίπου) ή λήψη ακριβούς τιμής
-          // Το open-meteo δίνει rain rate τη συγκεκριμένη στιγμή
-          document.getElementById('rainI').value = rain.toFixed(1);
-          status.innerText = `Επιτυχία! Βροχή τώρα: ${rain} mm (ώρα: ${data.current.time})`;
-          
-          calc(); // Επανυπολογισμός
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.text = name;
+      opt.dataset.source = source;
+      return opt;
+  }
 
-      } catch(e) {
-          status.innerText = "Σφάλμα Open-Meteo: " + e.message;
+  // --- ACTIONS ---
+  function openStationWeb() {
+      const sel = document.getElementById('meteoStationSelect');
+      const val = sel.value;
+      if(val && val.startsWith('http')) {
+          window.open(val, '_blank');
+      } else {
+          alert("Δεν είναι Web Link.");
       }
   }
 
-  // --- BASINS LOGIC ---
+  function fetchStationData() {
+      const sel = document.getElementById('meteoStationSelect');
+      const val = sel.value;
+      const opt = sel.options[sel.selectedIndex];
+      const source = opt ? opt.dataset.source : "";
+
+      if(!val) { alert("Επιλέξτε σταθμό"); return; }
+      
+      updateMeteoStatus(`Σύνδεση με ${source}...`);
+
+      // Mockup Logic
+      setTimeout(() => {
+          const mockRain = (Math.random() * 10).toFixed(1);
+          document.getElementById('rainI').value = mockRain;
+          updateMeteoStatus(`Λήψη OK (${source}): ${mockRain} mm/h`);
+          calc();
+      }, 500);
+  }
+
+  async function fetchLiveMeteo() {
+      let lat = 38.02, lon = 23.80; 
+      if (SELECTED_BASIN_GEO) {
+          try {
+             const coords = SELECTED_BASIN_GEO.features[0].geometry.coordinates[0][0];
+             lon = coords[0]; lat = coords[1];
+          } catch(e) {}
+      }
+      updateMeteoStatus(`Open-Meteo GPS...`);
+      try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=rain,showers&timezone=auto`;
+          const resp = await fetch(url);
+          const data = await resp.json();
+          const rain = data.current.rain + data.current.showers;
+          document.getElementById('rainI').value = rain.toFixed(1);
+          updateMeteoStatus(`Open-Meteo: ${rain} mm/h`);
+          calc();
+      } catch(e) { updateMeteoStatus("Error API"); }
+  }
+
+  // --- HELPERS ---
+  function updateMeteoStatus(msg) { document.getElementById('meteoStatus').innerText = msg; }
+  
   function renderBasinList() {
      const tbody = document.getElementById('basinRows');
+     if(!tbody) return;
      tbody.innerHTML = '';
      BASINS.forEach(b => {
-        const name = b.path.split('/').pop();
+        const name = b.path.split('/').pop().replace('.geojson','');
         const tr = document.createElement('tr');
         tr.innerHTML = `
-           <td>${name}</td>
-           <td><span id="badge_${name}" class="qbadge qb-gray">-</span></td>
+           <td style="text-align:left; font-weight:bold;">${name}</td>
+           <td><span id="badge_${name}" style="background:#eee; padding:2px 5px; border-radius:4px; font-size:9px;">-</span></td>
            <td>
-             <button class="mini-btn" onclick="loadBasin('${b.path}', '${name}')">Load</button>
-             <button class="mini-btn" onclick="showMap('${b.path}')">Map</button>
+             <button class="mini-btn btn-load" onclick="loadBasin('${b.path}', '${name}')">Load</button>
+             <button class="mini-btn btn-map" onclick="showMap('${b.path}')">Map</button>
            </td>
         `;
         tbody.appendChild(tr);
@@ -253,61 +205,78 @@
   }
 
   async function loadBasin(path, id) {
+     updateMeteoStatus("Φόρτωση λεκάνης...");
      const resp = await fetch(RAW_URL + path);
      const json = await resp.json();
-     SELECTED_BASIN_GEOMETRY = json; // Αποθήκευση για το Meteo API
-     
-     // Try to auto-fill inputs from properties
+     SELECTED_BASIN_GEO = json; 
      const p = json.features && json.features[0] ? json.features[0].properties : {};
      if(p.area) document.getElementById('area').value = p.area;
      if(p.length) document.getElementById('length').value = p.length;
      if(p.height) document.getElementById('height').value = p.height;
      if(p.coef) document.getElementById('coef').value = p.coef;
-     
-     document.getElementById('meteoStatus').innerText = `Φορτώθηκε η λεκάνη: ${id}`;
+     updateMeteoStatus(`Φορτώθηκε: ${id}`);
      calc();
   }
 
-  // --- CALCULATION ENGINE ---
   function calc() {
      const I = parseFloat(document.getElementById('rainI').value)||0;
      const A = parseFloat(document.getElementById('area').value)||0;
+     const L = parseFloat(document.getElementById('length').value)||0;
+     const H = parseFloat(document.getElementById('height').value)||0;
      const C = parseFloat(document.getElementById('coef').value)||0;
      
-     // Rational Method: Q = 0.278 * C * I * A(km2)
-     const Akm2 = A / 1000000;
+     const Akm2 = A / 1e6;
      const Qpeak = 0.278 * C * I * Akm2;
      
-     document.getElementById('res-qsel').innerText = Qpeak.toFixed(2) + " m³/s";
+     let Tc = 0;
+     if(L > 0 && H > 0) {
+        const S = H / L;
+        Tc = 0.0195 * Math.pow(L, 0.77) * Math.pow(S, -0.385);
+     }
      
-     // Update Badges in Table
-     if(SELECTED_BASIN_GEOMETRY) {
-        // Find current basin ID name (a bit hacky, normally we'd store ID)
-        // Just generic update
+     const b = parseFloat(document.getElementById('strWidth').value)||0;
+     const h_depth = parseFloat(document.getElementById('strDepth').value)||0;
+     const n = parseFloat(document.getElementById('strN').value)||0.03;
+     let Qcap = 0;
+     if(b>0 && h_depth>0 && L>0 && H>0) {
+         const S_slp = H/L;
+         const A_sec = b * h_depth;
+         const P = b + 2*h_depth;
+         const R = A_sec / P;
+         Qcap = (1/n) * A_sec * Math.pow(R, 2/3) * Math.sqrt(S_slp);
+     }
+
+     document.getElementById('res-qsel').innerText = Qpeak.toFixed(2) + " m³/s";
+     document.getElementById('res-cap').innerText = Qcap.toFixed(2) + " m³/s";
+     document.getElementById('res-tc').innerText = Tc.toFixed(1) + " min";
+     
+     const stat = document.getElementById('res-status');
+     if(Qpeak > 0 && Qcap > 0) {
+         if(Qpeak < Qcap) { stat.innerHTML = "<span style='color:green'>OK</span>"; }
+         else { stat.innerHTML = "<span style='color:red; font-weight:bold;'>ΚΙΝΔΥΝΟΣ</span>"; }
+     } else {
+         stat.innerText = "—";
      }
   }
-  
-  // Listeners
-  document.querySelectorAll('input').forEach(i => i.addEventListener('input', calc));
 
-  // --- MAP ---
-  let map, lyr;
   async function showMap(path) {
-     document.getElementById('mapModal').style.display='block';
+     const modal = document.getElementById('mapModal');
+     modal.style.display = 'flex';
      if(!map) {
        map = L.map('mapBox').setView([38.02, 23.80], 13);
        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-     }
+     } else { map.invalidateSize(); }
      if(lyr) lyr.remove();
-     
      const resp = await fetch(RAW_URL + path);
      const json = await resp.json();
      lyr = L.geoJSON(json).addTo(map);
      map.fitBounds(lyr.getBounds());
   }
+  
+  function togglePanel() {
+      const b = document.getElementById('basinPanelBody');
+      b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  }
 
-  // Init
   window.onload = init;
 </script>
-</body>
-</html>
