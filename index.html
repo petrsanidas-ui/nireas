@@ -34,32 +34,10 @@
     }
     .bp-head { background: #2c3e50; color: white; padding: 8px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
 
-    /* ✅ Collapsible sections */
-    .section {
-      border-bottom: 2px solid #eee;
-      background: #fcfcfc;
-    }
-    .section-head {
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      padding: 8px 10px;
-      font-weight: 800;
-      letter-spacing: .2px;
-      color:#2c3e50;
-      user-select: none;
-    }
-    .section-title {
-      display:flex;
-      align-items:center;
-      gap: 8px;
-      font-size: 12px;
-      text-transform: uppercase;
-    }
-    .section-body {
-      padding: 10px;
-      padding-top: 0;
-    }
+    .section { border-bottom: 2px solid #eee; background: #fcfcfc; }
+    .section-head { display:flex; align-items:center; justify-content: space-between; padding: 8px 10px; font-weight: 800; letter-spacing: .2px; color:#2c3e50; user-select: none; }
+    .section-title { display:flex; align-items:center; gap: 8px; font-size: 12px; text-transform: uppercase; }
+    .section-body { padding: 10px; padding-top: 0; }
 
     table { width: 100%; border-collapse: collapse; font-size: 10px; }
     th { background: #34495e; color: white; padding: 6px; position: sticky; top: 0; }
@@ -72,7 +50,6 @@
     .btn-web  { background: #e67e22; }
     .btn-gray { background: #95a5a6; }
 
-    /* Toggle On/Off */
     .btn-toggle-off { background: #7f8c8d; }
     .btn-toggle-on  { background: #16a085; }
 
@@ -104,7 +81,6 @@
 
   <div id="basinPanelBody">
 
-    <!-- ✅ Section: Meteo (collapsible) -->
     <div class="section">
       <div class="section-head">
         <div class="section-title">📡 Μετεωρολογικοί Σταθμοί</div>
@@ -128,7 +104,6 @@
       </div>
     </div>
 
-    <!-- ✅ Section: GeoJSON files (collapsible) -->
     <div class="section">
       <div class="section-head">
         <div class="section-title">🗂️ Αρχεία Έργου (GeoJSON)</div>
@@ -219,7 +194,6 @@
 </div>
 
 <script>
-  // --- CONFIG ---
   const GH_USER = 'petrsanidas-ui';
   const GH_REPO = 'nireas';
   const GH_BRANCH = 'main';
@@ -229,30 +203,26 @@
   let DATA_GROUPS = { basins: [], boundaries: [], streams: [] };
   let SELECTED_GEO = null;
 
-  // Map/Layers state
   let map = null;
 
-  // persistent layers (On/Off)
-  const desiredVisible = new Set();  // paths που είναι "On"
-  const geoLayers = new Map();       // path -> L.GeoJSON layer (persistent cache)
-  const geoData = new Map();         // path -> geojson data cache
+  const desiredVisible = new Set();
+  const geoLayers = new Map();
+  const geoData = new Map();
 
-  // preview layer (Map button)
   let previewLayer = null;
   let previewPath = null;
 
-  // --- UI: Collapsible sections ---
   function toggleSection(bodyId, btnId, storageKey) {
     const body = document.getElementById(bodyId);
     const btn = document.getElementById(btnId);
     const collapsed = body.style.display === 'none';
     body.style.display = collapsed ? 'block' : 'none';
     btn.textContent = collapsed ? '−' : '+';
-    if (storageKey) localStorage.setItem(storageKey, collapsed ? '0' : '1'); // 1=collapsed, 0=expanded
+    if (storageKey) localStorage.setItem(storageKey, collapsed ? '0' : '1');
   }
 
   function applySectionState(bodyId, btnId, storageKey) {
-    const v = localStorage.getItem(storageKey); // '1' collapsed
+    const v = localStorage.getItem(storageKey);
     const body = document.getElementById(bodyId);
     const btn = document.getElementById(btnId);
     if (!body || !btn) return;
@@ -261,9 +231,7 @@
     btn.textContent = collapsed ? '+' : '−';
   }
 
-  // --- INIT ---
   async function init() {
-    // restore section states (before data render)
     applySectionState('meteoBody', 'btnMeteoMin', 'meteoCollapsed');
     applySectionState('geoBody', 'btnGeoMin', 'geoCollapsed');
 
@@ -278,7 +246,9 @@
       DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/') && f.path.endsWith('.geojson'));
       DATA_GROUPS.boundaries = files.filter(f => f.path.includes('data/boundaries/') && f.path.endsWith('.geojson'));
       DATA_GROUPS.streams    = files.filter(f => f.path.includes('data/streams/') && f.path.endsWith('.geojson'));
+
       renderFileList();
+
       const stationFile = files.find(f => f.path.includes('stations.txt'));
       if (stationFile) fetchStations(stationFile.path);
       else updateMeteoStatus("Δεν βρέθηκε το stations.txt");
@@ -289,16 +259,18 @@
       document.getElementById('loader').style.display = 'none';
     }
   }
-  // --- RENDER SIDE PANEL ---
+
   function renderFileList() {
     const tbody = document.getElementById('basinRows');
     tbody.innerHTML = '';
+
     const createSectionRow = (title, icon, color) => {
       const trHead = document.createElement('tr');
       trHead.innerHTML =
         `<td colspan="3" style="background:#f4f6f7; color:${color}; font-weight:bold; text-align:left; padding:5px; border-bottom:1px solid #ccc;">${icon} ${title}</td>`;
       tbody.appendChild(trHead);
     };
+
     const renderList = (list) => {
       list.forEach(f => {
         const name = f.path.split('/').pop().replace('.geojson', '');
@@ -316,6 +288,8 @@
         syncToggleButton(f.path);
       });
     };
+
+    // ✅ ΝΕΑ ΣΕΙΡΑ: boundaries -> streams -> basins (basins στο τέλος)
     if (DATA_GROUPS.boundaries.length) {
       createSectionRow("Διοικητικά Όρια", "🏳️", "#c0392b");
       renderList(DATA_GROUPS.boundaries);
@@ -324,11 +298,19 @@
       createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
       renderList(DATA_GROUPS.streams);
     }
-      if (DATA_GROUPS.basins.length) {
+    if (DATA_GROUPS.basins.length) {
       createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50");
       renderList(DATA_GROUPS.basins);
     }
-  // --- LOAD LOGIC (main tool only) ---
+  }
+
+  async function ensureGeoData(path) {
+    if (geoData.has(path)) return geoData.get(path);
+    const d = await fetch(RAW_URL + path).then(r => r.json());
+    geoData.set(path, d);
+    return d;
+  }
+
   async function loadGeoJSON(path, id) {
     updateMeteoStatus("Φόρτωση: " + id + "...");
     try {
@@ -352,7 +334,6 @@
     }
   }
 
-  // --- STATIONS ---
   async function fetchStations(path) {
     try {
       const resp = await fetch(RAW_URL + path);
@@ -433,7 +414,6 @@
     document.getElementById('meteoStatus').innerText = msg;
   }
 
-  // --- CALCULATION ---
   function calc() {
     const I = parseFloat(document.getElementById('rainI').value)||0;
     const A = parseFloat(document.getElementById('area').value)||0;
@@ -466,9 +446,7 @@
     else s.innerText = "—";
   }
 
-  // =========================
   // MAP SYSTEM (Map=preview, On/Off=persistent)
-  // =========================
   function ensureMap() {
     if (map) return;
     map = L.map('mapBox').setView([38.02, 23.80], 13);
@@ -499,13 +477,6 @@
       return { pane: 'streamsPane', style: { color: "#2980b9", weight: 4 } };
     }
     return { pane: 'basinsPane', style: { color: "#2c3e50", weight: 2, fillOpacity: 0.15 } };
-  }
-
-  async function ensureGeoData(path) {
-    if (geoData.has(path)) return geoData.get(path);
-    const d = await fetch(RAW_URL + path).then(r => r.json());
-    geoData.set(path, d);
-    return d;
   }
 
   async function ensureLayerLoaded(path) {
@@ -600,7 +571,6 @@
     });
   }
 
-  // --- UI ---
   function togglePanel() {
     const b = document.getElementById('basinPanelBody');
     b.style.display = (b.style.display === 'none') ? 'block' : 'none';
