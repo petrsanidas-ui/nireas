@@ -626,9 +626,7 @@
 
   function togglePanel() {
     const b = document.getElementById('basinPanelBody');
-    b.style.display = (b.style.display === 'none') ? 'block' : 'block'; // keep visible; '_' button kept for your UI
-    // Αν θες να κρύβεται ΟΛΟ, άλλαξε σε:
-    // b.style.display = (b.style.display === 'none') ? 'block' : 'none';
+    b.style.display = (b.style.display === 'none') ? 'block' : 'none'; // keep visible; '_' button kept for your UI
   }
 
   window.onload = init;
