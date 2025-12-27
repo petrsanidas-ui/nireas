@@ -1,1 +1,0 @@
-https://api.open-meteo.com/v1/forecast?latitude=38.0237&longitude=23.8007&hourly=temperature_2m&models=ecmwf_ifs
