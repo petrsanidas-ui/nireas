@@ -713,6 +713,148 @@ const EMBEDDED_METEO_AGG = "max";
 
   // --- BASIN MANAGEMENT ---
   const DEFAULT_BASINS = [];
+  // --- REPO AUTO-LOAD (GitHub Pages) ---
+  // Στόχος: να «δουλεύει» σωστά στο https://petrsanidas-ui.github.io/nireas/
+  // Φορτώνει αυτόματα: (α) Όρια Δήμου, (β) Λεκάνες από /data/basins/
+  const REPO_DATA_CFG = {
+    enabled: true,
+    municipalUrl: "data/boundaries/geojson/municipal_chalandriou.geojson",
+    // Προτεινόμενο manifest (ώστε να υποστηρίζεις πολλές λεκάνες χωρίς GitHub API):
+    // data/basins/basins.json  ή  data/basins/index.json
+    basinsManifestUrls: ["data/basins/basins.json", "data/basins/index.json"],
+    basinsDir: "data/basins/",
+    // Αν ο χρήστης δεν έχει ανεβάσει δικά του όρια (cache), προτιμάμε να πάρουμε τα repo όρια.
+    preferRepoMunicipalIfNoUserOverride: true,
+  };
+
+  function _safeRelUrl(u){ return String(u||"").replace(/^\//,''); }
+
+  function _deriveIdFromFile(file){
+    const base = String(file||"").split('/').pop().replace(/\.[^/.]+$/,'');
+    // Επιτρέπουμε λατινικά/ελληνικά γράμματα, ψηφία, _ και -
+    return base.replace(/\s+/g,'_').replace(/[^\w\u0370-\u03FF\u1F00-\u1FFF_-]/g,'') || ("B"+Date.now());
+  }
+
+  async function _fetchJson(url){
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    return await r.json();
+  }
+
+  async function _tryFetchJson(urls){
+    for(const u of (urls||[])){
+      const url = _safeRelUrl(u);
+      try { return await _fetchJson(url); } catch(e) {}
+    }
+    return null;
+  }
+
+  async function _listBasinsViaGithubApi(){
+    try {
+      // Fallback αν ΔΕΝ έχεις manifest. Προσοχή: έχει rate-limit.
+      if(!/github\.io$/i.test(location.hostname)) return null;
+      const owner = location.hostname.split('.')[0];
+      const parts = location.pathname.split('/').filter(Boolean);
+      const repo = parts[0];
+      if(!owner || !repo) return null;
+
+      const api = `https://api.github.com/repos/${owner}/${repo}/contents/data/basins`;
+      const r = await fetch(api, { headers: { "Accept": "application/vnd.github+json" }, cache: "no-store" });
+      if(!r.ok) return null;
+
+      const js = await r.json();
+      if(!Array.isArray(js)) return null;
+
+      return js
+        .filter(x => x && x.type === "file" && /\.geojson$/i.test(x.name))
+        .map(x => x.name);
+    } catch(e){ return null; }
+  }
+
+  function _normalizeBasinsManifest(man){
+    if(!man) return [];
+    if(Array.isArray(man)) return man;
+    if(Array.isArray(man.basins)) return man.basins;
+    if(Array.isArray(man.files)) return man.files;
+    return [];
+  }
+
+  function _normalizeBasinEntry(ent){
+    if(!ent) return null;
+    if(typeof ent === "string") return { file: ent };
+    if(typeof ent !== "object") return null;
+    return ent;
+  }
+
+  async function bootstrapGeoFromRepo(){
+    try {
+      if(!REPO_DATA_CFG.enabled) return;
+      if(!(location.protocol === "http:" || location.protocol === "https:")) return;
+
+      // (1) Όρια Δήμου: μόνο αν δεν υπάρχει ήδη cache (δηλ. δεν έχει ανέβει/σωθεί από τον χρήστη)
+      if(REPO_DATA_CFG.preferRepoMunicipalIfNoUserOverride && !MUNICIPAL_CACHE){
+        try {
+          const muni = await _fetchJson(_safeRelUrl(REPO_DATA_CFG.municipalUrl));
+          if(muni) saveGeoJson("municipal", null, muni);
+        } catch(e) {}
+      }
+
+      // (2) Manifest λεκανών
+      let manifest = await _tryFetchJson(REPO_DATA_CFG.basinsManifestUrls);
+      let entries = _normalizeBasinsManifest(manifest);
+
+      // Fallback: GitHub API listing (αν λείπει manifest)
+      if(!entries.length){
+        const files = await _listBasinsViaGithubApi();
+        if(Array.isArray(files) && files.length) entries = files;
+      }
+      if(!entries.length) return;
+
+      const exists = new Set(DEFAULT_BASINS.map(b => String(b.id)));
+      let changed = false;
+
+      for(const raw of entries){
+        const ent = _normalizeBasinEntry(raw);
+        if(!ent) continue;
+
+        const file = ent.file || ent.filename || ent.path || ent.name;
+        if(!file) continue;
+
+        const id = String(ent.id || _deriveIdFromFile(file)).trim();
+        if(!id || exists.has(id)) continue;
+        exists.add(id);
+
+        const name = String(ent.name || id);
+        const v = ent.values || ent;
+
+        DEFAULT_BASINS.push({
+          id, name,
+          values: {
+            area: _pf(v.area) || 0,
+            length: _pf(v.length) || 0,
+            height: _pf(v.height) || 0,
+            coef: _pf(v.coef) || 0.6
+          }
+        });
+        changed = true;
+
+        // Φορτώνουμε GeoJSON μόνο αν δεν υπάρχει ήδη cached από IDB
+        if(!GEOJSON_CACHE[id]){
+          const url = _safeRelUrl(ent.url || (REPO_DATA_CFG.basinsDir + file));
+          try {
+            const gj = await _fetchJson(url);
+            if(gj) saveGeoJson("basin", id, gj);
+          } catch(e) {}
+        }
+      }
+
+      if(changed){
+        rebuildBasins();
+        renderBasinTable();
+      }
+    } catch(e) { /* ignore */ }
+  }
+
   const KEYS = { CUSTOM: "peq_custom_basins_v1", HIDDEN: "peq_hidden_basins_v1", GLOBAL: "peq_global_v1", BASIN_PFX: "peq_basin_v1_", AUTO: "peq_autosave_mode_v1", METEO: "peq_meteo_station_v1", METEO_CUSTOM: "peq_custom_meteo_stations_v1", METEO_UI: "peq_meteo_ui_v1",  METEO_MULTI: "peq_meteo_station_multi_v1", METEO_AGG: "peq_meteo_agg_v1" };
   let BASINS = [], CURRENT_BASIN_ID = null;
 
@@ -806,7 +948,7 @@ const EMBEDDED_METEO_AGG = "max";
   const blocks = [
     { m: "__EMBEDDED_GEOJSON",        v: "EMBEDDED_GEOJSON_BY_BASIN",     val: gjMap },
     { m: "__EMBEDDED_MUNICIPAL",     v: "EMBEDDED_MUNICIPAL_GEOJSON",     val: getGeoJson('municipal') },
-    { m: "__EMBEDDED_CUSTOM_BASINS", v: "EMBEDDED_CUSTOM_BASINS",        val: BASINS.filter(b => !DEFAULT_BASINS.some(d => d.id === b.id)) },
+    { m: "__EMBEDDED_CUSTOM_BASINS", v: "EMBEDDED_CUSTOM_BASINS",        val: BASINS},
     { m: "__EMBEDDED_HIDDEN_BASINS", v: "EMBEDDED_HIDDEN_BASINS",         val: LSHelper.get(KEYS.HIDDEN) },
 
     // ✅ Meteo: custom stations + multi-selection + aggregation
@@ -2232,7 +2374,8 @@ drawArrow(ctx, x+6, y+Ws/2, x+Ls-6, y+Ws/2, style.stroke);
   // --- INIT ---
   (async function(){
     await initGeojsonStorage();
-    initMeteoPanel();
+        await bootstrapGeoFromRepo();
+initMeteoPanel();
     renderBasinTable(); updateAutoSaveBtn();
     
     const ctrls = document.querySelectorAll('.control-panel input, .control-panel select');
