@@ -179,7 +179,8 @@
 
   let DATA_GROUPS = { basins: [], boundaries: [], streams: [] };
   let SELECTED_GEO = null; 
-  let map, lyr;
+  let map;
+  const geoLayers = new Map(); // path -> L.GeoJSON layer
 
   // --- INIT ---
   async function init() {
@@ -232,7 +233,7 @@
                <td><span style="color:#aaa; font-size:9px;">GEOJSON</span></td>
                <td>
                  <button class="mini-btn btn-load" onclick="loadGeoJSON('${f.path}', '${name}')">Load</button>
-                 <button class="mini-btn btn-map" onclick="showMap('${f.path}')">Map</button>
+                 <button class="mini-btn btn-map" onclick="showMap('${f.path}', this)">Map</button>
                </td>
             `;
             tbody.appendChild(tr);
@@ -374,26 +375,74 @@
   }
 
   // --- MAP ---
-  async function showMap(path) {
-      document.getElementById('mapModal').style.display = 'flex';
-      if(!map) { map = L.map('mapBox').setView([38.02, 23.80], 13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map); }
-      else setTimeout(()=>map.invalidateSize(), 100);
-      
-      if(lyr) lyr.remove();
-      const d = await fetch(RAW_URL + path).then(r=>r.json());
-      
-      let st = { color: "#3388ff" };
-      if(path.includes('boundaries')) st = { color: "#c0392b", fill: false, weight: 3, dashArray: '5, 5' };
-      if(path.includes('streams')) st = { color: "#8e44ad", weight: 4 };
+  function layerOptionsForPath(path) {
+  // panes για σωστό "στοίβαγμα"
+  if (path.includes('boundaries')) {
+    return {
+      pane: 'boundariesPane',
+      style: { color: "#c0392b", fill: false, weight: 3, dashArray: '5, 5' }
+    };
+  }
+  if (path.includes('streams')) {
+    return {
+      pane: 'streamsPane',
+      style: { color: "#2980b9", weight: 4 }
+    };
+  }
+  // basins
+  return {
+    pane: 'basinsPane',
+    style: { color: "#2c3e50", weight: 2, fillOpacity: 0.15 }
+  };
+}
 
-      lyr = L.geoJSON(d, {style:st}).addTo(map);
-      map.fitBounds(lyr.getBounds());
+function fitToVisibleLayers() {
+  if (!map) return;
+  const visible = [...geoLayers.values()].filter(l => map.hasLayer(l));
+  if (!visible.length) return;
+
+  const fg = L.featureGroup(visible);
+  map.fitBounds(fg.getBounds(), { padding: [15, 15] });
+}
+
+async function showMap(path, btn = null) {
+  document.getElementById('mapModal').style.display = 'flex';
+
+  if (!map) {
+    map = L.map('mapBox').setView([38.02, 23.80], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // panes / z-index
+    map.createPane('basinsPane');      map.getPane('basinsPane').style.zIndex = 400;
+    map.createPane('streamsPane');     map.getPane('streamsPane').style.zIndex = 450;
+    map.createPane('boundariesPane');  map.getPane('boundariesPane').style.zIndex = 500;
+  } else {
+    setTimeout(() => map.invalidateSize(), 100);
   }
 
-  function togglePanel() {
-      const b = document.getElementById('basinPanelBody');
-      b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  // αν υπάρχει ήδη layer για αυτό το path => toggle on/off
+  if (geoLayers.has(path)) {
+    const layer = geoLayers.get(path);
+    const isOn = map.hasLayer(layer);
+
+    if (isOn) map.removeLayer(layer);
+    else layer.addTo(map);
+
+    if (btn) btn.textContent = map.hasLayer(layer) ? "On" : "Map";
+    fitToVisibleLayers();
+    return;
   }
+
+  // αλλιώς φόρτωσέ το 1η φορά και κράτα το cache
+  const d = await fetch(RAW_URL + path).then(r => r.json());
+  const { pane, style } = layerOptionsForPath(path);
+
+  const layer = L.geoJSON(d, { pane, style }).addTo(map);
+  geoLayers.set(path, layer);
+
+  if (btn) btn.textContent = "On";
+  fitToVisibleLayers();
+}
 
   window.onload = init;
 </script>
