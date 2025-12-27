@@ -278,9 +278,7 @@
       DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/') && f.path.endsWith('.geojson'));
       DATA_GROUPS.boundaries = files.filter(f => f.path.includes('data/boundaries/') && f.path.endsWith('.geojson'));
       DATA_GROUPS.streams    = files.filter(f => f.path.includes('data/streams/') && f.path.endsWith('.geojson'));
-
       renderFileList();
-
       const stationFile = files.find(f => f.path.includes('stations.txt'));
       if (stationFile) fetchStations(stationFile.path);
       else updateMeteoStatus("Δεν βρέθηκε το stations.txt");
@@ -291,19 +289,16 @@
       document.getElementById('loader').style.display = 'none';
     }
   }
-
   // --- RENDER SIDE PANEL ---
   function renderFileList() {
     const tbody = document.getElementById('basinRows');
     tbody.innerHTML = '';
-
     const createSectionRow = (title, icon, color) => {
       const trHead = document.createElement('tr');
       trHead.innerHTML =
         `<td colspan="3" style="background:#f4f6f7; color:${color}; font-weight:bold; text-align:left; padding:5px; border-bottom:1px solid #ccc;">${icon} ${title}</td>`;
       tbody.appendChild(trHead);
     };
-
     const renderList = (list) => {
       list.forEach(f => {
         const name = f.path.split('/').pop().replace('.geojson', '');
@@ -321,18 +316,17 @@
         syncToggleButton(f.path);
       });
     };
-
-    if (DATA_GROUPS.basins.length) {
-      createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50");
-      renderList(DATA_GROUPS.basins);
+    if (DATA_GROUPS.streams.length) {
+      createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
+      renderList(DATA_GROUPS.streams);
     }
     if (DATA_GROUPS.boundaries.length) {
       createSectionRow("Διοικητικά Όρια", "🏳️", "#c0392b");
       renderList(DATA_GROUPS.boundaries);
     }
-    if (DATA_GROUPS.streams.length) {
-      createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
-      renderList(DATA_GROUPS.streams);
+      if (DATA_GROUPS.basins.length) {
+      createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50");
+      renderList(DATA_GROUPS.basins);
     }
   }
 
