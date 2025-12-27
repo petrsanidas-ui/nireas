@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>P_eq Screening Tool (GitHub Hybrid)</title>
+  <title>P_eq Screening Tool (NIREAS)</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -29,7 +29,7 @@
     .form-group input, .form-group select { flex: 1; height: 28px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; }
 
     #basinPanel {
-      position: fixed; top: 10px; left: 10px; width: 360px; max-height: 90vh; overflow-y: auto;
+      position: fixed; top: 10px; left: 10px; width: 380px; max-height: 90vh; overflow-y: auto;
       background: white; z-index: 9000; box-shadow: 0 0 15px rgba(0,0,0,0.2); border-radius: 8px; font-size: 11px;
       border: 1px solid #ccc;
     }
@@ -43,9 +43,13 @@
 
     .mini-btn { padding: 2px 6px; font-size: 10px; border-radius: 3px; cursor: pointer; border: none; color: white; margin-left: 2px; }
     .btn-load { background: #2980b9; }
-    .btn-map { background: #27ae60; }
-    .btn-web { background: #e67e22; }
+    .btn-map  { background: #27ae60; }
+    .btn-web  { background: #e67e22; }
     .btn-gray { background: #95a5a6; }
+
+    /* ✅ νέο toggle On/Off */
+    .btn-toggle-off { background: #7f8c8d; }
+    .btn-toggle-on  { background: #16a085; }
 
     #mapModal { display: none; position: fixed; inset: 20px; background: white; border: 1px solid #ccc; z-index: 10000; box-shadow: 0 0 25px rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; flex-direction: column; }
     #mapBox { flex: 1; width: 100%; border: 1px solid #ddd; margin-top: 10px; }
@@ -55,8 +59,8 @@
 
     #loader { padding: 10px; background: #eaf2f8; color: #2980b9; font-weight: bold; display: none; text-align: center; }
 
-    @media (max-width: 800px) {
-      #basinPanel { position: relative; width: 100%; top: 0; left: 0; margin-bottom: 20px; max-height: 400px; }
+    @media (max-width: 900px) {
+      #basinPanel { position: relative; width: 100%; top: 0; left: 0; margin-bottom: 20px; max-height: 420px; }
       .container { border-top: none; }
       .panels-row { flex-direction: column; }
     }
@@ -97,8 +101,9 @@
       </thead>
       <tbody id="basinRows"></tbody>
     </table>
-    <div style="padding:5px; font-size:9px; color:#777; text-align:left;">
-      *Φόρτωση από φακέλους: <b>basins, boundaries, streams</b>
+
+    <div style="padding:6px; font-size:9px; color:#777; text-align:left;">
+      *Load = φορτώνει δεδομένα στο κύριο εργαλείο. Map = ανοίγει χάρτη/zoom. On/Off = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).
     </div>
   </div>
 </div>
@@ -106,7 +111,7 @@
 <div class="container">
   <h1 style="display:flex; justify-content:space-between; align-items:center;">
     <span>P<sub>eq</sub> Screening Tool</span>
-    <span style="font-size:12px; color:#7f8c8d; font-weight:normal;">vHybrid (Fixed Toggle)</span>
+    <span style="font-size:12px; color:#7f8c8d; font-weight:normal;">NIREAS UI</span>
   </h1>
 
   <div class="control-panel">
@@ -149,10 +154,6 @@
     <div class="stat-item" style="color:#2980b9;">Qcap (Manning)<span id="res-cap">0.00 m³/s</span></div>
     <div class="stat-item">Κατάσταση<span id="res-status">—</span></div>
   </div>
-
-  <div style="font-size:10px; color:#7f8c8d; margin-top:20px;">
-    <b>Οδηγία:</b> Load = μόνο φόρτωση τιμών. Map = ανοίγει χάρτη και ενεργοποιεί layer. On = απενεργοποιεί layer χωρίς να ανοίγει χάρτης.
-  </div>
 </div>
 
 <div id="mapModal">
@@ -160,7 +161,7 @@
     <b>Προβολή Χάρτη</b>
     <div>
       <button class="mini-btn btn-gray" onclick="clearMapLayers()">Καθαρισμός</button>
-      <button class="mini-btn btn-gray" onclick="document.getElementById('mapModal').style.display='none'">Κλείσιμο</button>
+      <button class="mini-btn btn-gray" onclick="closeMap()">Κλείσιμο</button>
     </div>
   </div>
   <div id="mapBox"></div>
@@ -177,9 +178,10 @@
   let DATA_GROUPS = { basins: [], boundaries: [], streams: [] };
   let SELECTED_GEO = null;
 
-  // ✅ MULTI-LAYER MAP STATE
-  let map;
-  const geoLayers = new Map(); // path -> L.GeoJSON layer
+  // ✅ Map/Layers state
+  let map = null;
+  const geoLayers = new Map();       // path -> L.GeoJSON (cache)
+  const desiredVisible = new Set();  // path που θέλω να είναι ON (πολλαπλές επιλογές)
 
   // --- INIT ---
   async function init() {
@@ -222,16 +224,21 @@
 
       list.forEach(f => {
         const name = f.path.split('/').pop().replace('.geojson', '');
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td style="text-align:left; padding-left:10px;">${name}</td>
           <td><span style="color:#aaa; font-size:9px;">GEOJSON</span></td>
           <td>
             <button class="mini-btn btn-load" onclick="loadGeoJSON('${f.path}', '${name}')">Load</button>
-            <button class="mini-btn btn-map geo-map-btn" data-path="${f.path}" onclick="showMap('${f.path}', this)">Map</button>
+            <button class="mini-btn btn-map" data-path="${f.path}" onclick="mapFocus('${f.path}')">Map</button>
+            <button class="mini-btn btn-toggle-off geo-toggle-btn" data-path="${f.path}" onclick="toggleLayer('${f.path}', this)">Off</button>
           </td>
         `;
         tbody.appendChild(tr);
+
+        // συγχρονισμός αρχικής κατάστασης toggle (αν κάτι είναι ήδη desiredVisible)
+        syncToggleButton(f.path);
       });
     };
 
@@ -240,7 +247,7 @@
     createSection("Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#2980b9");
   }
 
-  // --- LOAD LOGIC (✅ ΔΕΝ ΑΝΟΙΓΕΙ ΧΑΡΤΗ) ---
+  // --- LOAD LOGIC (✅ ΜΟΝΟ main tool, ΟΧΙ χάρτης) ---
   async function loadGeoJSON(path, id) {
     updateMeteoStatus("Φόρτωση: " + id + "...");
     try {
@@ -258,14 +265,14 @@
       if (p.height) document.getElementById('height').value = p.height;
       if (p.coef)   document.getElementById('coef').value = p.coef;
 
-      updateMeteoStatus(`Φορτώθηκε: ${id}`);
+      updateMeteoStatus(`Φορτώθηκε στο κύριο εργαλείο: ${id}`);
       calc();
     } catch(e) {
       alert("Σφάλμα: " + e.message);
     }
   }
 
-  // --- STATIONS LOGIC ---
+  // --- STATIONS ---
   async function fetchStations(path) {
     try {
       const resp = await fetch(RAW_URL + path);
@@ -318,7 +325,6 @@
     }
   }
 
-  // --- OPEN METEO ---
   async function fetchLiveMeteo() {
     let lat = 38.02, lon = 23.80;
     if (SELECTED_GEO && SELECTED_GEO.features) {
@@ -381,15 +387,15 @@
   }
 
   // =========================
-  // ✅ MULTI-LAYER MAP (TOGGLE) - FIXED
-  // Map ανοίγει ΜΟΝΟ όταν πάμε από OFF -> ON
-  // On (ON -> OFF) ΔΕΝ ανοίγει modal
+  // ✅ MAP: 3 κουμπιά όπως ζήτησες
+  // Load (main tool)  |  Map (άνοιγμα/zoom)  |  On/Off (πολλαπλά layers)
   // =========================
   function ensureMap() {
     if (map) return;
     map = L.map('mapBox').setView([38.02, 23.80], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+    // panes / z-index
     map.createPane('basinsPane');     map.getPane('basinsPane').style.zIndex = 400;
     map.createPane('streamsPane');    map.getPane('streamsPane').style.zIndex = 450;
     map.createPane('boundariesPane'); map.getPane('boundariesPane').style.zIndex = 500;
@@ -405,67 +411,94 @@
     return { pane: 'basinsPane', style: { color: "#2c3e50", weight: 2, fillOpacity: 0.15 } };
   }
 
-  function fitToVisibleLayers() {
-    if (!map) return;
-    const visible = [...geoLayers.values()].filter(l => map.hasLayer(l));
-    if (!visible.length) return;
-    const fg = L.featureGroup(visible);
-    map.fitBounds(fg.getBounds(), { padding: [15, 15] });
+  async function ensureLayerLoaded(path) {
+    if (geoLayers.has(path)) return geoLayers.get(path);
+    const d = await fetch(RAW_URL + path).then(r => r.json());
+    const layer = L.geoJSON(d, layerOptionsForPath(path));
+    geoLayers.set(path, layer);
+    return layer;
   }
 
-  function syncMapButton(path, isOn) {
-    const btn = document.querySelector(`.geo-map-btn[data-path="${path}"]`);
-    if (btn) btn.textContent = isOn ? "On" : "Map";
-  }
-
-  // ✅ FIXED showMap: ON->OFF δεν ανοίγει modal, OFF->ON ανοίγει modal
-  async function showMap(path, btn = null) {
-    const layer = geoLayers.get(path);
-    const mapExists = !!map;
-    const isOn = mapExists && layer && map.hasLayer(layer);
-
-    // Αν είναι ON -> το κλείνουμε ΧΩΡΙΣ να ανοίξουμε χάρτη
-    if (isOn) {
-      map.removeLayer(layer);
-      if (btn) btn.textContent = "Map";
-      else syncMapButton(path, false);
-      fitToVisibleLayers();
-      return;
-    }
-
-    // Από εδώ και κάτω: θέλω να το κάνω ON -> ανοίγω modal
+  function openMapModal() {
     document.getElementById('mapModal').style.display = 'flex';
     ensureMap();
     setTimeout(() => map.invalidateSize(), 100);
-
-    // Αν υπάρχει ήδη αλλά OFF -> το ανάβω
-    if (geoLayers.has(path)) {
-      const l = geoLayers.get(path);
-      l.addTo(map);
-      if (btn) btn.textContent = "On";
-      else syncMapButton(path, true);
-      fitToVisibleLayers();
-      return;
-    }
-
-    // 1η φορά: fetch + add + cache
-    const d = await fetch(RAW_URL + path).then(r => r.json());
-    const opts = layerOptionsForPath(path);
-    const newLayer = L.geoJSON(d, opts).addTo(map);
-    geoLayers.set(path, newLayer);
-
-    if (btn) btn.textContent = "On";
-    else syncMapButton(path, true);
-
-    fitToVisibleLayers();
   }
 
-  function clearMapLayers() {
+  function closeMap() {
+    document.getElementById('mapModal').style.display = 'none';
+  }
+
+  async function applyDesiredVisibility() {
     if (!map) return;
-    for (const layer of geoLayers.values()) {
-      if (map.hasLayer(layer)) map.removeLayer(layer);
+
+    // 1) αφαίρεσε όσα δεν είναι desiredVisible
+    for (const [path, layer] of geoLayers.entries()) {
+      if (map.hasLayer(layer) && !desiredVisible.has(path)) {
+        map.removeLayer(layer);
+      }
     }
-    document.querySelectorAll('.geo-map-btn').forEach(b => b.textContent = "Map");
+
+    // 2) πρόσθεσε όσα είναι desiredVisible
+    for (const path of desiredVisible) {
+      const layer = await ensureLayerLoaded(path);
+      if (!map.hasLayer(layer)) layer.addTo(map);
+    }
+  }
+
+  function syncToggleButton(path) {
+    const btn = document.querySelector(`.geo-toggle-btn[data-path="${path}"]`);
+    if (!btn) return;
+    const isOn = desiredVisible.has(path);
+    btn.textContent = isOn ? "On" : "Off";
+    btn.classList.toggle('btn-toggle-on', isOn);
+    btn.classList.toggle('btn-toggle-off', !isOn);
+  }
+
+  // ✅ On/Off: ΔΕΝ ανοίγει χάρτη. Απλά αλλάζει state. Αν ο χάρτης είναι ανοιχτός, ενημερώνει και τα layers.
+  async function toggleLayer(path, btn) {
+    if (desiredVisible.has(path)) desiredVisible.delete(path);
+    else desiredVisible.add(path);
+
+    syncToggleButton(path);
+
+    // αν χάρτης υπάρχει/είναι ανοιχτός, ενημέρωσε layers
+    if (map) {
+      await applyDesiredVisibility();
+    }
+  }
+
+  // ✅ Map: ανοίγει χάρτη + zoom στο layer.
+  // Αν είναι Off, το κάνει On αυτόματα (και ενημερώνει το κουμπί On/Off).
+  async function mapFocus(path) {
+    openMapModal();
+
+    // map σημαίνει "θέλω να το δω": το κάνουμε On
+    desiredVisible.add(path);
+    syncToggleButton(path);
+
+    await applyDesiredVisibility();
+
+    const layer = await ensureLayerLoaded(path);
+    try {
+      const b = layer.getBounds();
+      if (b && b.isValid && b.isValid()) map.fitBounds(b, { padding: [15, 15] });
+      else if (b) map.fitBounds(b, { padding: [15, 15] });
+    } catch (e) {}
+  }
+
+  // ✅ Καθαρισμός: όλα Off
+  function clearMapLayers() {
+    desiredVisible.clear();
+    if (map) {
+      for (const layer of geoLayers.values()) {
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+      }
+    }
+    document.querySelectorAll('.geo-toggle-btn').forEach(btn => {
+      const p = btn.getAttribute('data-path');
+      syncToggleButton(p);
+    });
   }
 
   // --- UI ---
