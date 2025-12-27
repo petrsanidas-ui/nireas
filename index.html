@@ -14,7 +14,6 @@
 
     .container { width: 100%; max-width: 210mm; margin: 0 auto; background: white; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid #2c3e50; min-height: 800px; }
     h1 { color: #2c3e50; font-size: 20px; text-transform: uppercase; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
-    h3 { margin: 0 0 10px 0; font-size: 12px; color: #444; text-transform: uppercase; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: bold; }
 
     .control-panel { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; text-align: left; }
     .panels-row { display: flex; gap: 10px; }
@@ -34,7 +33,33 @@
       border: 1px solid #ccc;
     }
     .bp-head { background: #2c3e50; color: white; padding: 8px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-    .bp-subhead { background: #f4f6f7; padding: 5px; border-bottom: 1px solid #ddd; font-weight: bold; color: #555; }
+
+    /* ✅ Collapsible sections */
+    .section {
+      border-bottom: 2px solid #eee;
+      background: #fcfcfc;
+    }
+    .section-head {
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      color:#2c3e50;
+      user-select: none;
+    }
+    .section-title {
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .section-body {
+      padding: 10px;
+      padding-top: 0;
+    }
 
     table { width: 100%; border-collapse: collapse; font-size: 10px; }
     th { background: #34495e; color: white; padding: 6px; position: sticky; top: 0; }
@@ -78,34 +103,53 @@
   <div id="loader">🔄 Φόρτωση δεδομένων...</div>
 
   <div id="basinPanelBody">
-    <div style="padding:10px; background:#fcfcfc; border-bottom:2px solid #eee;">
-      <h3 style="margin-top:0;">📡 Μετεωρολογικοί Σταθμοί</h3>
-      <div style="display:flex; gap:5px; margin-bottom:5px;">
-        <select id="meteoStationSelect" style="flex:1; font-size:11px; padding:4px;">
-          <option value="">Επιλογή σταθμού...</option>
-        </select>
-        <button class="mini-btn btn-web" onclick="openStationWeb()" title="Άνοιγμα σελίδας σταθμού">🔗 Web</button>
+
+    <!-- ✅ Section: Meteo (collapsible) -->
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">📡 Μετεωρολογικοί Σταθμοί</div>
+        <button id="btnMeteoMin" class="mini-btn btn-gray" onclick="toggleSection('meteoBody','btnMeteoMin','meteoCollapsed')">−</button>
       </div>
 
-      <div style="display:flex; gap:5px; justify-content:space-between;">
-        <button class="mini-btn btn-load" style="flex:1; padding:6px;" onclick="fetchStationData()">⬇️ Λήψη (API)</button>
-        <button class="mini-btn btn-map" style="flex:1; padding:6px;" onclick="fetchLiveMeteo()">🌍 Open-Meteo</button>
+      <div id="meteoBody" class="section-body">
+        <div style="display:flex; gap:5px; margin-bottom:8px;">
+          <select id="meteoStationSelect" style="flex:1; font-size:11px; padding:4px;">
+            <option value="">Επιλογή σταθμού...</option>
+          </select>
+          <button class="mini-btn btn-web" onclick="openStationWeb()" title="Άνοιγμα σελίδας σταθμού">🔗 Web</button>
+        </div>
+
+        <div style="display:flex; gap:5px; justify-content:space-between;">
+          <button class="mini-btn btn-load" style="flex:1; padding:6px;" onclick="fetchStationData()">⬇️ Λήψη (API)</button>
+          <button class="mini-btn btn-map" style="flex:1; padding:6px;" onclick="fetchLiveMeteo()">🌍 Open-Meteo</button>
+        </div>
+
+        <div id="meteoStatus" style="font-size:9px; color:#666; margin-top:6px; font-style:italic;">Αναμονή...</div>
       </div>
-      <div id="meteoStatus" style="font-size:9px; color:#666; margin-top:4px; font-style:italic;">Αναμονή...</div>
     </div>
 
-    <div class="bp-subhead">Αρχεία Έργου (GeoJSON)</div>
-    <table>
-      <thead>
-        <tr><th>Όνομα</th><th>Τύπος</th><th>Ενέργεια</th></tr>
-      </thead>
-      <tbody id="basinRows"></tbody>
-    </table>
+    <!-- ✅ Section: GeoJSON files (collapsible) -->
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">🗂️ Αρχεία Έργου (GeoJSON)</div>
+        <button id="btnGeoMin" class="mini-btn btn-gray" onclick="toggleSection('geoBody','btnGeoMin','geoCollapsed')">−</button>
+      </div>
 
-    <div style="padding:6px; font-size:9px; color:#777; text-align:left;">
-      *Load = φορτώνει δεδομένα στο κύριο εργαλείο (P_eq). Map = προεπισκόπηση στον χάρτη (zoom) χωρίς να αλλάζει το On/Off.
-      On/Off = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).
+      <div id="geoBody" class="section-body" style="padding-bottom:6px;">
+        <table>
+          <thead>
+            <tr><th>Όνομα</th><th>Τύπος</th><th>Ενέργεια</th></tr>
+          </thead>
+          <tbody id="basinRows"></tbody>
+        </table>
+
+        <div style="padding:6px 2px; font-size:9px; color:#777; text-align:left;">
+          *Load = φορτώνει δεδομένα στο κύριο εργαλείο (P_eq). Map = προεπισκόπηση στον χάρτη (zoom) χωρίς να αλλάζει το On/Off.
+          On/Off = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).
+        </div>
+      </div>
     </div>
+
   </div>
 </div>
 
@@ -117,7 +161,9 @@
 
   <div class="control-panel">
     <div class="panel panel-rain">
-      <h3>Δεδομένα Βροχόπτωσης</h3>
+      <div style="font-weight:800; text-transform:uppercase; font-size:12px; border-bottom:1px solid rgba(0,0,0,.1); padding-bottom:5px; margin-bottom:8px;">
+        Δεδομένα Βροχόπτωσης
+      </div>
       <div class="form-group">
         <label>Ένταση i (mm/h):</label>
         <input type="number" id="rainI" value="0" step="0.1" oninput="calc()">
@@ -133,7 +179,9 @@
 
     <div class="panels-row">
       <div class="panel panel-geo">
-        <h3>Γεωμετρία Λεκάνης</h3>
+        <div style="font-weight:800; text-transform:uppercase; font-size:12px; border-bottom:1px solid rgba(0,0,0,.1); padding-bottom:5px; margin-bottom:8px;">
+          Γεωμετρία Λεκάνης
+        </div>
         <div class="form-group"><label>Εμβαδόν A (m²):</label><input type="number" id="area" value="0" oninput="calc()"></div>
         <div class="form-group"><label>Μήκος L (m):</label><input type="number" id="length" value="0" oninput="calc()"></div>
         <div class="form-group"><label>Υψόμετρο H (m):</label><input type="number" id="height" value="0" oninput="calc()"></div>
@@ -141,7 +189,9 @@
       </div>
 
       <div class="panel panel-stream">
-        <h3>Διόδευση / Αγωγός</h3>
+        <div style="font-weight:800; text-transform:uppercase; font-size:12px; border-bottom:1px solid rgba(0,0,0,.1); padding-bottom:5px; margin-bottom:8px;">
+          Διόδευση / Αγωγός
+        </div>
         <div class="form-group"><label>Πλάτος b (m):</label><input type="number" id="strWidth" value="0" oninput="calc()"></div>
         <div class="form-group"><label>Βάθος h (m):</label><input type="number" id="strDepth" value="0" oninput="calc()"></div>
         <div class="form-group"><label>Manning n:</label><input type="number" id="strN" value="0.030" oninput="calc()"></div>
@@ -179,7 +229,7 @@
   let DATA_GROUPS = { basins: [], boundaries: [], streams: [] };
   let SELECTED_GEO = null;
 
-  // ✅ Map/Layers state
+  // Map/Layers state
   let map = null;
 
   // persistent layers (On/Off)
@@ -191,8 +241,32 @@
   let previewLayer = null;
   let previewPath = null;
 
+  // --- UI: Collapsible sections ---
+  function toggleSection(bodyId, btnId, storageKey) {
+    const body = document.getElementById(bodyId);
+    const btn = document.getElementById(btnId);
+    const collapsed = body.style.display === 'none';
+    body.style.display = collapsed ? 'block' : 'none';
+    btn.textContent = collapsed ? '−' : '+';
+    if (storageKey) localStorage.setItem(storageKey, collapsed ? '0' : '1'); // 1=collapsed, 0=expanded
+  }
+
+  function applySectionState(bodyId, btnId, storageKey) {
+    const v = localStorage.getItem(storageKey); // '1' collapsed
+    const body = document.getElementById(bodyId);
+    const btn = document.getElementById(btnId);
+    if (!body || !btn) return;
+    const collapsed = (v === '1');
+    body.style.display = collapsed ? 'none' : 'block';
+    btn.textContent = collapsed ? '+' : '−';
+  }
+
   // --- INIT ---
   async function init() {
+    // restore section states (before data render)
+    applySectionState('meteoBody', 'btnMeteoMin', 'meteoCollapsed');
+    applySectionState('geoBody', 'btnGeoMin', 'geoCollapsed');
+
     document.getElementById('loader').style.display = 'block';
     try {
       const resp = await fetch(API_TREE);
@@ -223,17 +297,16 @@
     const tbody = document.getElementById('basinRows');
     tbody.innerHTML = '';
 
-    const createSection = (title, list, icon, color) => {
-      if (!list.length) return;
-
+    const createSectionRow = (title, icon, color) => {
       const trHead = document.createElement('tr');
       trHead.innerHTML =
         `<td colspan="3" style="background:#f4f6f7; color:${color}; font-weight:bold; text-align:left; padding:5px; border-bottom:1px solid #ccc;">${icon} ${title}</td>`;
       tbody.appendChild(trHead);
+    };
 
+    const renderList = (list) => {
       list.forEach(f => {
         const name = f.path.split('/').pop().replace('.geojson', '');
-
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td style="text-align:left; padding-left:10px;">${name}</td>
@@ -249,12 +322,21 @@
       });
     };
 
-    createSection("Λεκάνες Απορροής", DATA_GROUPS.basins, "⛰️", "#2c3e50");
-    createSection("Διοικητικά Όρια", DATA_GROUPS.boundaries, "🏳️", "#c0392b");
-    createSection("Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#2980b9");
+    if (DATA_GROUPS.basins.length) {
+      createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50");
+      renderList(DATA_GROUPS.basins);
+    }
+    if (DATA_GROUPS.boundaries.length) {
+      createSectionRow("Διοικητικά Όρια", "🏳️", "#c0392b");
+      renderList(DATA_GROUPS.boundaries);
+    }
+    if (DATA_GROUPS.streams.length) {
+      createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
+      renderList(DATA_GROUPS.streams);
+    }
   }
 
-  // --- LOAD LOGIC (✅ ΜΟΝΟ main tool, ΟΧΙ χάρτης) ---
+  // --- LOAD LOGIC (main tool only) ---
   async function loadGeoJSON(path, id) {
     updateMeteoStatus("Φόρτωση: " + id + "...");
     try {
@@ -393,20 +475,17 @@
   }
 
   // =========================
-  // ✅ MAP SYSTEM
-  // - Map button: PREVIEW (zoom) χωρίς να αλλάζει On/Off
-  // - On/Off: persistent layers (multi)
+  // MAP SYSTEM (Map=preview, On/Off=persistent)
   // =========================
   function ensureMap() {
     if (map) return;
     map = L.map('mapBox').setView([38.02, 23.80], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // panes / z-index
     map.createPane('basinsPane');     map.getPane('basinsPane').style.zIndex = 400;
     map.createPane('streamsPane');    map.getPane('streamsPane').style.zIndex = 450;
     map.createPane('boundariesPane'); map.getPane('boundariesPane').style.zIndex = 500;
-    map.createPane('previewPane');    map.getPane('previewPane').style.zIndex = 600; // πάντα πάνω
+    map.createPane('previewPane');    map.getPane('previewPane').style.zIndex = 600;
   }
 
   function openMapModal() {
@@ -455,14 +534,9 @@
   async function applyDesiredVisibility() {
     if (!map) return;
 
-    // remove persistent layers that should be Off
     for (const [path, layer] of geoLayers.entries()) {
-      if (map.hasLayer(layer) && !desiredVisible.has(path)) {
-        map.removeLayer(layer);
-      }
+      if (map.hasLayer(layer) && !desiredVisible.has(path)) map.removeLayer(layer);
     }
-
-    // add persistent layers that should be On
     for (const path of desiredVisible) {
       const layer = await ensureLayerLoaded(path);
       if (!map.hasLayer(layer)) layer.addTo(map);
@@ -478,43 +552,29 @@
     btn.classList.toggle('btn-toggle-off', !isOn);
   }
 
-  // ✅ On/Off: δεν ανοίγει χάρτη. Αν ο χάρτης είναι ήδη ανοιχτός, ενημερώνει άμεσα.
   async function toggleLayer(path) {
     if (desiredVisible.has(path)) desiredVisible.delete(path);
     else desiredVisible.add(path);
 
     syncToggleButton(path);
 
-    // αν υπάρχει preview για το ίδιο path, καθάρισέ το (να μην φαίνεται διπλό)
     if (previewPath === path) clearPreview();
-
-    if (map) {
-      await applyDesiredVisibility();
-    }
+    if (map) await applyDesiredVisibility();
   }
 
-  // ✅ Map: ανοίγει χάρτη + zoom.
-  // - αν το layer είναι On: zoom στο persistent layer
-  // - αν είναι Off: δείχνει ΜΟΝΟ preview (χωρίς να αλλάζει On/Off)
   async function mapPreview(path) {
     openMapModal();
-
-    // πάντα εμφάνισε τα persistent layers όπως είναι (On/Off)
     await applyDesiredVisibility();
-
-    // καθάρισε προηγούμενο preview
     clearPreview();
 
-    // αν είναι ήδη On -> zoom στο persistent layer
     if (desiredVisible.has(path)) {
       const layer = await ensureLayerLoaded(path);
-      if (!map.hasLayer(layer)) layer.addTo(map); // safety
+      if (!map.hasLayer(layer)) layer.addTo(map);
       const b = layer.getBounds();
       if (b) map.fitBounds(b, { padding: [15, 15] });
       return;
     }
 
-    // αν είναι Off -> preview μόνο
     const d = await ensureGeoData(path);
     const base = layerOptionsForPath(path);
 
@@ -528,12 +588,10 @@
     }).addTo(map);
 
     previewPath = path;
-
     const b = previewLayer.getBounds();
     if (b) map.fitBounds(b, { padding: [15, 15] });
   }
 
-  // Καθαρισμός: όλα Off + καθάρισε preview + βγάλε layers από map (αν υπάρχει)
   function clearMapLayers() {
     desiredVisible.clear();
     clearPreview();
