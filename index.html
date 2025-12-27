@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>P_eq Screening Tool (NIREAS)</title>
+  <title>P_eq Screening Tool (NIREAS) - 3D/2D</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 
   <style>
     * { box-sizing: border-box; }
@@ -18,7 +21,7 @@
       margin:0;
     }
 
-    /* ✅ Desktop layout: panel left, tool right (no overlap) */
+    /* Layout */
     .layout{
       display:flex;
       gap:20px;
@@ -27,7 +30,7 @@
       width:100%;
     }
 
-    /* LEFT PANEL (no fixed πλέον) */
+    /* LEFT PANEL */
     #basinPanel{
       width:410px;
       max-height:calc(100vh - 40px);
@@ -38,8 +41,6 @@
       border-radius:8px;
       font-size:11px;
       border:1px solid #ccc;
-
-      /* ✅ stay visible while scrolling */
       position:sticky;
       top:10px;
       align-self:flex-start;
@@ -109,6 +110,7 @@
     .btn-toggle-off{ background:#7f8c8d; }
     .btn-toggle-on{ background:#16a085; }
 
+    /* MAP MODAL & SWITCHER */
     #mapModal{
       display:none;
       position:fixed;
@@ -118,10 +120,55 @@
       z-index:10000;
       box-shadow:0 0 25px rgba(0,0,0,0.3);
       border-radius:8px;
-      padding:10px;
+      padding:0; /* changed padding */
       flex-direction:column;
+      overflow:hidden;
     }
-    #mapBox{ flex:1; width:100%; border:1px solid #ddd; margin-top:10px; }
+
+    .map-header {
+        padding: 10px;
+        background: #f4f6f7;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .map-switcher {
+        display: flex;
+        gap: 5px;
+    }
+    .switch-btn {
+        padding: 5px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        background: #fff;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    .switch-btn.active {
+        background: #2c3e50;
+        color: white;
+        border-color: #2c3e50;
+    }
+
+    /* Containers for maps */
+    #mapContainer {
+        flex: 1;
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+    #map2D, #map3D {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100%; height: 100%;
+    }
+    #map3D { display: none; } /* Hidden by default */
+
+    /* Override Cesium Credit visibility if needed or layout */
+    .cesium-viewer-bottom { display:none; } /* Hide bottom logo bar for cleaner UI (optional) */
 
     .summary-box{
       background:#fff;
@@ -138,7 +185,6 @@
 
     #loader{ padding:10px; background:#eaf2f8; color:#2980b9; font-weight:bold; display:none; text-align:center; }
 
-    /* ✅ Mobile: stack vertically */
     @media (max-width: 1100px){
       .layout{ flex-direction:column; align-items:stretch; }
       #basinPanel{ width:100%; position:relative; top:0; max-height:480px; }
@@ -152,7 +198,6 @@
 
 <div class="layout">
 
-  <!-- LEFT: GitHub Data -->
   <div id="basinPanel">
     <div class="bp-head">
       <span>GitHub Data: <span style="color:#f39c12;">nireas</span></span>
@@ -201,8 +246,8 @@
           </table>
 
           <div style="padding:6px 2px; font-size:9px; color:#777; text-align:left;">
-            *Load = φορτώνει δεδομένα στο κύριο εργαλείο (P_eq). Map = προεπισκόπηση στον χάρτη (zoom) χωρίς να αλλάζει το On/Off.
-            On/Off = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).
+            *Load = φορτώνει δεδομένα στο P_eq. Map = προεπισκόπηση. <br>
+            On/Off = layers στο χάρτη.
           </div>
         </div>
       </div>
@@ -210,7 +255,6 @@
     </div>
   </div>
 
-  <!-- RIGHT: P_eq Tool -->
   <div class="container">
     <h1 style="display:flex; justify-content:space-between; align-items:center;">
       <span>P<sub>eq</sub> Screening Tool</span>
@@ -230,9 +274,6 @@
           <label>Διάρκεια D (min):</label>
           <input type="number" id="rainD" value="0" oninput="calc()">
         </div>
-        <div style="font-size:10px; color:#555; text-align:right;">
-          *Αν D=0, χρησιμοποιείται το Tc
-        </div>
       </div>
 
       <div class="panels-row">
@@ -242,7 +283,7 @@
           </div>
           <div class="form-group"><label>Εμβαδόν A (m²):</label><input type="number" id="area" value="0" oninput="calc()"></div>
           <div class="form-group"><label>Μήκος L (m):</label><input type="number" id="length" value="0" oninput="calc()"></div>
-          <div class="form-group"><label>Υψόμετρο H (m):</label><input type="number" id="height" value="0" oninput="calc()"></div>
+          <div class="form-group"><label>Υψομ. Διαφορά H:</label><input type="number" id="height" value="0" oninput="calc()"></div>
           <div class="form-group"><label>Συντελεστής C:</label><input type="number" id="coef" value="0.40" oninput="calc()"></div>
         </div>
 
@@ -267,19 +308,27 @@
 
 </div>
 
-<!-- MAP MODAL -->
 <div id="mapModal">
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <b>Προβολή Χάρτη</b>
+  <div class="map-header">
+    <div class="map-switcher">
+        <button id="btn2D" class="switch-btn active" onclick="switchMode('2D')">2D Χάρτης</button>
+        <button id="btn3D" class="switch-btn" onclick="switchMode('3D')">3D Υδρόγειος</button>
+    </div>
     <div>
       <button class="mini-btn btn-gray" onclick="clearMapLayers()">Καθαρισμός (Off όλα)</button>
       <button class="mini-btn btn-gray" onclick="closeMap()">Κλείσιμο</button>
     </div>
   </div>
-  <div id="mapBox"></div>
+  
+  <div id="mapContainer">
+      <div id="map2D"></div> <div id="map3D"></div> </div>
 </div>
 
 <script>
+  // Ρύθμιση CESIUM TOKEN
+  const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmMzgxNTkxYi03MjAxLTRmMmUtYTc4MS03N2Y1Mjc5OWEzYTciLCJpZCI6MzcxODgzLCJpYXQiOjE3NjY4NjQzNDl9.SqwIHOmHx9BhfQ69t76WPBchyrcP0qR8FptCb3_uByM';
+  Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
+
   const GH_USER = 'petrsanidas-ui';
   const GH_REPO = 'nireas';
   const GH_BRANCH = 'main';
@@ -289,13 +338,22 @@
   let DATA_GROUPS = { basins: [], boundaries: [], streams: [] };
   let SELECTED_GEO = null;
 
-  let map = null;
+  // 2D Map Variables
+  let map2D = null;
   const desiredVisible = new Set();
   const geoLayers = new Map();
   const geoData = new Map();
-
   let previewLayer = null;
   let previewPath = null;
+
+  // 3D Map Variables
+  let viewer3D = null;
+  let currentMode = '2D'; // '2D' or '3D'
+
+  function togglePanel() {
+    const b = document.getElementById('basinPanelBody');
+    b.style.display = (b.style.display === 'none') ? 'block' : 'none'; // Διορθωμένο
+  }
 
   function toggleSection(bodyId, btnId, storageKey) {
     const body = document.getElementById(bodyId);
@@ -374,19 +432,9 @@
       });
     };
 
-    /* σειρά: boundaries -> streams -> basins */
-    if (DATA_GROUPS.boundaries.length) {
-      createSectionRow("Διοικητικά Όρια", "🏳️", "#c0392b");
-      renderList(DATA_GROUPS.boundaries);
-    }
-    if (DATA_GROUPS.streams.length) {
-      createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
-      renderList(DATA_GROUPS.streams);
-    }
-    if (DATA_GROUPS.basins.length) {
-      createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50");
-      renderList(DATA_GROUPS.basins);
-    }
+    if (DATA_GROUPS.boundaries.length) { createSectionRow("Διοικητικά Όρια", "🏳️", "#c0392b"); renderList(DATA_GROUPS.boundaries); }
+    if (DATA_GROUPS.streams.length) { createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9"); renderList(DATA_GROUPS.streams); }
+    if (DATA_GROUPS.basins.length) { createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50"); renderList(DATA_GROUPS.basins); }
   }
 
   async function ensureGeoData(path) {
@@ -397,20 +445,24 @@
   }
 
   async function loadGeoJSON(path, id) {
-    updateMeteoStatus(`Φορτώθηκε στο κύριο εργαλείο: ${id}`);
+    updateMeteoStatus(`Φορτώθηκε: ${id}`);
     try {
       const json = await ensureGeoData(path);
       SELECTED_GEO = json;
 
-      ['area','length','height','strWidth','strDepth'].forEach(i => document.getElementById(i).value = 0);
+      // Μηδενίζουμε μόνο τα της λεκάνης
+      ['area','length','height'].forEach(i => document.getElementById(i).value = 0);
       document.getElementById('coef').value = 0.40;
-      document.getElementById('strN').value = 0.030;
-
+      
       const p = (json.features && json.features[0]) ? (json.features[0].properties || {}) : {};
-      if (p.area)   document.getElementById('area').value = p.area;
-      if (p.length) document.getElementById('length').value = p.length;
-      if (p.height) document.getElementById('height').value = p.height;
-      if (p.coef)   document.getElementById('coef').value = p.coef;
+      
+      // Βελτίωση: έλεγχος και για κεφαλαία
+      const getVal = (k) => p[k] || p[k.toUpperCase()] || p[k.charAt(0).toUpperCase() + k.slice(1)] || 0;
+
+      if (getVal('area')) document.getElementById('area').value = getVal('area');
+      if (getVal('length')) document.getElementById('length').value = getVal('length');
+      if (getVal('height')) document.getElementById('height').value = getVal('height');
+      if (getVal('coef')) document.getElementById('coef').value = getVal('coef');
 
       calc();
     } catch(e) { alert("Σφάλμα: " + e.message); }
@@ -440,7 +492,6 @@
         if (url.includes('meteo.gr')) grpApi.appendChild(opt);
         else grpLink.appendChild(opt);
       });
-
       sel.appendChild(grpApi);
       sel.appendChild(grpLink);
     } catch(e) { console.error(e); }
@@ -455,7 +506,6 @@
     const url = document.getElementById('meteoStationSelect').value;
     if (!url) return;
     updateMeteoStatus("Σύνδεση...");
-
     if (url.includes('meteo.gr')) {
       setTimeout(() => {
         const r = (Math.random() * 20).toFixed(1);
@@ -476,7 +526,6 @@
         lon = coords[0]; lat = coords[1];
       } catch(e) {}
     }
-
     updateMeteoStatus(`Open-Meteo...`);
     try {
       const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=rain,showers&timezone=auto`;
@@ -522,24 +571,55 @@
     else s.innerText = "—";
   }
 
-  /* MAP SYSTEM (Map=preview, On/Off=persistent) */
-  function ensureMap() {
-    if (map) return;
-    map = L.map('mapBox').setView([38.02, 23.80], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-    map.createPane('basinsPane');     map.getPane('basinsPane').style.zIndex = 400;
-    map.createPane('streamsPane');    map.getPane('streamsPane').style.zIndex = 450;
-    map.createPane('boundariesPane'); map.getPane('boundariesPane').style.zIndex = 500;
-    map.createPane('previewPane');    map.getPane('previewPane').style.zIndex = 600;
-  }
+  /* --- MAP LOGIC (2D & 3D) --- */
 
   function openMapModal() {
     document.getElementById('mapModal').style.display = 'flex';
-    ensureMap();
-    setTimeout(() => map.invalidateSize(), 100);
+    // Default to 2D on open if not set
+    if(currentMode === '2D') {
+        init2D();
+        setTimeout(() => map2D.invalidateSize(), 100);
+    } else {
+        init3D();
+    }
   }
-  function closeMap() { clearPreview(); document.getElementById('mapModal').style.display = 'none'; }
+  function closeMap() { 
+      clearPreview(); 
+      document.getElementById('mapModal').style.display = 'none'; 
+  }
+
+  function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn2D').classList.toggle('active', mode === '2D');
+      document.getElementById('btn3D').classList.toggle('active', mode === '3D');
+
+      const div2D = document.getElementById('map2D');
+      const div3D = document.getElementById('map3D');
+
+      if (mode === '2D') {
+          div3D.style.display = 'none';
+          div2D.style.display = 'block';
+          init2D();
+          // Συγχρονισμός: Αν έχουμε layers, τα δείχνουμε
+          applyDesiredVisibility();
+      } else {
+          div2D.style.display = 'none';
+          div3D.style.display = 'block';
+          init3D();
+          update3DLayers(); // Μεταφορά δεδομένων στο 3D
+      }
+  }
+
+  /* --- 2D LEAFLET --- */
+  function init2D() {
+    if (map2D) return;
+    map2D = L.map('map2D').setView([38.02, 23.80], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map2D);
+    map2D.createPane('basinsPane');      map2D.getPane('basinsPane').style.zIndex = 400;
+    map2D.createPane('streamsPane');     map2D.getPane('streamsPane').style.zIndex = 450;
+    map2D.createPane('boundariesPane'); map2D.getPane('boundariesPane').style.zIndex = 500;
+    map2D.createPane('previewPane');     map2D.getPane('previewPane').style.zIndex = 600;
+  }
 
   function layerOptionsForPath(path) {
     if (path.includes('boundaries')) return { pane:'boundariesPane', style:{ color:"#c0392b", fill:false, weight:3, dashArray:'5, 5' } };
@@ -556,20 +636,27 @@
   }
 
   function clearPreview() {
-    if (!map) { previewLayer=null; previewPath=null; return; }
-    if (previewLayer && map.hasLayer(previewLayer)) map.removeLayer(previewLayer);
+    if (map2D && previewLayer && map2D.hasLayer(previewLayer)) map2D.removeLayer(previewLayer);
     previewLayer=null; previewPath=null;
+    // Clear 3D preview as well
+    if (viewer3D) {
+       // A simple way is to reload all desired layers in 3D update function, 
+       // but here we can just let update3DLayers handle it next time or clear specific datasource
+       update3DLayers(); 
+    }
   }
 
   async function applyDesiredVisibility() {
-    if (!map) return;
+    if (!map2D) return;
     for (const [path, layer] of geoLayers.entries()) {
-      if (map.hasLayer(layer) && !desiredVisible.has(path)) map.removeLayer(layer);
+      if (map2D.hasLayer(layer) && !desiredVisible.has(path)) map2D.removeLayer(layer);
     }
     for (const path of desiredVisible) {
       const layer = await ensureLayerLoaded(path);
-      if (!map.hasLayer(layer)) layer.addTo(map);
+      if (!map2D.hasLayer(layer)) layer.addTo(map2D);
     }
+    // Update 3D as well if active
+    if (currentMode === '3D') update3DLayers();
   }
 
   function syncToggleButton(path) {
@@ -586,47 +673,118 @@
     else desiredVisible.add(path);
     syncToggleButton(path);
     if (previewPath === path) clearPreview();
-    if (map) await applyDesiredVisibility();
+    await applyDesiredVisibility();
   }
 
   async function mapPreview(path) {
     openMapModal();
     await applyDesiredVisibility();
-    clearPreview();
-
+    
+    // Αν είναι ήδη ενεργό, ζουμάρουμε
     if (desiredVisible.has(path)) {
-      const layer = await ensureLayerLoaded(path);
-      const b = layer.getBounds();
-      if (b) map.fitBounds(b, { padding:[15,15] });
+      if(currentMode==='2D') {
+          const layer = await ensureLayerLoaded(path);
+          const b = layer.getBounds();
+          if (b) map2D.fitBounds(b, { padding:[15,15] });
+      } else {
+          update3DLayers(); // Θα κάνει zoom στο τέλος
+      }
       return;
     }
 
+    // Αν είναι Preview (όχι μόνιμο On)
     const d = await ensureGeoData(path);
-    const base = layerOptionsForPath(path);
-    previewLayer = L.geoJSON(d, {
-      ...base,
-      pane:'previewPane',
-      style:(feat)=>{
-        const s = (typeof base.style === 'function') ? base.style(feat) : (base.style || {});
-        return { ...s, weight:(s.weight||2)+1, opacity:0.95, fillOpacity:(s.fillOpacity ?? 0.15)+0.10 };
-      }
-    }).addTo(map);
-
     previewPath = path;
-    const b = previewLayer.getBounds();
-    if (b) map.fitBounds(b, { padding:[15,15] });
+
+    if (currentMode === '2D') {
+        // 2D Preview Logic
+        if (previewLayer && map2D.hasLayer(previewLayer)) map2D.removeLayer(previewLayer);
+        const base = layerOptionsForPath(path);
+        previewLayer = L.geoJSON(d, {
+            ...base, pane:'previewPane',
+            style:(feat)=>{
+                const s = (typeof base.style === 'function') ? base.style(feat) : (base.style || {});
+                return { ...s, weight:(s.weight||2)+1, opacity:0.95, fillOpacity:(s.fillOpacity ?? 0.15)+0.10 };
+            }
+        }).addTo(map2D);
+        const b = previewLayer.getBounds();
+        if (b) map2D.fitBounds(b, { padding:[15,15] });
+    } else {
+        // 3D Preview Logic handled by update3DLayers
+        update3DLayers();
+    }
   }
 
   function clearMapLayers() {
     desiredVisible.clear();
     clearPreview();
-    if (map) for (const layer of geoLayers.values()) if (map.hasLayer(layer)) map.removeLayer(layer);
+    if (map2D) for (const layer of geoLayers.values()) if (map2D.hasLayer(layer)) map2D.removeLayer(layer);
     document.querySelectorAll('.geo-toggle-btn').forEach(btn => syncToggleButton(btn.getAttribute('data-path')));
+    if (currentMode === '3D') update3DLayers();
   }
 
-  function togglePanel() {
-    const b = document.getElementById('basinPanelBody');
-    b.style.display = (b.style.display === 'none') ? 'block' : 'none'; // keep visible; '_' button kept for your UI
+
+  /* --- 3D CESIUM --- */
+  function init3D() {
+      if (viewer3D) return;
+      
+      // Δημιουργία Viewer
+      viewer3D = new Cesium.Viewer('map3D', {
+          terrainProvider: Cesium.createWorldTerrain(),
+          baseLayerPicker: false,
+          animation: false,
+          timeline: false,
+          geocoder: false,
+          homeButton: false,
+          sceneModePicker: false,
+          navigationHelpButton: false
+      });
+      
+      // Αφαίρεση του copyright αν ενοχλεί στο μικρό παράθυρο (προσοχή στους όρους χρήσης)
+      viewer3D._cesiumWidget._creditContainer.style.display = "none"; 
+  }
+
+  async function update3DLayers() {
+      if (!viewer3D) return;
+      viewer3D.dataSources.removeAll();
+
+      const pathsToLoad = [...desiredVisible];
+      if (previewPath) pathsToLoad.push(previewPath);
+
+      if (pathsToLoad.length === 0) return;
+
+      let lastDs = null;
+
+      for (const path of pathsToLoad) {
+          const d = await ensureGeoData(path);
+          
+          // Επιλογή χρώματος ανάλογα τον τύπο
+          let color = Cesium.Color.GRAY;
+          let width = 2;
+          if (path.includes('streams')) { color = Cesium.Color.DEEPSKYBLUE; width=4; }
+          else if (path.includes('boundaries')) { color = Cesium.Color.RED; width=3; }
+          else { color = Cesium.Color.DARKSLATEGRAY.withAlpha(0.6); }
+
+          // Ειδικό στυλ αν είναι το Preview item
+          if (path === previewPath) {
+              width += 2;
+              if(!path.includes('streams')) color = color.withAlpha(0.9);
+          }
+
+          const promise = Cesium.GeoJsonDataSource.load(d, {
+              stroke: color,
+              fill: color.withAlpha(0.3),
+              strokeWidth: width,
+              clampToGround: true 
+          });
+
+          viewer3D.dataSources.add(promise);
+          lastDs = await promise;
+      }
+
+      if (lastDs) {
+          viewer3D.zoomTo(lastDs);
+      }
   }
 
   window.onload = init;
