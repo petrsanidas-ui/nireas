@@ -316,20 +316,18 @@
         syncToggleButton(f.path);
       });
     };
-    if (DATA_GROUPS.streams.length) {
-      createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
-      renderList(DATA_GROUPS.streams);
-    }
     if (DATA_GROUPS.boundaries.length) {
       createSectionRow("Διοικητικά Όρια", "🏳️", "#c0392b");
       renderList(DATA_GROUPS.boundaries);
+    }
+    if (DATA_GROUPS.streams.length) {
+      createSectionRow("Υδρογραφικό Δίκτυο", "💧", "#2980b9");
+      renderList(DATA_GROUPS.streams);
     }
       if (DATA_GROUPS.basins.length) {
       createSectionRow("Λεκάνες Απορροής", "⛰️", "#2c3e50");
       renderList(DATA_GROUPS.basins);
     }
-  }
-
   // --- LOAD LOGIC (main tool only) ---
   async function loadGeoJSON(path, id) {
     updateMeteoStatus("Φόρτωση: " + id + "...");
