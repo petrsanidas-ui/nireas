@@ -84,14 +84,21 @@
     .icon-btn{
       border:none;
       background:rgba(255,255,255,.14);
-      color:#fff;
+      color:currentColor; /* inherits from parent (white on dark topbar, dark on light headers) */
       width:30px;height:26px;
       border-radius:6px;
       cursor:pointer;
       font-weight:900;
       line-height:1;
     }
-    .icon-btn:hover{background:rgba(255,255,255,.22)}
+    .icon-btn:hover{background:rgba(255,255,255,.22)} 
+
+    /* Make collapse/minimize buttons visible on light section headers */
+    .section-hdr .icon-btn{
+      background:rgba(44,62,80,.10);
+      border:1px solid rgba(0,0,0,.10);
+    }
+    .section-hdr .icon-btn:hover{background:rgba(44,62,80,.16)}
     .section{
       border-top:1px solid rgba(255,255,255,.08);
     }
@@ -715,10 +722,15 @@ async function init(){
 
     renderFileList();
 
-    const stationFile = files.find(f => f.path.includes('stations.txt'));
+    const stationFile =
+      files.find(f => f.path === 'data/meteostations/weblinks/stations.txt') ||
+      files.find(f => f.path.endsWith('/stations.txt') || f.path.endsWith('stations.txt')) ||
+      files.find(f => f.path.endsWith('openmeteo.txt')) ||
+      files.find(f => f.path.endsWith('ecmwf.txt'));
+
     if(stationFile) fetchStations(stationFile.path);
     else {
-      updateMeteoStatus("Δεν βρέθηκε το stations.txt");
+      updateMeteoStatus("Δεν βρέθηκε αρχείο σταθμών (stations.txt / openmeteo.txt / ecmwf.txt)");
       // safe fallback: keep dropdown empty
     }
 
@@ -762,9 +774,9 @@ function renderFileList(){
   };
 
   // ORDER REQUESTED: boundaries -> streams -> basins
-  addCategory("Διοικητικά Όρια", DATA_GROUPS.boundaries, "🏳️", "#c0392b");
-  addCategory("💧 Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#2980b9");
-  addCategory("Λεκάνες Απορροής", DATA_GROUPS.basins, "🧺", "#2c3e50");
+  addCategory("Διοικητικά Όρια", DATA_GROUPS.boundaries, "🏳️", "#0f0f0f");
+  addCategory("💧 Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#0f0f0f");
+  addCategory("Λεκάνες Απορροής", DATA_GROUPS.basins, "🏞️", "#0f0f0f");
 }
 
 function cssSafe(s){
@@ -787,7 +799,7 @@ async function loadToTool(path, name){
     const gj = await fetchGeoJSON(path);
 
     // Only basins are expected to populate the tool inputs
-    const isBasin = path.includes('/data/basins/');
+    const isBasin = path.includes('data/basins/');
     if(isBasin){
       SELECTED_GEO = gj;
       SELECTED_BASIN_KEY = path;
@@ -848,7 +860,6 @@ async function previewOnMap(path, name){
 
     const cat = categoryFromPath(path);
     PREVIEW_LAYER = L.geoJSON(gj, {
-      pane: (cat==='streams' ? 'streamsPane' : (cat==='basins' ? 'basinsPane' : 'boundariesPane')),
       style: styleForCategory(cat, true)
     }).addTo(map);
 
@@ -905,23 +916,6 @@ function openMapModal(){
     }).addTo(map);
     map.setView([38.02, 23.80], 12);
   }
-
-  // Ensure stable layer stacking: streams always above basins
-  if(map){
-    if(!map.getPane('basinsPane')){
-      map.createPane('basinsPane');
-      map.getPane('basinsPane').style.zIndex = 410;
-    }
-    if(!map.getPane('streamsPane')){
-      map.createPane('streamsPane');
-      map.getPane('streamsPane').style.zIndex = 420;
-    }
-    if(!map.getPane('boundariesPane')){
-      map.createPane('boundariesPane');
-      map.getPane('boundariesPane').style.zIndex = 430;
-    }
-  }
-
   setTimeout(()=>map.invalidateSize(), 80);
   syncVisibleLayersToMap();
 }
@@ -937,8 +931,8 @@ function closeMapModal(){
 }
 
 function categoryFromPath(path){
-  if(path.includes('/data/boundaries/')) return 'boundaries';
-  if(path.includes('/data/streams/')) return 'streams';
+  if(path.includes('data/boundaries/')) return 'boundaries';
+  if(path.includes('data/streams/')) return 'streams';
   return 'basins';
 }
 
@@ -947,7 +941,7 @@ function styleForCategory(cat, preview=false){
     return { color: preview ? '#e74c3c' : '#c0392b', weight: preview ? 3 : 2, fill:false, dashArray: preview ? '6 4' : null };
   }
   if(cat==='streams'){
-    return { color: preview ? '#2ecc71' : '#2ecc71', weight: preview ? 4 : 3, fill:false, dashArray: preview ? '6 4' : null };
+    return { color: preview ? '#2ecc71' : '#2980b9', weight: preview ? 4 : 3, fill:false, dashArray: preview ? '6 4' : null };
   }
   // basins
   return { color: preview ? '#27ae60' : '#d35400', weight: preview ? 2 : 2, fill:true, fillOpacity: preview ? 0.12 : 0.18, dashArray: preview ? '6 4' : null };
@@ -970,7 +964,7 @@ async function syncVisibleLayersToMap(){
     if(!layer){
       const gj = await fetchGeoJSON(path);
       const cat = categoryFromPath(path);
-      layer = L.geoJSON(gj, { pane: (cat==='streams' ? 'streamsPane' : (cat==='basins' ? 'basinsPane' : 'boundariesPane')), style: styleForCategory(cat, false) });
+      layer = L.geoJSON(gj, { style: styleForCategory(cat, false) });
       LAYER_CACHE.set(path, layer);
     }
     if(!map.hasLayer(layer)) layer.addTo(map);
@@ -1809,90 +1803,7 @@ function bindInputs(){
   });
 }
 
-/* ===================== Misc ===================== */
-function openMapModal(){ openMapModal_impl(); }
-function openMapModal_impl(){ openMapModal(); } // alias safe for button
 
-// fix naming collision: channel panel calls openMapModal() which we defined above.
-// We already have openMapModal() as UI function; keep it consistent.
-function openMapModal(){ openMapModal_impl_real(); }
-function openMapModal_impl_real(){ openMapModalReal(); }
-function openMapModalReal(){ openMapModalCore(); }
-function openMapModalCore(){ openMapModalOriginal(); }
-function openMapModalOriginal(){ openMapModalBase(); }
-function openMapModalBase(){ openMapModalNow(); }
-function openMapModalNow(){ openMapModalFinally(); }
-function openMapModalFinally(){ openMapModalActual(); }
-function openMapModalActual(){ openMapModalDo(); }
-function openMapModalDo(){ openMapModal_(); }
-function openMapModal_(){ openMapModalX(); }
-function openMapModalX(){ openMapModalY(); }
-function openMapModalY(){ openMapModalZ(); }
-function openMapModalZ(){ openMapModal(); } // (no-op, overwritten below)
-</script>
-
-<script>
-/* The block above intentionally avoided name collisions while building.
-   Now define the real "openMapModal" and "closeMapModal" handlers. */
-
-function openMapModal(){
-  openMapModal_real();
-}
-function openMapModal_real(){
-  openMapModalUI();
-}
-function openMapModalUI(){
-  // call the earlier map modal opener
-  openMapModal = openMapModalUI; // stabilize
-  openMapModal(); // call itself -> stop (we need a safe call)
-}
-// Replace with safe direct call:
-openMapModal = function(){ openMapModalDirect(); };
-function openMapModalDirect(){ openMapModalBaseCall(); }
-function openMapModalBaseCall(){
-  // actual opener
-  const modal = document.getElementById('mapModal');
-  modal.style.display = 'flex';
-  if(!map){
-    map = L.map('mapBox', { zoomControl:true });
-    baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19, attribution:'&copy; OpenStreetMap'
-    }).addTo(map);
-    map.setView([38.02, 23.80], 12);
-  }
-
-  // Ensure stable layer stacking: streams always above basins
-  if(map){
-    if(!map.getPane('basinsPane')){
-      map.createPane('basinsPane');
-      map.getPane('basinsPane').style.zIndex = 410;
-    }
-    if(!map.getPane('streamsPane')){
-      map.createPane('streamsPane');
-      map.getPane('streamsPane').style.zIndex = 420;
-    }
-    if(!map.getPane('boundariesPane')){
-      map.createPane('boundariesPane');
-      map.getPane('boundariesPane').style.zIndex = 430;
-    }
-  }
-
-  setTimeout(()=>map.invalidateSize(), 80);
-  syncVisibleLayersToMap();
-}
-</script>
-
-<script>
-/* cleanup: make sure closeMapModal uses the earlier one */
-function closeMapModal(){ closeMapModalDirect(); }
-function closeMapModalDirect(){
-  const modal = document.getElementById('mapModal');
-  modal.style.display = 'none';
-  if(PREVIEW_LAYER && map){
-    map.removeLayer(PREVIEW_LAYER);
-    PREVIEW_LAYER = null;
-  }
-}
 </script>
 
 <script>
