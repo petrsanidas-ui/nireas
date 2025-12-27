@@ -715,10 +715,15 @@ async function init(){
 
     renderFileList();
 
-    const stationFile = files.find(f => f.path.includes('stations.txt'));
+    const stationFile =
+      files.find(f => f.path === 'data/meteostations/weblinks/stations.txt') ||
+      files.find(f => f.path.endsWith('/stations.txt') || f.path.endsWith('stations.txt')) ||
+      files.find(f => f.path.endsWith('openmeteo.txt')) ||
+      files.find(f => f.path.endsWith('ecmwf.txt'));
+
     if(stationFile) fetchStations(stationFile.path);
     else {
-      updateMeteoStatus("Δεν βρέθηκε το stations.txt");
+      updateMeteoStatus("Δεν βρέθηκε αρχείο σταθμών (stations.txt / openmeteo.txt / ecmwf.txt)");
       // safe fallback: keep dropdown empty
     }
 
@@ -787,7 +792,7 @@ async function loadToTool(path, name){
     const gj = await fetchGeoJSON(path);
 
     // Only basins are expected to populate the tool inputs
-    const isBasin = path.includes('/data/basins/');
+    const isBasin = path.includes('data/basins/');
     if(isBasin){
       SELECTED_GEO = gj;
       SELECTED_BASIN_KEY = path;
@@ -919,8 +924,8 @@ function closeMapModal(){
 }
 
 function categoryFromPath(path){
-  if(path.includes('/data/boundaries/')) return 'boundaries';
-  if(path.includes('/data/streams/')) return 'streams';
+  if(path.includes('data/boundaries/')) return 'boundaries';
+  if(path.includes('data/streams/')) return 'streams';
   return 'basins';
 }
 
@@ -1791,73 +1796,7 @@ function bindInputs(){
   });
 }
 
-/* ===================== Misc ===================== */
-function openMapModal(){ openMapModal_impl(); }
-function openMapModal_impl(){ openMapModal(); } // alias safe for button
 
-// fix naming collision: channel panel calls openMapModal() which we defined above.
-// We already have openMapModal() as UI function; keep it consistent.
-function openMapModal(){ openMapModal_impl_real(); }
-function openMapModal_impl_real(){ openMapModalReal(); }
-function openMapModalReal(){ openMapModalCore(); }
-function openMapModalCore(){ openMapModalOriginal(); }
-function openMapModalOriginal(){ openMapModalBase(); }
-function openMapModalBase(){ openMapModalNow(); }
-function openMapModalNow(){ openMapModalFinally(); }
-function openMapModalFinally(){ openMapModalActual(); }
-function openMapModalActual(){ openMapModalDo(); }
-function openMapModalDo(){ openMapModal_(); }
-function openMapModal_(){ openMapModalX(); }
-function openMapModalX(){ openMapModalY(); }
-function openMapModalY(){ openMapModalZ(); }
-function openMapModalZ(){ openMapModal(); } // (no-op, overwritten below)
-</script>
-
-<script>
-/* The block above intentionally avoided name collisions while building.
-   Now define the real "openMapModal" and "closeMapModal" handlers. */
-
-function openMapModal(){
-  openMapModal_real();
-}
-function openMapModal_real(){
-  openMapModalUI();
-}
-function openMapModalUI(){
-  // call the earlier map modal opener
-  openMapModal = openMapModalUI; // stabilize
-  openMapModal(); // call itself -> stop (we need a safe call)
-}
-// Replace with safe direct call:
-openMapModal = function(){ openMapModalDirect(); };
-function openMapModalDirect(){ openMapModalBaseCall(); }
-function openMapModalBaseCall(){
-  // actual opener
-  const modal = document.getElementById('mapModal');
-  modal.style.display = 'flex';
-  if(!map){
-    map = L.map('mapBox', { zoomControl:true });
-    baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      maxZoom:19, attribution:'&copy; OpenStreetMap'
-    }).addTo(map);
-    map.setView([38.02, 23.80], 12);
-  }
-  setTimeout(()=>map.invalidateSize(), 80);
-  syncVisibleLayersToMap();
-}
-</script>
-
-<script>
-/* cleanup: make sure closeMapModal uses the earlier one */
-function closeMapModal(){ closeMapModalDirect(); }
-function closeMapModalDirect(){
-  const modal = document.getElementById('mapModal');
-  modal.style.display = 'none';
-  if(PREVIEW_LAYER && map){
-    map.removeLayer(PREVIEW_LAYER);
-    PREVIEW_LAYER = null;
-  }
-}
 </script>
 
 <script>
