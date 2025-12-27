@@ -1,389 +1,496 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="el">
 <head>
-  <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1" name="viewport"/>
-  <title>Δείκτες Απόκρισης Τοπικών Λεκανών Απορροής (P_eq Screening Tool)</title>
-  
-  <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ΝΗΡΕΑΣ — Πρωτότυπο (GitHub Pages)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    /* Βασικό CSS Εφαρμογής */
+    :root {
+      --bg: #0b0f14;
+      --panel: #111827;
+      --panel2: #0f172a;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+      --border: rgba(255,255,255,.08);
+    }
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f3; padding: 20px; text-align: center; color: #333; }
-
-    .container {
-      width: 100%; max-width: 210mm; margin: 0 auto; background: white; padding: 20px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); min-height: 297mm; border-top: 5px solid #2c3e50;
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
     }
-    h1 { margin-top: 0; color: #2c3e50; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-    h3 { margin: 0 0 10px 0; font-size: 12px; color: #444; text-transform: uppercase; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; font-weight: bold; }
-
-    .control-panel { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; text-align: left; }
-    .panels-row { display: flex; gap: 10px; align-items: stretch; }
-    .panels-row .panel { flex: 1; }
-    .panel-rain { width: 100%; }
-    @media (max-width: 950px) { .panels-row { flex-direction: column; } }
-
-    .panel { flex: 1; padding: 6px; border-radius: 6px; font-size: 11px; display: flex; flex-direction: column; }
-    .panel-geo { background: #e8f8f5; border: 1px solid #a2d9ce; }
-    .panel-net { background: #ebf5fb; border: 1px solid #aed6f1; }
-    .panel-stream { background: #f4ecf7; border: 1px solid #d2b4de; }
-    
-    .panel-rain { background: #fff3cd; border: 1px solid #ffeeba; flex: 0 0 auto; }
-
-    .station-divider { height: 1px; background: rgba(0,0,0,0.12); margin: 8px 0; }
-    .station-monitor { display:flex; flex-direction:column; gap:6px; background: rgba(255,255,255,0.65);
-      border: 1px dashed rgba(127,140,141,0.55); padding: 6px; border-radius: 6px; }
-    .station-squares { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
-    .station-sq { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccd1d1; background: #fff; }
-    .station-sq.filled { background: #2ecc71; border-color: #27ae60; }
-    .station-sq.empty { background: #fff; }
-    .station-squares-meta { display:flex; gap:8px; align-items:center; font-size:10px; font-weight:900; color:#2c3e50; }
-    #stationLiveBtn[data-on="1"] { background:#27ae60 !important; border-color:#1e8449 !important; }
-    #stationLiveBtn[data-on="0"] { background:#2c3e50 !important; border-color:#2c3e50 !important; }
-
-    .form-group { display: flex; align-items: center; margin-bottom: 6px; gap: 4px; width: 100%; }
-    .form-group label { font-size: 11px; font-weight: 600; flex: 0 0 145px; text-align: left; cursor: help; line-height: 1.1; }
-    .form-group input, .form-group select {
-      flex: 1; min-width: 0; height: 30px; padding: 0 2px; text-align: center;
-      border: 1px solid #ccc; border-radius: 4px; font-weight: bold; background: #fff; font-size: 12px; width: 100%;
+    header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
     }
-    .form-group select { font-size: 11px; text-align: left; padding-left: 4px; }
-
-    .rain-input-group { background: #fff3cd; padding: 5px; border-radius: 3px; border: 1px solid #ffeeba; }
-    .rain-input-group input { border: 2px solid #f1c40f; }
-
-    .ref-list { font-size: 9px; color: #444; margin-top: auto; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 4px; border: 1px dashed #7f8c8d; line-height: 1.35; }
-    .ref-list b { color: #2c3e50; text-decoration: underline; display:block; margin-bottom:2px;}
-    
-    .footer-grid { display: flex; gap: 14px; align-items: flex-start; }
-    .footer-left { flex: 1; }
-    
-    .summary-box { background: #fff; border: 2px dashed #bdc3c7; padding: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-around; font-size: 11px; font-weight: bold; }
-    .stat-item { text-align: center; min-width: 130px; }
-    .stat-item span { display: block; font-size: 14px; color: #2c3e50; margin-top: 3px; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
-    th { background: #34495e; color: white; padding: 6px 2px; border: 1px solid #34495e; position: sticky; top: 0; word-wrap: break-word; }
-    td { border: 1px solid #ddd; padding: 4px 2px; text-align: center; word-wrap: break-word; }
-
-    .risk-safe { background-color: #d4edda; color: #155724; }
-    .risk-warn { background-color: #fff3cd; color: #856404; }
-    .risk-orange { background-color: #ffe5d0; color: #d35400; font-weight: bold; }
-    .risk-red { background-color: #f5c6cb; color: #721c24; font-weight: bold; }
-    .risk-extreme { background-color: #922b21; color: #fff; font-weight: bold; }
-
-    .status-ok { color: #27ae60; font-weight: bold; }
-    .status-warn { color: #d35400; font-weight: bold; }
-    .status-fail { color: #c0392b; font-weight: bold; }
-    tr.risk-extreme .status-fail, tr.risk-extreme .status-warn, tr.risk-extreme .status-ok { color: #fff !important; }
-
-    /* Basin Panel (Sidebar) */
-    #basinPanel {
-      position: fixed; top: 10px; left: 10px; z-index: 10000;
-      width: 380px; max-height: calc(100vh - 20px); overflow-y: auto;
-      background: rgba(255,255,255,0.98); border: 1px solid #ccd1d1; border-radius: 10px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.18); text-align: left; color: #2c3e50;
+    header .title { font-weight: 700; letter-spacing: .2px; }
+    header .subtitle { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .wrap {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      height: calc(100vh - 66px);
     }
-    #basinPanel .bp-head { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eef2f3; font-weight: bold; font-size: 13px; }
-    #basinPanel .bp-body { padding: 0; font-size: 12px; max-height: calc(100vh - 70px); overflow-y: auto; overflow-x: hidden; }
-    #basinPanel .bp-actions { display:flex; gap:8px; align-items:center; }
-    
-    #exportHtmlBtn, #autoSaveBtn, #basinToggleBtn { width:auto; padding:4px 10px; font-size:11px; font-weight:800; border-radius:6px; cursor:pointer; }
-    #exportHtmlBtn { background:#2c3e50; color:#fff; border:1px solid #2c3e50; }
-    #autoSaveBtn { background:#ecf0f1; color:#2c3e50; border:1px solid #ccd1d1; }
-    #basinToggleBtn { background:#f7f9f9; color:#2c3e50; border:1px solid #ccc; font-size:14px; }
-
-    /* Meteo Panel inside Sidebar */
-    #meteoPanel { border-bottom: 1px solid #eef2f3; }
-    #meteoPanel .mp-head { display:flex; align-items:center; justify-content:space-between; padding: 8px 10px; background:#f8f9f9; border-bottom: 1px solid #eef2f3; font-size: 11px; font-weight: 900; }
-    #meteoPanel .mp-body { padding: 8px 10px 10px; background: rgba(255,255,255,0.55); }
-    #meteoPanel .mp-row { display:flex; gap:6px; align-items:center; }
-    #meteoStationSelect { flex: 1; min-width: 0; height: 30px; border-radius: 6px; border: 1px solid #ccd1d1; font-size: 11px; font-weight: 800; padding: 0 6px; background: #fff; }
-    #meteoStationSelect[multiple] { height: 86px; padding: 4px 6px; font-weight: 700; }
-    #meteoStationSelect option:checked { background-color: #d4f7df !important; color: #1e5631 !important; }
-
-    /* Badges & Buttons */
-    .qbadge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 11px; text-align: center; min-width: 60px; border: 1px solid transparent; }
-    .qb-green { background: #e9f7ef; color: #1e8449; border-color: #abebc6; }
-    .qb-gray { background: #f2f3f4; color: #7f8c8d; border-color: #d5d8dc; }
-
-    .mini-go-btn, .mini-del-btn, .mini-btn { padding: 4px 2px; border-radius: 4px; border: none; cursor: pointer; font-size: 10px; font-weight: bold; color: #fff; }
-    .mini-go-btn { background: #2c3e50; flex: 1; }
-    .mini-del-btn { background: #7b241c; flex: 0 0 auto; width: 30px; }
-    .mini-btn { width: auto !important; padding: 4px 8px !important; border: 1px solid #ccd1d1 !important; background: #2c3e50; }
-
-    /* Visualizers */
-    .visualizer-box { margin: 8px 0; background: #fff; border: 1px solid #d2b4de; border-radius: 4px; text-align: center; padding: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05); }
-    .visualizer-box.basin { border: 1px solid #a2d9ce; background: #e8f8f5; }
-    
-    #severityLegend { width: 290px; flex: 0 0 290px; background: #fbfcfc; border: 1px solid #ccd1d1; border-radius: 6px; overflow: hidden; }
-    #severityLegend .legend-title { background: #f2f3f4; border-bottom: 1px solid #e5e7e9; padding: 6px 8px; font-weight: 900; font-size: 10px; text-align: center; }
-    #severityLegend td.key { width: 92px; white-space: nowrap; font-weight: 900; background: #f8f9f9; }
-
-    /* Map Modal */
-    #mapModal { position: fixed; inset: 10px; z-index: 20000; display: none; background: rgba(255,255,255,0.98); border: 1px solid #ccd1d1; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.25); overflow: hidden; text-align: left; }
-    #mapModalHeader { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #eef2f3; background: #f8f9f9; font-weight: 800; font-size: 12px; color: #2c3e50; }
-    #mapBox { width: 100%; height: calc(100% - 42px); position: relative; }
-    
-    @media print {
-      .no-print { display: none !important; }
-      .container { box-shadow: none; margin: 0; width: 100%; border: none; padding: 0; }
+    @media (max-width: 980px) {
+      .wrap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      #map { height: 55vh; }
     }
-    @media (min-width: 1250px){ body{ padding-left: calc(20px + 380px + 30px); } }
+    .panel {
+      padding: 14px 16px;
+      border-right: 1px solid var(--border);
+      background: var(--panel2);
+      overflow: auto;
+    }
+    .card {
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    select, button {
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      outline: none;
+    }
+    button { cursor: pointer; background: rgba(255,255,255,.06); }
+    button:hover { background: rgba(255,255,255,.10); }
+    .row { display:flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .kpi {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.2);
+    }
+    .kpi .v { font-size: 18px; font-weight: 800; }
+    .kpi .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .status {
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.18);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .pill {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .pill.ok { color: var(--ok); border-color: rgba(52,211,153,.35); }
+    .pill.bad { color: var(--bad); border-color: rgba(251,113,133,.35); }
+    .pill.warn { color: var(--warn); border-color: rgba(251,191,36,.35); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    #map { height: 100%; }
+    .small { font-size: 12px; color: var(--muted); line-height: 1.35; }
+    a { color: #93c5fd; text-decoration: none; }
+    a:hover { text-decoration: underline; }
   </style>
 </head>
+
 <body>
+<header>
+  <div class="title">ΝΗΡΕΑΣ — Πρωτότυπο (online & τοπικά)</div>
+  <div class="subtitle">Διαβάζει τα αρχεία από το repo (GeoJSON + stations.txt) και φέρνει βροχή μέσω Open‑Meteo. (Generated: 2025-12-27 14:22 UTC)</div>
+</header>
 
-<div class="no-print" id="basinPanel">
-  <div class="bp-head">
-    <span>Ταχεία προεκτίμηση<br/>P<sub>eq</sub> = P·C (mm)</span>
-    <div class="bp-actions">
-      <button id="exportHtmlBtn" onclick="exportHtmlWithEmbeddedGeoJSON()" type="button">Export HTML</button>
-      <button data-mode="ask" id="autoSaveBtn" onclick="toggleAutoSaveMode()" title="Αυτόματη αποθήκευση" type="button">AutoSave</button>
-      <button id="basinToggleBtn" onclick="toggleBasinPanel()" type="button">–</button>
-    </div>
-  </div>
-  <div class="bp-body" id="basinPanelBody">
-    <div id="meteoPanel">
-      <div class="mp-head">
-        <span>Μετεωρολογικοί σταθμοί</span>
-        <div class="mp-head-actions">
-          <button class="mp-icon-btn" onclick="addMeteoStation()" title="Προσθήκη" type="button">+</button>
+<div class="wrap">
+  <div class="panel">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="stationSelect">Μετεωρολογικός “σταθμός”</label>
+          <select id="stationSelect"></select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button id="btnRefresh">Ανανέωση</button>
         </div>
       </div>
-      <div class="mp-body" id="meteoBody">
-        <div class="mp-row mp-row-top">
-          <select id="meteoStationSelect" multiple="" onchange="onMeteoStationChanged()" size="4">
-            <option value="chalandri">Χαλάνδρι (penteli.meteo.gr)</option>
-            <option value="S1766645340857">ΝΟΜΙΣΜΑΤΟΚΟΠΕΙΟ</option>
-            <option value="S1766754882540">ΠΕΝΤΕΛΗ ΚΟΡΥΦΗ</option>
-            <option value="S1766757264534">zhreia</option>
-          </select>
-          <select id="meteoAggSelect" onchange="onMeteoAggChanged()">
-            <option value="max">MAX</option>
-            <option value="avg">AVG</option>
-          </select>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="v" id="kpi1h">—</div>
+          <div class="l">Τελευταία 1 ώρα (mm)</div>
         </div>
-        <div class="mp-msg" id="meteoMsg">Αναμονή...</div>
+        <div class="kpi">
+          <div class="v" id="kpi3h">—</div>
+          <div class="l">Σύνολο 3 ωρών (mm)</div>
+        </div>
+        <div class="kpi">
+          <div class="v" id="kpi24h">—</div>
+          <div class="l">Σύνολο 24 ωρών (mm)</div>
+        </div>
+        <div class="kpi">
+          <div class="v" id="kpiTs">—</div>
+          <div class="l">Τελευταία ενημέρωση</div>
+        </div>
+      </div>
+
+      <div class="status">
+        <div>Boundary (GeoJSON)</div>
+        <div class="pill" id="stBoundary">…</div>
+      </div>
+      <div class="status">
+        <div>Stations list (stations.txt)</div>
+        <div class="pill" id="stStations">…</div>
+      </div>
+      <div class="status">
+        <div>Open‑Meteo API</div>
+        <div class="pill" id="stApi">…</div>
       </div>
     </div>
-    
-    <table>
-      <thead>
-        <tr style="background:#f8f9f9; font-size:10px; color:#566573;">
-          <th style="width:35%;">Λεκάνη</th>
-          <th style="width:20%; text-align:center;">P<sub>eq</sub></th>
-          <th style="width:45%; text-align:right;">Επιλογή</th>
-        </tr>
-      </thead>
-      <tbody id="basinRows">
-        </tbody>
-    </table>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:6px;">Διαγνωστικά</div>
+      <div class="small">
+        Αν <b>δεν</b> βλέπεις δεδομένα στο GitHub Pages, το 99% είναι ότι ο browser μπλοκάρει ανάγνωση από <span class="mono">penteli.meteo.gr</span> (CORS).
+        Αυτό το prototype χρησιμοποιεί <b>Open‑Meteo</b> για να δουλεύει online χωρίς proxy.
+      </div>
+      <div class="small" style="margin-top:10px;">
+        Αρχεία που διαβάζει:
+        <ul>
+          <li class="mono">./data/boundaries/geojson/municipal_chalandriou.geojson</li>
+          <li class="mono">./data/meteostations/weblinks/stations.txt</li>
+          <li class="mono">./data/meteostations/API/openmeteo.txt (προαιρετικό)</li>
+        </ul>
+      </div>
+      <div class="small">
+        Τρέχει τοπικά: <span class="mono">python -m http.server</span> και άνοιξε <span class="mono">http://localhost:8000/</span>.
+      </div>
+    </div>
   </div>
+
+  <div id="map"></div>
 </div>
 
-<div class="container">
-  <h1 style="display:flex; justify-content:space-between; align-items:center;">
-    <span>Δείκτες Απόκρισης Τοπικών Λεκανών Απορροής</span>
-    <button class="no-print" onclick="window.print()" style="background:#2c3e50; color:#fff; border:none; font-size:12px; padding:6px 14px; border-radius:4px; cursor:pointer;">ΕΚΤΥΠΩΣΗ</button>
-  </h1>
-
-  <div class="control-panel">
-    <div class="panel panel-rain">
-      <h3>Σενάριο Βροχής</h3>
-      <div class="panels-row">
-        <div class="form-group rain-input-group">
-          <label>⚠️ Ένταση i (mm/h):</label>
-          <input id="rainI" min="0" step="1" type="number" value="0" oninput="runMasterCalculation()"/>
-        </div>
-        <div class="form-group rain-input-group">
-          <label>⚠️ Διάρκεια D (min):</label>
-          <input id="rainD" min="0" step="1" type="number" value="0" oninput="runMasterCalculation()"/>
-        </div>
-      </div>
-    </div>
-
-    <div class="panels-row">
-      <div class="panel panel-geo">
-        <h3>1. Γεωμετρία</h3>
-        <div class="form-group"><label>Εμβαδόν A (m²):</label><input id="area" type="number" value="0" oninput="runMasterCalculation()"/></div>
-        <div class="form-group"><label>Μήκος L (m):</label><input id="length" type="number" value="0" oninput="runMasterCalculation()"/></div>
-        <div class="form-group"><label>Υψομ. H (m):</label><input id="height" type="number" value="0" oninput="runMasterCalculation()"/></div>
-        <div class="form-group"><label>Συντελεστής C:</label><input id="coef" step="0.01" type="number" value="0.40" oninput="runMasterCalculation()"/></div>
-        <div class="visualizer-box basin">
-          <canvas height="150" id="basinCanvas" width="180"></canvas>
-        </div>
-      </div>
-
-      <div class="panel panel-net">
-        <h3>2. Συλλογή (Φρεάτια)</h3>
-        <div class="form-group"><label>Πλήθος:</label><input id="drains" type="number" value="0" oninput="runMasterCalculation()"/></div>
-        <div class="form-group"><label>Q/φρεάτιο (m³/s):</label><input id="drainCap" step="0.01" type="number" value="0.10" oninput="runMasterCalculation()"/></div>
-      </div>
-
-      <div class="panel panel-stream">
-        <h3>3. Διόδευση (Ρέμα)</h3>
-        <div class="form-group"><label>Πλάτος b (m):</label><input id="strWidth" step="0.1" type="number" value="0" oninput="runMasterCalculation()"/></div>
-        <div class="form-group"><label>Βάθος h (m):</label><input id="strDepth" step="0.1" type="number" value="0" oninput="runMasterCalculation()"/></div>
-        <div class="form-group"><label>Manning n:</label>
-          <select id="strType" onchange="runMasterCalculation()">
-            <option value="0.015">Μπετόν (0.015)</option>
-            <option value="0.03" selected>Χώμα (0.030)</option>
-            <option value="0.05">Πέτρες (0.050)</option>
-          </select>
-        </div>
-        <div class="visualizer-box">
-          <canvas height="120" id="channelCanvas" width="180"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="summary-box" id="summary">
-    <div class="stat-item">Tc (Kirpich)<span id="res-tc">0 min</span></div>
-    <div class="stat-item" style="color:#16a085;">Qpeak (Rational)<span id="res-qsel">0.00 m³/s</span></div>
-    <div class="stat-item" style="color:#2980b9;">Qcap Συλλογής<span id="res-drains">0.00 m³/s</span></div>
-    <div class="stat-item" style="color:#8e44ad;">Qcap Διόδευσης<span id="res-stream">0.00 m³/s</span></div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th width="8%">i (mm/h)</th><th width="10%">P (mm)</th><th width="12%">Qpeak (m³/s)</th>
-        <th width="14%">V απορ. (m³)</th><th width="14%">Δείκτης P<sub>eq</sub></th>
-        <th width="17%">Έλεγχος Δικτύου</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody">
-      </tbody>
-  </table>
-
-  <div class="footer footer-grid">
-    <div class="footer-left">
-      <b>Μεθοδολογία:</b> Rational Method (Q=CiA), Kirpich Tc (Min 5'), Peq = P*C.
-    </div>
-    <div id="severityLegend">
-       <table><tr><td class="risk-safe">Low</td><td class="risk-warn">Med</td><td class="risk-red">High</td></tr></table>
-    </div>
-  </div>
-</div>
-
-<div class="no-print" id="mapModal">
-  <div id="mapModalHeader">
-    <span id="mapTitle">Χάρτης</span>
-    <button id="mapCloseBtn" onclick="document.getElementById('mapModal').style.display='none'">X</button>
-  </div>
-  <div id="mapBox"></div>
-</div>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // --- Basic Logic & Calculation Script ---
-  
-  // Hardcoded Data (ΣΗΜΕΙΩΣΗ: Στο μέλλον αυτά θα πάνε στο φάκελο data/)
-  const EMBEDDED_GEOJSON_BY_BASIN = {
-      "U5118": {"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[23.8746,38.0493],[23.8718,38.0500],[23.8652,38.0472],[23.8593,38.0431],[23.8568,38.0379],[23.8615,38.0385],[23.8746,38.0493]]]},"properties":{"name":"U5118 Sample"}}]},
-      "U2907": {"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[23.85,38.04],[23.86,38.05],[23.87,38.04],[23.85,38.04]]]},"properties":{"name":"U2907 Sample"}}]}
+(() => {
+  const PATHS = {
+    boundary: './data/boundaries/geojson/municipal_chalandriou.geojson',
+    stations: './data/meteostations/weblinks/stations.txt',
+    coords: './data/meteostations/API/stations_coords.json'
   };
 
-  // --- Main Calculation Functions ---
-  function runMasterCalculation() {
-    const A_sqm = parseFloat(document.getElementById('area').value) || 0;
-    const L = parseFloat(document.getElementById('length').value) || 0;
-    const H = parseFloat(document.getElementById('height').value) || 0;
-    const C = parseFloat(document.getElementById('coef').value) || 0.4;
-    const i_input = parseFloat(document.getElementById('rainI').value) || 0;
-    
-    // Tc Calculation (Kirpich)
-    let Slope = (L > 0) ? H / L : 0.01;
-    if(Slope <= 0) Slope = 0.001;
-    let Tc = 0.0195 * Math.pow(L, 0.77) * Math.pow(Slope, -0.385);
-    if(Tc < 5) Tc = 5; // Minimum Tc
-    
-    document.getElementById('res-tc').innerText = Tc.toFixed(1) + " min";
+  // Built-in coordinates (override by creating stations_coords.json)
+  const BUILTIN_COORDS = {"chalandri": [38.021332, 23.79863, "Χαλάνδρι"], "nomismatokopeio": [38.00917, 23.80583, "Νομισματοκοπείο"], "vrilissia": [38.0338111111, 23.8296194444, "Βριλήσσια"], "agia-paraskevi": [38.0167, 23.8333, "Αγία Παρασκευή"], "papagou": [37.9864194444, 23.7934694444, "Παπάγου"], "psychico": [38.0132388889, 23.7722305556, "Ψυχικό"], "gerakas": [38.011751, 23.854839, "Γέρακας"], "kifissia": [38.075989, 23.815899, "Κηφισιά"], "penteli-top": [38.047492, 23.865362, "Πεντέλη"]};
 
-    // Rational Q
-    // A in km2 for formula: Q = 0.278 * C * i * A
-    let A_km2 = A_sqm / 1000000;
-    let Q = 0.278 * C * i_input * A_km2;
-    document.getElementById('res-qsel').innerText = Q.toFixed(2) + " m³/s";
-    
-    // Capacity Checks
-    const numDrains = parseFloat(document.getElementById('drains').value) || 0;
-    const qDrain = parseFloat(document.getElementById('drainCap').value) || 0;
-    const Qcap_net = numDrains * qDrain;
-    document.getElementById('res-drains').innerText = Qcap_net.toFixed(2) + " m³/s";
+  const $ = (id) => document.getElementById(id);
+  const stBoundary = $('stBoundary');
+  const stStations = $('stStations');
+  const stApi = $('stApi');
 
-    // Update Table logic would go here...
-    updateRiskTable(Tc, A_km2, C, Qcap_net);
-    drawBasinCanvas(); 
-    drawChannelCanvas();
+  const stationSelect = $('stationSelect');
+  const btnRefresh = $('btnRefresh');
+
+  const kpi1h = $('kpi1h');
+  const kpi3h = $('kpi3h');
+  const kpi24h = $('kpi24h');
+  const kpiTs = $('kpiTs');
+
+  function setPill(el, kind, text) {
+    el.className = 'pill ' + (kind || '');
+    el.textContent = text;
   }
 
-  function updateRiskTable(Tc, A_km2, C, Qcap_net) {
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = "";
-      const intensities = [5, 10, 20, 40, 60, 80, 100, 120, 150];
-      
-      intensities.forEach(i => {
-          let Q = 0.278 * C * i * A_km2;
-          let P = (i * Tc) / 60; // Total Rain P during Tc
-          let Peq = P * C;
-          let Vol = A_km2 * 1000000 * (P/1000) * C;
-          
-          let rowClass = "risk-safe";
-          if(Peq > 10) rowClass = "risk-warn";
-          if(Peq > 25) rowClass = "risk-orange";
-          if(Peq > 40) rowClass = "risk-red";
-
-          let status = (Q > Qcap_net && Qcap_net > 0) ? "<span class='status-fail'>Υπερχείλιση</span>" : "OK";
-          
-          let tr = `<tr class="${rowClass}">
-              <td><b>${i}</b></td>
-              <td>${P.toFixed(1)}</td>
-              <td>${Q.toFixed(2)}</td>
-              <td>${Vol.toFixed(0)}</td>
-              <td>${Peq.toFixed(1)}</td>
-              <td>${status}</td>
-          </tr>`;
-          tbody.innerHTML += tr;
-      });
-  }
-  
-  // --- Visualization Mockups ---
-  function drawBasinCanvas() {
-      const ctx = document.getElementById('basinCanvas').getContext('2d');
-      ctx.clearRect(0,0,180,150);
-      ctx.fillStyle = '#a2d9ce';
-      ctx.fillRect(10,10,160,130);
-      ctx.strokeRect(10,10,160,130);
-      ctx.fillStyle='#333'; ctx.fillText("Basin Visual", 60, 80);
+  function fmtNum(x) {
+    if (x === null || x === undefined || Number.isNaN(x)) return '—';
+    return (Math.round(x * 10) / 10).toFixed(1);
   }
 
-  function drawChannelCanvas() {
-      const ctx = document.getElementById('channelCanvas').getContext('2d');
-      ctx.clearRect(0,0,180,120);
-      ctx.beginPath(); ctx.moveTo(20,20); ctx.lineTo(40,100); ctx.lineTo(140,100); ctx.lineTo(160,20);
-      ctx.stroke();
-      ctx.fillStyle='#2980b9'; ctx.fillText("Channel Visual", 50, 60);
+  async function fetchText(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return await res.text();
   }
 
-  // --- Initial Load ---
-  window.onload = function() {
-      // Load Basins into table
-      const basinRows = document.getElementById('basinRows');
-      for (const [key, val] of Object.entries(EMBEDDED_GEOJSON_BY_BASIN)) {
-          basinRows.innerHTML += `<tr><td>${key}</td><td>-</td><td><button class="mini-go-btn">Load</button></td></tr>`;
+  async function fetchJson(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return await res.json();
+  }
+
+  function parseStationIdFromUrl(u) {
+    try {
+      const m = String(u).match(/\/stations\/([^\/]+)\//i);
+      return m ? m[1].trim() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function titleFromId(id) {
+    return id
+      .replace(/[-_]+/g, ' ')
+      .replace(/\w/g, c => c.toUpperCase());
+  }
+
+  function parseStationsText(text) {
+    // Accept:
+    // - whitespace-separated URLs
+    // - one URL per line
+    // - pipe-delimited lines: id|name|lat|lon|url
+    const lines = String(text).split(/
+?
+/).map(l => l.trim()).filter(Boolean).filter(l => !l.startsWith('#'));
+    let stations = [];
+
+    // If file is one long line with many URLs, split by whitespace
+    const rawItems = (lines.length === 1 && lines[0].includes('http')) ? lines[0].split(/\s+/) : lines;
+
+    for (const item of rawItems) {
+      if (!item) continue;
+
+      if (item.includes('|')) {
+        const parts = item.split('|').map(x => x.trim());
+        const id = parts[0];
+        const name = parts[1] || null;
+        const lat = parts[2] ? Number(parts[2]) : null;
+        const lon = parts[3] ? Number(parts[3]) : null;
+        const url = parts[4] || null;
+        stations.push({ id, name, lat, lon, url });
+        continue;
       }
-      runMasterCalculation();
-  };
-  
-  function toggleBasinPanel() {
-      const p = document.getElementById('basinPanel');
-      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+
+      if (item.startsWith('http')) {
+        const url = item;
+        const id = parseStationIdFromUrl(url) || ('weblink_' + Math.random().toString(36).slice(2,8));
+        stations.push({ id, name: null, lat: null, lon: null, url });
+      }
+    }
+
+    // Deduplicate by id
+    const seen = new Set();
+    stations = stations.filter(s => {
+      if (!s.id || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+
+    return stations;
   }
+
+  function applyCoords(stations, coordsMap) {
+    return stations.map(s => {
+      const c = coordsMap[s.id] || BUILTIN_COORDS[s.id];
+      if (c && (!isFinite(s.lat) || !isFinite(s.lon))) {
+        s.lat = Number(c[0]);
+        s.lon = Number(c[1]);
+      }
+      if (c && (!s.name || !String(s.name).trim())) {
+        s.name = c[2] || s.name;
+      }
+      if (!s.name) s.name = titleFromId(s.id);
+      return s;
+    });
+  }
+
+  function openMeteoUrl(lat, lon) {
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+      hourly: 'precipitation',
+      timezone: 'Europe/Athens',
+      past_days: '2',
+      forecast_days: '1'
+    });
+    return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+  }
+
+  function computeSums(times, prec) {
+    const n = Math.min(times.length, prec.length);
+    const now = new Date();
+    let lastIdx = -1;
+    for (let i = 0; i < n; i++) {
+      const t = new Date(times[i]);
+      if (t <= now) lastIdx = i;
+      else break;
+    }
+    if (lastIdx < 0) lastIdx = n - 1;
+
+    const get = (i) => (i>=0 && i<n) ? (Number(prec[i]) || 0) : 0;
+
+    const last1h = get(lastIdx);
+    let sum3 = 0;
+    for (let k = 0; k < 3; k++) sum3 += get(lastIdx - k);
+
+    let sum24 = 0;
+    for (let k = 0; k < 24; k++) sum24 += get(lastIdx - k);
+
+    const ts = times[lastIdx] || null;
+    return { last1h, sum3, sum24, ts };
+  }
+
+  // Map
+  const map = L.map('map', { zoomControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  let boundaryLayer = null;
+  let stationsLayer = L.layerGroup().addTo(map);
+  let selectedMarker = null;
+
+  function setViewDefault() {
+    map.setView([38.02, 23.81], 12);
+  }
+  setViewDefault();
+
+  async function loadBoundary() {
+    try {
+      const gj = await fetchJson(PATHS.boundary);
+      if (boundaryLayer) boundaryLayer.remove();
+      boundaryLayer = L.geoJSON(gj, { style: { weight: 2, opacity: 0.9, fillOpacity: 0.08 } }).addTo(map);
+      try { map.fitBounds(boundaryLayer.getBounds(), { padding: [20,20] }); } catch (e) {}
+      setPill(stBoundary, 'ok', 'OK');
+    } catch (e) {
+      console.warn('Boundary load failed:', e);
+      setPill(stBoundary, 'warn', 'Δεν φορτώθηκε');
+    }
+  }
+
+  async function loadCoordsMap() {
+    try {
+      const obj = await fetchJson(PATHS.coords);
+      return obj || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  async function loadStations() {
+    const txt = await fetchText(PATHS.stations);
+    let stations = parseStationsText(txt);
+
+    const coords = await loadCoordsMap();
+    stations = applyCoords(stations, coords);
+
+    const usable = stations.filter(s => isFinite(s.lat) && isFinite(s.lon));
+    const unusable = stations.filter(s => !isFinite(s.lat) || !isFinite(s.lon));
+
+    setPill(stStations, usable.length ? 'ok' : 'bad', usable.length ? `${usable.length} usable` : '0 usable');
+    if (unusable.length) console.warn('Stations without coords (ignored):', unusable.map(s => s.id));
+
+    stationSelect.innerHTML = '';
+    for (const s of usable) {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      stationSelect.appendChild(opt);
+    }
+
+    stationsLayer.clearLayers();
+    for (const s of usable) {
+      const m = L.marker([s.lat, s.lon]).addTo(stationsLayer);
+      m.bindPopup(`<b>${escapeHtml(s.name)}</b><br/><span class="mono">${escapeHtml(s.id)}</span>`);
+      m.on('click', () => { stationSelect.value = s.id; refreshSelected().catch(console.error); });
+      s._marker = m;
+    }
+
+    if (usable.length) stationSelect.value = usable[0].id;
+    return usable;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  const dataCache = new Map(); // id -> { tsFetched, sums }
+
+  async function fetchOpenMeteoForStation(station) {
+    const key = station.id;
+    const cached = dataCache.get(key);
+    const now = Date.now();
+    if (cached && (now - cached.tsFetched) < 60_000) return cached.sums;
+
+    const url = openMeteoUrl(station.lat, station.lon);
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
+    const json = await res.json();
+
+    const times = json?.hourly?.time || [];
+    const prec = json?.hourly?.precipitation || [];
+    const sums = computeSums(times, prec);
+
+    dataCache.set(key, { tsFetched: now, sums });
+    return sums;
+  }
+
+  function setSelectedMarker(station) {
+    if (selectedMarker) { selectedMarker.setOpacity(1); selectedMarker = null; }
+    if (station && station._marker) {
+      selectedMarker = station._marker;
+      selectedMarker.openPopup();
+      try { map.panTo([station.lat, station.lon]); } catch(e) {}
+    }
+  }
+
+  let stations = [];
+
+  async function refreshSelected() {
+    const id = stationSelect.value;
+    const st = stations.find(s => s.id === id);
+    if (!st) return;
+
+    try {
+      setPill(stApi, '', '…');
+      const sums = await fetchOpenMeteoForStation(st);
+      setPill(stApi, 'ok', 'OK');
+
+      kpi1h.textContent = fmtNum(sums.last1h);
+      kpi3h.textContent = fmtNum(sums.sum3);
+      kpi24h.textContent = fmtNum(sums.sum24);
+      kpiTs.textContent = sums.ts ? new Date(sums.ts).toLocaleString('el-GR') : new Date().toLocaleString('el-GR');
+
+      setSelectedMarker(st);
+    } catch (e) {
+      console.warn('Open-Meteo error:', e);
+      setPill(stApi, 'bad', 'Σφάλμα');
+      kpi1h.textContent = '—';
+      kpi3h.textContent = '—';
+      kpi24h.textContent = '—';
+      kpiTs.textContent = new Date().toLocaleString('el-GR');
+    }
+  }
+
+  btnRefresh.addEventListener('click', () => refreshSelected().catch(console.error));
+  stationSelect.addEventListener('change', () => refreshSelected().catch(console.error));
+
+  (async () => {
+    setPill(stBoundary, '', '…');
+    setPill(stStations, '', '…');
+    setPill(stApi, '', '…');
+
+    await loadBoundary();
+    stations = await loadStations();
+    if (stations.length) await refreshSelected();
+    else setPill(stApi, 'warn', 'Χωρίς σταθμούς');
+  })();
+
+})();
 </script>
+
 </body>
 </html>
