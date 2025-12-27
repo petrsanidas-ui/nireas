@@ -84,14 +84,21 @@
     .icon-btn{
       border:none;
       background:rgba(255,255,255,.14);
-      color:#fff;
+      color:currentColor; /* inherits from parent (white on dark topbar, dark on light headers) */
       width:30px;height:26px;
       border-radius:6px;
       cursor:pointer;
       font-weight:900;
       line-height:1;
     }
-    .icon-btn:hover{background:rgba(255,255,255,.22)}
+    .icon-btn:hover{background:rgba(255,255,255,.22)} 
+
+    /* Make collapse/minimize buttons visible on light section headers */
+    .section-hdr .icon-btn{
+      background:rgba(44,62,80,.10);
+      border:1px solid rgba(0,0,0,.10);
+    }
+    .section-hdr .icon-btn:hover{background:rgba(44,62,80,.16)}
     .section{
       border-top:1px solid rgba(255,255,255,.08);
     }
