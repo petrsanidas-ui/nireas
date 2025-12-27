@@ -164,7 +164,10 @@
 <div id="mapModal">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <b>Προβολή Χάρτη</b>
-    <button class="mini-btn btn-gray" onclick="document.getElementById('mapModal').style.display='none'">Κλείσιμο</button>
+    <div>
+      <button class="mini-btn btn-gray" onclick="clearMapLayers()">Καθαρισμός</button>
+      <button class="mini-btn btn-gray" onclick="document.getElementById('mapModal').style.display='none'">Κλείσιμο</button>
+    </div>
   </div>
   <div id="mapBox"></div>
 </div>
@@ -178,9 +181,11 @@
   const RAW_URL = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/`;
 
   let DATA_GROUPS = { basins: [], boundaries: [], streams: [] };
-  let SELECTED_GEO = null; 
+  let SELECTED_GEO = null;
+
+  // ✅ MULTI-LAYER MAP STATE
   let map;
-  const geoLayers = new Map(); // path -> L.GeoJSON layer
+  const geoLayers = new Map(); // path -> L.GeoJSON
 
   // --- INIT ---
   async function init() {
@@ -190,7 +195,7 @@
        // 1. Fetch File Tree
        const resp = await fetch(API_TREE);
        const data = await resp.json();
-       if(data.message) throw new Error(data.message);
+       if (data.message) throw new Error(data.message);
        
        const files = data.tree;
 
@@ -203,7 +208,7 @@
 
        // 3. Find Stations
        const stationFile = files.find(f => f.path.includes('stations.txt'));
-       if(stationFile) fetchStations(stationFile.path);
+       if (stationFile) fetchStations(stationFile.path);
        else updateMeteoStatus("Δεν βρέθηκε το stations.txt");
 
     } catch(e) {
@@ -220,7 +225,8 @@
      tbody.innerHTML = '';
 
      const createSection = (title, list, icon, color) => {
-         if(list.length === 0) return;
+         if (list.length === 0) return;
+
          const trHead = document.createElement('tr');
          trHead.innerHTML = `<td colspan="3" style="background:#f4f6f7; color:${color}; font-weight:bold; text-align:left; padding:5px; border-bottom:1px solid #ccc;">${icon} ${title}</td>`;
          tbody.appendChild(trHead);
@@ -233,7 +239,7 @@
                <td><span style="color:#aaa; font-size:9px;">GEOJSON</span></td>
                <td>
                  <button class="mini-btn btn-load" onclick="loadGeoJSON('${f.path}', '${name}')">Load</button>
-                 <button class="mini-btn btn-map" onclick="showMap('${f.path}', this)">Map</button>
+                 <button class="mini-btn btn-map geo-map-btn" data-path="${f.path}" onclick="showMap('${f.path}', this)">Map</button>
                </td>
             `;
             tbody.appendChild(tr);
@@ -260,16 +266,16 @@
 
          // Load Properties if exist
          const p = json.features && json.features[0] ? json.features[0].properties : {};
-         if(p.area) document.getElementById('area').value = p.area;
-         if(p.length) document.getElementById('length').value = p.length;
-         if(p.height) document.getElementById('height').value = p.height;
-         if(p.coef) document.getElementById('coef').value = p.coef;
+         if (p.area) document.getElementById('area').value = p.area;
+         if (p.length) document.getElementById('length').value = p.length;
+         if (p.height) document.getElementById('height').value = p.height;
+         if (p.coef) document.getElementById('coef').value = p.coef;
          
          updateMeteoStatus(`Φορτώθηκε: ${id}`);
          calc();
          
          // Auto-show map if it's just geometry (no data)
-         if(!p.area) showMap(path);
+         if (!p.area) showMap(path);
 
      } catch(e) { alert("Σφάλμα: " + e.message); }
   }
@@ -287,13 +293,13 @@
        const grpLink = document.createElement('optgroup'); grpLink.label = "Web Links";
        
        lines.forEach(line => {
-          if(!line.trim()) return;
+          if (!line.trim()) return;
           let name = "", url = line.trim();
-          if(line.includes('|')) { const p = line.split('|'); name = p[0].trim(); url = p[1].trim(); }
-          else if(url.startsWith('http')) { try { name = url.split('/').pop(); } catch(e){ name="Station"; } }
+          if (line.includes('|')) { const p = line.split('|'); name = p[0].trim(); url = p[1].trim(); }
+          else if (url.startsWith('http')) { try { name = url.split('/').pop(); } catch(e){ name="Station"; } }
 
           const opt = document.createElement('option'); opt.value = url; opt.text = name;
-          if(url.includes('meteo.gr')) grpApi.appendChild(opt); else grpLink.appendChild(opt);
+          if (url.includes('meteo.gr')) grpApi.appendChild(opt); else grpLink.appendChild(opt);
        });
        sel.appendChild(grpApi); sel.appendChild(grpLink);
      } catch(e) { console.error(e); }
@@ -301,14 +307,14 @@
 
   function openStationWeb() {
       const url = document.getElementById('meteoStationSelect').value;
-      if(url) window.open(url, '_blank');
+      if (url) window.open(url, '_blank');
   }
 
   async function fetchStationData() {
       const url = document.getElementById('meteoStationSelect').value;
-      if(!url) return;
+      if (!url) return;
       updateMeteoStatus("Σύνδεση...");
-      if(url.includes('meteo.gr')) {
+      if (url.includes('meteo.gr')) {
           setTimeout(() => {
               const r = (Math.random()*20).toFixed(1);
               document.getElementById('rainI').value = r;
@@ -324,8 +330,8 @@
       if (SELECTED_GEO && SELECTED_GEO.features) {
           try {
              let coords = SELECTED_GEO.features[0].geometry.coordinates;
-             if(SELECTED_GEO.features[0].geometry.type === "Polygon") coords = coords[0][0];
-             else if(SELECTED_GEO.features[0].geometry.type === "LineString") coords = coords[0];
+             if (SELECTED_GEO.features[0].geometry.type === "Polygon") coords = coords[0][0];
+             else if (SELECTED_GEO.features[0].geometry.type === "LineString") coords = coords[0];
              lon = coords[0]; lat = coords[1];
           } catch(e) {}
       }
@@ -353,13 +359,13 @@
       const Qpeak = 0.278 * C * I * (A/1e6);
       
       let Tc = 0;
-      if(L>0 && H>0) Tc = 0.0195 * Math.pow(L, 0.77) * Math.pow(H/L, -0.385);
+      if (L>0 && H>0) Tc = 0.0195 * Math.pow(L, 0.77) * Math.pow(H/L, -0.385);
       
       const b = parseFloat(document.getElementById('strWidth').value)||0;
       const h_d = parseFloat(document.getElementById('strDepth').value)||0;
       const n = parseFloat(document.getElementById('strN').value)||0.03;
       let Qcap = 0;
-      if(b>0 && h_d>0 && L>0 && H>0) {
+      if (b>0 && h_d>0 && L>0 && H>0) {
           const As = b * h_d;
           const R = As / (b + 2*h_d);
           Qcap = (1/n) * As * Math.pow(R, 2/3) * Math.sqrt(H/L);
@@ -370,79 +376,107 @@
       document.getElementById('res-tc').innerText = Tc.toFixed(1) + " min";
       
       const s = document.getElementById('res-status');
-      if(Qpeak>0 && Qcap>0) s.innerHTML = Qpeak < Qcap ? "<span style='color:green'>OK</span>" : "<span style='color:red'>ΚΙΝΔΥΝΟΣ</span>";
+      if (Qpeak>0 && Qcap>0) s.innerHTML = Qpeak < Qcap ? "<span style='color:green'>OK</span>" : "<span style='color:red'>ΚΙΝΔΥΝΟΣ</span>";
       else s.innerText = "—";
   }
 
-  // --- MAP ---
-  function layerOptionsForPath(path) {
-  // panes για σωστό "στοίβαγμα"
-  if (path.includes('boundaries')) {
-    return {
-      pane: 'boundariesPane',
-      style: { color: "#c0392b", fill: false, weight: 3, dashArray: '5, 5' }
-    };
-  }
-  if (path.includes('streams')) {
-    return {
-      pane: 'streamsPane',
-      style: { color: "#2980b9", weight: 4 }
-    };
-  }
-  // basins
-  return {
-    pane: 'basinsPane',
-    style: { color: "#2c3e50", weight: 2, fillOpacity: 0.15 }
-  };
-}
+  // =========================
+  // ✅ MULTI-LAYER MAP (TOGGLE)
+  // =========================
+  function ensureMap() {
+    if (map) return;
 
-function fitToVisibleLayers() {
-  if (!map) return;
-  const visible = [...geoLayers.values()].filter(l => map.hasLayer(l));
-  if (!visible.length) return;
-
-  const fg = L.featureGroup(visible);
-  map.fitBounds(fg.getBounds(), { padding: [15, 15] });
-}
-
-async function showMap(path, btn = null) {
-  document.getElementById('mapModal').style.display = 'flex';
-
-  if (!map) {
     map = L.map('mapBox').setView([38.02, 23.80], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // panes / z-index
-    map.createPane('basinsPane');      map.getPane('basinsPane').style.zIndex = 400;
-    map.createPane('streamsPane');     map.getPane('streamsPane').style.zIndex = 450;
-    map.createPane('boundariesPane');  map.getPane('boundariesPane').style.zIndex = 500;
-  } else {
+    // panes / z-index (ώστε τα όρια να είναι πάντα από πάνω)
+    map.createPane('basinsPane');     map.getPane('basinsPane').style.zIndex = 400;
+    map.createPane('streamsPane');    map.getPane('streamsPane').style.zIndex = 450;
+    map.createPane('boundariesPane'); map.getPane('boundariesPane').style.zIndex = 500;
+  }
+
+  function layerOptionsForPath(path) {
+    // boundaries
+    if (path.includes('boundaries')) {
+      return {
+        pane: 'boundariesPane',
+        style: { color: "#c0392b", fill: false, weight: 3, dashArray: '5, 5' }
+      };
+    }
+    // streams
+    if (path.includes('streams')) {
+      return {
+        pane: 'streamsPane',
+        style: { color: "#2980b9", weight: 4 }
+      };
+    }
+    // basins (default)
+    return {
+      pane: 'basinsPane',
+      style: { color: "#2c3e50", weight: 2, fillOpacity: 0.15 }
+    };
+  }
+
+  function fitToVisibleLayers() {
+    if (!map) return;
+    const visible = [...geoLayers.values()].filter(l => map.hasLayer(l));
+    if (!visible.length) return;
+    const fg = L.featureGroup(visible);
+    map.fitBounds(fg.getBounds(), { padding: [15, 15] });
+  }
+
+  function syncMapButton(path, isOn) {
+    const btn = document.querySelector(`.geo-map-btn[data-path="${path}"]`);
+    if (btn) btn.textContent = isOn ? "On" : "Map";
+  }
+
+  async function showMap(path, btn = null) {
+    document.getElementById('mapModal').style.display = 'flex';
+    ensureMap();
     setTimeout(() => map.invalidateSize(), 100);
-  }
 
-  // αν υπάρχει ήδη layer για αυτό το path => toggle on/off
-  if (geoLayers.has(path)) {
-    const layer = geoLayers.get(path);
-    const isOn = map.hasLayer(layer);
+    // ήδη φορτωμένο; κάνε toggle ON/OFF χωρίς να σβήνεις τα άλλα
+    if (geoLayers.has(path)) {
+      const layer = geoLayers.get(path);
+      const isOn = map.hasLayer(layer);
 
-    if (isOn) map.removeLayer(layer);
-    else layer.addTo(map);
+      if (isOn) map.removeLayer(layer);
+      else layer.addTo(map);
 
-    if (btn) btn.textContent = map.hasLayer(layer) ? "On" : "Map";
+      const nowOn = map.hasLayer(layer);
+      if (btn) btn.textContent = nowOn ? "On" : "Map";
+      else syncMapButton(path, nowOn);
+
+      fitToVisibleLayers();
+      return;
+    }
+
+    // 1η φορά: fetch + add + cache
+    const d = await fetch(RAW_URL + path).then(r => r.json());
+    const opts = layerOptionsForPath(path);
+
+    const layer = L.geoJSON(d, opts).addTo(map);
+    geoLayers.set(path, layer);
+
+    if (btn) btn.textContent = "On";
+    else syncMapButton(path, true);
+
     fitToVisibleLayers();
-    return;
   }
 
-  // αλλιώς φόρτωσέ το 1η φορά και κράτα το cache
-  const d = await fetch(RAW_URL + path).then(r => r.json());
-  const { pane, style } = layerOptionsForPath(path);
+  function clearMapLayers() {
+    if (!map) return;
+    for (const layer of geoLayers.values()) {
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+    }
+    document.querySelectorAll('.geo-map-btn').forEach(b => b.textContent = "Map");
+  }
 
-  const layer = L.geoJSON(d, { pane, style }).addTo(map);
-  geoLayers.set(path, layer);
-
-  if (btn) btn.textContent = "On";
-  fitToVisibleLayers();
-}
+  // --- UI ---
+  function togglePanel() {
+      const b = document.getElementById('basinPanelBody');
+      b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  }
 
   window.onload = init;
 </script>
