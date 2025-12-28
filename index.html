@@ -1707,14 +1707,25 @@ function parseMeteoPageMinimal(text){
   if(!m) m = text.match(/([0-9]+(?:\.[0-9]+)?)\s*mm\/h/i);
   if(m) out.rr = Number(m[1]);
 
-  // totals (today/storm) — heuristic; if not found, DP/R60 will remain '—'
-  let tot = null;
-  let src = null;
-  const mtoday = text.match(/Σύνολο\s*Ημέρας[^\n]{0,30}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
-  if(mtoday){ tot = Number(mtoday[1]); src='today'; }
-  const mstorm = text.match(/Σύνολο\s*Καταιγίδας[^\n]{0,30}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
-  if(mstorm){ tot = Number(mstorm[1]); src='storm'; }
-  if(tot!=null) out.totals = { total: tot, totalSrc: src };
+  // totals (today/storm) — supports Penteli/NOA pages like Chalandri:
+  // "Today's Rain / Σημερινός Υετός" and "Storm Total / Τρέχουσα κακοκαιρία"
+  let today = null, storm = null;
+
+  const mtoday1 = text.match(/Σύνολο\s*Ημέρας[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  const mtoday2 = text.match(/(?:Today's\s*Rain|Σημερινός\s*Υετός)[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  if(mtoday1) today = Number(mtoday1[1]);
+  else if(mtoday2) today = Number(mtoday2[1]);
+
+  const mstorm1 = text.match(/Σύνολο\s*Καταιγίδας[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  const mstorm2 = text.match(/(?:Storm\s*Total|Τρέχουσα\s*κακοκαιρία)[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  if(mstorm1) storm = Number(mstorm1[1]);
+  else if(mstorm2) storm = Number(mstorm2[1]);
+
+  let total = null, totalSrc = null;
+  if(storm != null){ total = storm; totalSrc = 'storm'; }
+  else if(today != null){ total = today; totalSrc = 'today'; }
+
+  if(total != null) out.totals = { today, storm, total, totalSrc };
 
   return out;
 }
