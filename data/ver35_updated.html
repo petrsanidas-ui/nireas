@@ -1,0 +1,2443 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NIREAS</title>
+
+  
+  <link rel="icon" type="image/png" href="nireas_logo.png" />
+<!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --bg:#eef2f5;
+      --panel:#ffffff;
+      --ink:#2c3e50;
+      --muted:#6b7a86;
+      --line:#d6dde4;
+      --hdr:#2c3e50;
+
+      --btn-blue:#2980b9;
+      --btn-green:#27ae60;
+      --btn-gray:#7f8c8d;
+
+      --danger:#c0392b;
+      --warn:#d35400;
+      --ok:#27ae60;
+
+      --shadow:0 10px 24px rgba(0,0,0,.12);
+      --radius:10px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background:var(--bg);
+      color:var(--ink);
+    }
+
+    /* ====== Layout (side-by-side, no overlap) ====== */
+    .app-shell{
+      display:flex;
+      gap:14px;
+      padding:14px;
+      align-items:flex-start;
+    }
+    @media (max-width: 1100px){
+      .app-shell{flex-direction:column}
+    }
+
+    .side-panel{
+      width:390px;
+      max-width:100%;
+      background:var(--panel);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      border:1px solid rgba(0,0,0,.06);
+    }
+    .main-panel{
+      flex:1;
+      min-width:380px;
+      background:var(--panel);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      border:1px solid rgba(0,0,0,.06);
+    }
+
+    /* ====== Panel headers & collapsibles ====== */
+    .panel-topbar{
+      background:var(--hdr);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px;
+      font-weight:700;
+      font-size:14px;
+    }
+    .icon-btn{
+      border:none;
+      background:rgba(255,255,255,.14);
+      color:currentColor; /* inherits from parent (white on dark topbar, dark on light headers) */
+      width:30px;height:26px;
+      border-radius:6px;
+      cursor:pointer;
+      font-weight:900;
+      line-height:1;
+    }
+    .icon-btn:hover{background:rgba(255,255,255,.22)} 
+
+    /* Make collapse/minimize buttons visible on light section headers */
+    .section-hdr .icon-btn{
+      background:rgba(44,62,80,.10);
+      border:1px solid rgba(0,0,0,.10);
+    }
+    .section-hdr .icon-btn:hover{background:rgba(44,62,80,.16)}
+    .section{
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+    .section-hdr{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px;
+      border-top:1px solid var(--line);
+      background:#f7f9fb;
+      font-weight:800;
+      color:var(--ink);
+    }
+    .section-body{
+      padding:10px 12px;
+    }
+    .collapsed{display:none!important}
+
+    /* ====== Buttons ====== */
+    .mini-btn{
+      border:none;
+      border-radius:4px;
+      padding:4px 8px;
+      font-size:11px;
+      cursor:pointer;
+      color:#fff;
+      font-weight:800;
+      line-height:1.1;
+      user-select:none;
+    }
+    .btn-load{background:var(--btn-blue)}
+    .btn-map{background:var(--btn-green)}
+    .btn-gray{background:var(--btn-gray)}
+    .btn-on{background:var(--btn-green)}
+    .btn-off{background:var(--btn-gray)}
+
+    /* Station monitor button states */
+    .btn-auto-default{background:var(--btn-blue)}
+    .btn-auto-live{background:var(--btn-green)}
+    .btn-live-off{background:var(--danger)}
+    .btn-live-on{background:var(--btn-green)}
+    .temp-green{background:var(--btn-green)!important}
+
+/* Station time-series list */
+.series-list{margin-top:6px;border:1px solid #dfe7ee;border-radius:10px;padding:6px;background:#fff;max-height:160px;overflow:auto;font-size:11px}
+.series-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed #e6eef5}
+.series-row:last-child{border-bottom:none}
+.series-ts{color:var(--muted);min-width:125px}
+.series-val{font-weight:700;white-space:nowrap}
+.series-dp{color:var(--muted);white-space:nowrap}
+
+    .mini-btn:hover{filter:brightness(.95)}
+    .mini-btn:active{transform:translateY(1px)}
+
+    /* ====== Side table ====== */
+    table{border-collapse:collapse;width:100%}
+    th,td{padding:6px;border-bottom:1px solid #e9eef3;text-align:center;font-size:12px}
+    th{background:#34495e;color:#fff;font-size:12px}
+    .cat-row td{
+      background:#f3f6f8;
+      font-weight:900;
+      text-align:left;
+      padding:7px 10px;
+      border-bottom:1px solid #dfe7ee;
+    }
+    .type-cell{color:#9aa6b2;font-size:10px}
+
+    .hint{
+      font-size:10px;
+      color:var(--muted);
+      padding:10px 12px;
+      border-top:1px solid var(--line);
+    }
+
+    /* ====== Main tool (ver14-like) ====== */
+    .tool-wrap{padding:12px}
+    .tool-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border-bottom:1px solid var(--line);
+      background:#fbfcfe;
+    }
+    .tool-header h1{
+      margin:0;
+      font-size:15px;
+      letter-spacing:.2px;
+    }
+    .print-btn{
+      border:none;
+      background:#2c3e50;
+      color:#fff;
+      border-radius:6px;
+      padding:7px 10px;
+      font-size:12px;
+      cursor:pointer;
+      font-weight:800;
+    }
+    .print-btn:hover{filter:brightness(.95)}
+
+    .sel-basin{
+      margin:10px 0 0 0;
+      font-size:12px;
+      color:#2c3e50;
+      font-weight:800;
+    }
+    .sel-basin span{
+      font-weight:900;
+      color:#d35400;
+    }
+
+    .grid-2{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap:10px;
+      margin-top:10px;
+    }
+    @media (max-width: 900px){
+      .grid-2{grid-template-columns:1fr}
+    }
+
+    .box{
+      border:1px solid #dfe7ee;
+      background:#fff;
+      border-radius:10px;
+      padding:10px;
+    }
+    .box h3{
+      margin:0 0 8px 0;
+      font-size:13px;
+      font-weight:900;
+    }
+    .row{
+      display:grid;
+      grid-template-columns:1.2fr 1fr;
+      gap:8px;
+      align-items:center;
+      margin:6px 0;
+    }
+    .row label{
+      font-size:12px;
+      color:#2c3e50;
+      font-weight:800;
+    }
+    input,select{
+      width:100%;
+      font-size:12px;
+      padding:6px 8px;
+      border:1px solid #d6dde4;
+      border-radius:6px;
+      outline:none;
+      background:#fff;
+    }
+
+    .panels-row{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    @media (max-width: 1150px){
+      .panels-row{grid-template-columns:1fr}
+    }
+
+    canvas{
+      width:100%;
+      border:1px dashed #cfd8e3;
+      border-radius:8px;
+      background:#fff;
+    }
+
+    .summary-box{
+      display:grid;
+      grid-template-columns:repeat(6, 1fr);
+      gap:10px;
+      margin-top:10px;
+    }
+    @media (max-width: 1150px){
+      .summary-box{grid-template-columns:repeat(2,1fr)}
+    }
+    .stat{
+      border:1px solid #e6edf3;
+      background:#fbfdff;
+      border-radius:10px;
+      padding:8px;
+      text-align:center;
+    }
+    .stat .k{font-size:11px;color:#6b7a86;font-weight:800}
+    .stat .v{font-size:14px;font-weight:900;margin-top:4px}
+
+    .status-ok{color:var(--ok);font-weight:900}
+    .status-warn{color:var(--warn);font-weight:900}
+    .status-fail{color:var(--danger);font-weight:900}
+
+    /* Scenario table + risk colors */
+    .table-wrap{
+      margin-top:12px;
+      border:1px solid #e6edf3;
+      border-radius:10px;
+      overflow:hidden;
+    }
+    .table-wrap table{width:100%}
+    .table-wrap th{background:#34495e}
+    .risk-safe{background:#eafaf1}
+    .risk-warn{background:#fff7e6}
+    .risk-orange{background:#ffe9d6}
+    .risk-red{background:#ffe0e0}
+    .risk-extreme{background:#ffd1d1}
+
+    .footer-grid{
+      display:grid;
+      grid-template-columns:1.2fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    @media (max-width: 900px){
+      .footer-grid{grid-template-columns:1fr}
+    }
+    .legend{
+      border:1px solid #e6edf3;
+      border-radius:10px;
+      padding:10px;
+      background:#fff;
+    }
+    .legend h4{margin:0 0 8px 0;font-size:12px;font-weight:900}
+    .legend .item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin:6px 0;
+      font-size:12px;
+      font-weight:800;
+      color:#2c3e50;
+    }
+    .swatch{
+      width:18px;height:12px;border-radius:3px;border:1px solid rgba(0,0,0,.12);
+    }
+
+    .station-mini{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:8px;
+      margin-top:8px;
+    }
+    @media (max-width: 900px){
+      .station-mini{grid-template-columns:1fr}
+    }
+    .station-card{
+      border:1px solid #e6edf3;
+      border-radius:10px;
+      padding:8px;
+      background:#fbfdff;
+    }
+    .station-card .t{font-size:11px;color:#6b7a86;font-weight:900}
+    .station-card .v{font-size:14px;font-weight:900;margin-top:3px}
+    .station-actions{
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+      flex-wrap:wrap;
+    }
+
+    /* ====== Map modal ====== */
+    #mapModal{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      z-index:9999;
+    }
+    #mapCard{
+      width:min(1100px, 96vw);
+      height:min(700px, 88vh);
+      background:#fff;
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      display:flex;
+      flex-direction:column;
+    }
+    #mapTop{
+      padding:10px 12px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      background:#fbfcfe;
+      font-weight:900;
+    }
+    #mapBox{flex:1}
+
+    /* ====== Loader ====== */
+    #loader{
+      display:none;
+      font-size:12px;
+      color:var(--muted);
+      padding:8px 12px;
+      border-top:1px solid var(--line);
+    }
+
+    /* ====== Print ====== */
+    @media print{
+      body{background:#fff}
+      .side-panel{display:none!important}
+      .app-shell{padding:0}
+      .main-panel{box-shadow:none;border:none;border-radius:0}
+      #mapModal{display:none!important}
+      .no-print{display:none!important}
+    }
+  
+  /* Watchlist chips + multi-station list */
+  .chip{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; border:1px solid #cbd5e1; background:#ffffff; font-size:11px; cursor:pointer; }
+  .chip b{ font-weight:600; }
+  .chip button{ border:0; background:transparent; cursor:pointer; font-size:12px; line-height:1; color:#64748b; padding:0; }
+  .multi-table{ width:100%; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; background:#fff; }
+  .multi-row{ display:flex; gap:8px; padding:6px 8px; border-top:1px solid #e2e8f0; align-items:center; font-size:11px; }
+  .multi-row:first-child{ border-top:0; }
+  .multi-name{ flex:1; font-weight:600; }
+  .multi-metric{ min-width:88px; text-align:right; font-variant-numeric: tabular-nums; }
+  .multi-ts{ min-width:140px; text-align:right; color:#64748b; font-variant-numeric: tabular-nums; }
+
+
+    /* ====== NIREAS brand/logo ====== */
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+    .nireas-logo{
+      height:42px;
+      width:auto;
+      border-radius:10px;
+      background:#fff;
+      padding:2px;
+      border:1px solid #dfe7ee;
+      box-shadow:0 6px 14px rgba(0,0,0,.10);
+      flex:0 0 auto;
+    }
+    .brand h1{
+      margin:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+</style>
+</head>
+
+<body>
+
+<div class="app-shell">
+
+  <!-- ================= LEFT: GitHub Data panel ================= -->
+  <aside class="side-panel">
+    <div class="panel-topbar">
+      <div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
+  Πηγή Δεδομένων : <img class="nireas-logo" src="nireas_logo.png" alt="ΝΗΡΕΑΣ" style="height:22px;padding:1px;border-radius:6px;" />
+</div>
+      <button class="icon-btn" onclick="toggleCollapse('sideBody', this)">−</button>
+    </div>
+
+    <div id="sideBody">
+      <div class="section">
+        <div class="section-hdr">
+          <div>📡 ΜΕΤΕΩΡΟΛΟΓΙΚΟΙ ΣΤΑΘΜΟΙ</div>
+          <button class="icon-btn" style="width:28px;height:24px" onclick="toggleCollapse('meteoBody', this)">−</button>
+        </div>
+        <div class="section-body" id="meteoBody">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="meteoStationSelect" style="flex:1">
+              <option value="">Επιλογή σταθμού...</option>
+            </select>
+            <button class="mini-btn btn-on" onclick="addToWatchlist()" title="Προσθήκη στην παρακολούθηση">➕</button>
+            <button class="mini-btn btn-gray" onclick="clearWatchlist()" title="Καθαρισμός παρακολούθησης">🧹</button>
+            <button class="mini-btn btn-map" onclick="openStationWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
+          </div>
+
+          <div id="watchlistWrap" style="margin-top:8px;" class="no-print">
+            <div style="font-size:11px;color:#6b7a86;margin-bottom:4px;">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
+            <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="mini-btn btn-load" style="flex:1; padding:8px;" onclick="fetchStationData()">⬇️ Load</button>
+            <button class="mini-btn btn-on" style="flex:1; padding:8px;" onclick="fetchLiveMeteo()">🌍 Load(API)</button>
+          </div>
+
+          <div id="meteoStatus" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">Αναμονή…</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-hdr">
+          <div>📁 ΑΡΧΕΙΑ ΕΡΓΟΥ (GEOJSON)</div>
+          <button class="icon-btn" style="width:28px;height:24px" onclick="toggleCollapse('filesBody', this)">−</button>
+        </div>
+
+        <div class="section-body" id="filesBody" style="padding:0">
+          <div id="loader">Φόρτωση δεδομένων από GitHub…</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left;padding-left:10px;">Όνομα</th>
+                <th>Τύπος</th>
+                <th>Ενέργεια</th>
+              </tr>
+            </thead>
+            <tbody id="fileRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="hint">
+        <b>Load</b> = φορτώνει δεδομένα στο κύριο εργαλείο (π.χ. λεκάνη).<br/>
+        <b>Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
+        <b>On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= RIGHT: Peq Screening Tool ================= -->
+  <main class="main-panel">
+    <div class="tool-header">
+      <div class="brand">
+        <img class="nireas-logo" src="nireas_logo.png" alt="ΝΗΡΕΑΣ" />
+        <h1>ΔΕΙΚΤΕΣ ΑΠΟΚΡΙΣΗΣ ΤΟΠΙΚΩΝ ΛΕΚΑΝΩΝ ΑΠΟΡΡΟΗΣ — Peq Screening Tool</h1>
+      </div>
+      <button class="print-btn no-print" onclick="window.print()">ΕΚΤΥΠΩΣΗ</button>
+    </div>
+
+    <div class="tool-wrap">
+      <div class="box" style="background:#97c9d1;border-color:#dfe7ee">
+          <h3>ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)</h3>
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;">
+            <div><b>Σταθμός:</b> <span id="stationName">—</span></div>
+            <div><b>Timestamp:</b> <span id="stationTimestamp">—</span></div>
+          </div>
+
+          <div class="station-mini">
+            <div class="station-card">
+              <div class="t">Βροχή (mm/h)</div>
+              <div class="v"><span id="stationRainRate">—</span></div>
+            </div>
+            <div class="station-card">
+              <div class="t">ΔP (mm) <span id="stationTotalSrc" style="font-size:10px;color:#6b7a86"></span></div>
+              <div class="v"><span id="stationDP">—</span></div>
+            </div>
+            <div class="station-card">
+              <div class="t">R60 (mm)</div>
+              <div class="v"><span id="stationR60">—</span></div>
+            </div>
+          </div>
+
+          <div class="station-actions no-print">
+            <button id="btnAutoStation" class="mini-btn btn-auto-default" onclick="applyAutoI()">Load</button>
+            <button id="btnLiveStation" class="mini-btn btn-live-off" onclick="toggleLive()">Live</button>
+            <button id="btnClearStation" class="mini-btn btn-gray" onclick="clearStationSeries()">Καθαρισμός</button>
+          </div>
+          <div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
+          <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
+          <details id="seriesDetails" open style="margin-top:10px;">
+            <summary style="cursor:pointer;font-size:11px;color:var(--ink);"><span id="seriesSummaryMain">Ιστορικό Κύριου Σταθμού (12 τελευταίες)</span> <span id="seriesSummaryName" style="color:#6b7a86;margin-left:6px"></span></summary>
+            <div id="stationSeriesList" class="series-list">—</div>
+          </details>
+
+        </div>
+
+      <div class="sel-basin">Επιλεγμένη λεκάνη: <span id="selectedBasinName">—</span></div>
+
+      <div class="grid-2">
+        <div class="box" style="background:#fff3cd;border-color:#f1d27a">
+          <h3>ΣΕΝΑΡΙΟ ΒΡΟΧΗΣ</h3>
+          <div class="row">
+            <label>Ένταση i (mm/h):</label>
+            <input type="number" id="rainI" value="0" step="0.1">
+          </div>
+          <div class="row">
+            <label>Διάρκεια D (min):</label>
+            <input type="number" id="rainD" value="0" step="0.1">
+          </div>
+          <div style="font-size:11px;color:#6b7a86;text-align:right;">
+            *Αν D=0 → χρησιμοποιείται Tc (ελάχιστο 5 min)
+          </div>
+        </div>
+
+              </div>
+
+      <div class="panels-row">
+
+        <div class="box" style="background:#eaf7ff;border-color:#bfe4ff">
+          <h3>1. ΓΕΩΜΕΤΡΙΑ</h3>
+          <div class="row"><label>Εμβαδόν A (m²):</label><input type="number" id="area" value="0" step="1"></div>
+          <div class="row"><label>Μήκος ροής L (m):</label><input type="number" id="length" value="0" step="1"></div>
+          <div class="row"><label>Υψομ. διαφορά H (m):</label><input type="number" id="height" value="0" step="0.1"></div>
+          <div class="row"><label>Συντελεστής C:</label><input type="number" id="coef" value="0.40" step="0.01"></div>
+
+          <div style="margin-top:10px">
+            <canvas id="basinCanvas" width="340" height="180"></canvas>
+          </div>
+        </div>
+
+        <div class="box" style="background:#eef9f1;border-color:#cfeee0">
+          <h3>2. ΣΥΛΛΟΓΗ (ΦΡΕΑΤΙΑ)</h3>
+          <div class="row"><label>Πλήθος:</label><input type="number" id="drains" value="0" step="1"></div>
+          <div class="row"><label>Ικανότητα/φρεάτιο (m³/s):</label><input type="number" id="drainCap" value="0" step="0.01"></div>
+          <div style="font-size:11px;color:#6b7a86;margin-top:6px">
+            *Qcap_δικτύου = πλήθος × ικανότητα/φρεάτιο
+          </div>
+        </div>
+
+        <div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+          <h3>3. ΔΙΟΔΕΥΣΗ (ΡΕΜΑ)</h3>
+          <div class="row"><label>Πλάτος πυθμένα b (m):</label><input type="number" id="strWidth" value="0" step="0.1"></div>
+          <div class="row"><label>Πλάγιες κλίσεις z (H:V):</label><input type="number" id="strZ" value="0" step="0.1"></div>
+          <div class="row"><label>Βάθος h (m):</label><input type="number" id="strDepth" value="0" step="0.1"></div>
+
+          <div class="row">
+            <label>n (Manning):</label>
+            <select id="strType">
+              <option value="0.030">0.030 (Σκυρόδεμα)</option>
+              <option value="0.035">0.035 (Μεικτό/Τραχύ)</option>
+              <option value="0.045">0.045 (Φυσική κοίτη)</option>
+              <option value="0.060">0.060 (Πολύ τραχύ)</option>
+            </select>
+          </div>
+          
+          <div class="row"><label>Μήκος (m) (0=L):</label><input type="number" id="strLen" value="0" step="1"></div>
+          <div class="row"><label>Πτώση (m) (0=H):</label><input type="number" id="strDrop" value="0" step="0.1"></div>
+          
+          <div class="row">
+            <label>Ύψος νερού y (m):</label>
+            <input type="number" id="strY" value="" step="0.01" placeholder="Auto">
+          </div>
+          <div class="station-actions no-print" style="margin-top:6px">
+            <button class="mini-btn btn-gray" onclick="resetStrY()">Auto y</button>
+            <button class="mini-btn btn-map" onclick="openMapModal()">Χάρτης</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <canvas id="channelCanvas" width="340" height="180"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="summary-box">
+        <div class="stat"><div class="k">Κλίση S</div><div class="v" id="res-slope">—</div></div>
+        <div class="stat"><div class="k">Tc (Kirpich)</div><div class="v" id="res-tc">—</div></div>
+        <div class="stat"><div class="k" style="color:#d35400">Qpeak</div><div class="v" id="res-qsel">—</div></div>
+        <div class="stat"><div class="k">Qcap Δικτύου</div><div class="v" id="res-drains">—</div></div>
+        <div class="stat"><div class="k">Qcap Ρέματος</div><div class="v" id="res-stream">—</div></div>
+        <div class="stat"><div class="k">Έλεγχος</div><div class="v" id="res-adequacy">—</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>i (mm/h)</th>
+              <th>D (min)</th>
+              <th>P (mm)</th>
+              <th>Qpeak (m³/s)</th>
+              <th>V (m³)</th>
+              <th>Επικινδυνότητα</th>
+              <th>Δίκτυο</th>
+              <th>Ρέμα</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="footer-grid">
+        <div class="legend">
+          <h4>Σημειώσεις</h4>
+          <div style="font-size:12px;color:#2c3e50;font-weight:800;line-height:1.35">
+            • Qpeak: Μέθοδος Rational (0.278·C·i·A_km²)<br/>
+            • Tc: Kirpich (min) • D: αν D=0 → D= max(5, Tc)<br/>
+            • Ρέμα: Manning σε τραπεζοειδή διατομή (b, z, h)<br/>
+          </div>
+        </div>
+
+        <div class="legend">
+          <h4>Υπόμνημα (Peq = P·C)</h4>
+          <div class="item"><span class="swatch" style="background:#eafaf1"></span> Χαμηλή (&lt;10 mm)</div>
+          <div class="item"><span class="swatch" style="background:#fff7e6"></span> Μέτρια (10–25 mm)</div>
+          <div class="item"><span class="swatch" style="background:#ffe9d6"></span> Υψηλή (25–40 mm)</div>
+          <div class="item"><span class="swatch" style="background:#ffe0e0"></span> Πολύ Υψηλή (40–60 mm)</div>
+          <div class="item"><span class="swatch" style="background:#ffd1d1"></span> Ακραία (≥60 mm)</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<!-- ================= Map Modal ================= -->
+<div id="mapModal" class="no-print">
+  <div id="mapCard">
+    <div id="mapTop">
+      <div>🗺️ Προβολή Χάρτη (πολλαπλά layers)</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="mini-btn btn-gray" onclick="turnAllOff()">Off όλα</button>
+        <button class="mini-btn btn-gray" onclick="closeMapModal()">Κλείσιμο</button>
+      </div>
+    </div>
+    <div id="mapBox"></div>
+  </div>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const GH_USER   = 'petrsanidas-ui';
+const GH_REPO   = 'nireas';
+const GH_BRANCH = 'main';
+const API_TREE  = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/trees/${GH_BRANCH}?recursive=1`;
+const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/`;
+
+let DATA_GROUPS = { boundaries: [], streams: [], basins: [] }; // NOTE ORDER
+let SELECTED_GEO = null;
+let SELECTED_BASIN_KEY = null;
+let STATION_SELECT_BOUND = false; // bind dropdown change listener once
+
+
+/* ===== Map state (multi-layer) ===== */
+let map = null;
+let baseLayer = null;
+const GEO_CACHE = new Map();       // path -> geojson
+const LAYER_CACHE = new Map();     // path -> leaflet layer
+const VISIBLE = new Set();         // paths currently "On"
+let PREVIEW_LAYER = null;          // temporary layer for Map button preview
+
+/* ===== Station monitor ===== */
+const STATION_SERIES_MAX = 12;
+
+// Per-station series contexts (do not mix histories across different primary stations)
+const stationSeriesByKey  = Object.create(null);  // key -> array
+const stationLastKeyByKey = Object.create(null);  // key -> last sample key
+let currentStationKey = 'open-meteo';
+
+let stationSeries = [];
+let stationLastKey = null;
+
+// initialize default context
+stationSeriesByKey[currentStationKey] = stationSeries;
+stationLastKeyByKey[currentStationKey] = stationLastKey;
+
+let stationLiveOn = false;
+const watchlist = new Map(); // url -> display name
+
+let stationLiveTimer = null;
+let lastStationPayload = null;
+
+/* ===================== UI HELPERS ===================== */
+function toggleCollapse(id, btn){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const isHidden = el.classList.toggle('collapsed');
+  if(btn) btn.textContent = isHidden ? '+' : '−';
+}
+
+function updateMeteoStatus(msg){
+  const el = document.getElementById('meteoStatus');
+  if(el) el.innerText = msg;
+}
+function setStationMsg(msg){
+  const el = document.getElementById('stationMsg');
+  if(el) el.innerText = msg;
+}
+function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; if(id==='stationName') updateSeriesSummaryName(); }
+function updateSeriesSummaryName(){
+  const el = document.getElementById('seriesSummaryName');
+  if(!el) return;
+  const name = (document.getElementById('stationName')?.textContent || '').trim();
+  if(!name || name==='—'){
+    el.textContent = '';
+    return;
+  }
+  el.textContent = `• ${name}`;
+}
+
+// --- Station series context helpers (per primary station) ---
+function getPrimaryStationKey(){
+  const sel = document.getElementById('meteoStationSelect');
+  const url = sel?.value || '';
+  return url ? `url:${url}` : 'open-meteo';
+}
+
+function switchSeriesContext(newKey){
+  const key = newKey || 'open-meteo';
+
+  // save current context
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
+  // load new context
+  currentStationKey = key;
+  stationSeries = stationSeriesByKey[currentStationKey] || [];
+  stationLastKey = stationLastKeyByKey[currentStationKey]
+    || (stationSeries.length ? stationSeries[stationSeries.length-1].key : null);
+
+  // ensure stored
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
+  // refresh readouts + list for the currently selected station
+  updateStationReadouts();
+}
+
+function switchPrimarySeriesContext(){
+  switchSeriesContext(getPrimaryStationKey());
+}
+
+function isFiniteNumber(x){ return typeof x === 'number' && isFinite(x); }
+function num(val){
+  if(val==null) return 0;
+  const n = (typeof val === 'number') ? val : parseFloat(String(val).replace(',','.'));
+  return isFiniteNumber(n) ? n : 0;
+}
+function getVal(id){ return num(document.getElementById(id)?.value); }
+function setVal(id, v){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.value = (v==null) ? "" : v;
+}
+
+/* ===================== GITHUB LOAD ===================== */
+async function init(){
+  document.getElementById('loader').style.display = 'block';
+  try{
+    const resp = await fetch(API_TREE);
+    const data = await resp.json();
+    if(data.message) throw new Error(data.message);
+
+    const files = data.tree || [];
+
+    // IMPORTANT: paths based on your current repo layout (from previous versions)
+    // data/boundaries, data/streams, data/basins
+    DATA_GROUPS.boundaries = files.filter(f => f.path.includes('data/boundaries/') && f.path.endsWith('.geojson'));
+    DATA_GROUPS.streams    = files.filter(f => f.path.includes('data/streams/')    && f.path.endsWith('.geojson'));
+    DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/')     && f.path.endsWith('.geojson'));
+
+    renderFileList();
+
+    // Auto-populate stations dropdown from folder structure:
+// - data/meteostations/api/*.txt      -> API / JSON
+// - data/meteostations/weblinks/*.txt -> Web Links
+const loaded = await fetchStationsFromFolders(files);
+
+if(!loaded){
+  // Backward-compatible fallback (older layouts)
+  const stationFile =
+    files.find(f => f.path === 'data/meteostations/weblinks/stations.txt') ||
+    files.find(f => f.path.endsWith('/stations.txt') || f.path.endsWith('stations.txt')) ||
+    files.find(f => f.path.endsWith('openmeteo.txt')) ||
+    files.find(f => f.path.endsWith('ecmwf.txt'));
+
+  if(stationFile) await fetchStations(stationFile.path);
+  else {
+    updateMeteoStatus("Δεν βρέθηκαν αρχεία σταθμών (.txt) σε data/meteostations/api ή data/meteostations/weblinks");
+    // safe fallback: keep dropdown empty
+  }
+}
+
+    bindInputs();
+    runMasterCalculation();
+    updateStationButtons();
+  }catch(e){
+    console.error(e);
+    updateMeteoStatus("Σφάλμα GitHub: " + e.message);
+  }finally{
+    document.getElementById('loader').style.display = 'none';
+  }
+}
+
+function renderFileList(){
+  const tbody = document.getElementById('fileRows');
+  tbody.innerHTML = '';
+
+  const addCategory = (title, list, icon, color) => {
+    const trHead = document.createElement('tr');
+    trHead.className = 'cat-row';
+    trHead.innerHTML = `<td colspan="3" style="color:${color}">${icon} ${title}</td>`;
+    tbody.appendChild(trHead);
+
+    list.forEach(f=>{
+      const name = f.path.split('/').pop().replace('.geojson','');
+      const tr = document.createElement('tr');
+
+      const on = VISIBLE.has(f.path);
+      tr.innerHTML = `
+        <td style="text-align:left;padding-left:10px;">${name}</td>
+        <td class="type-cell">GEOJSON</td>
+        <td>
+          <button class="mini-btn btn-load" onclick="loadToTool('${f.path}','${name}')">Load</button>
+          <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')">Map</button>
+          <button class="mini-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
+                  onclick="toggleLayer('${f.path}','${name}')">${on ? 'On' : 'Off'}</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  // ORDER REQUESTED: boundaries -> streams -> basins
+  addCategory("Διοικητικά Όρια", DATA_GROUPS.boundaries, "🏳️", "#0f0f0f");
+  addCategory("💧 Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#0f0f0f");
+  addCategory("Λεκάνες Απορροής", DATA_GROUPS.basins, "🏞️", "#0f0f0f");
+}
+
+function cssSafe(s){
+  return btoa(unescape(encodeURIComponent(s))).replace(/=+/g,'').replace(/[+/]/g,'_');
+}
+
+async function fetchGeoJSON(path){
+  if(GEO_CACHE.has(path)) return GEO_CACHE.get(path);
+  const resp = await fetch(RAW_URL + path);
+  if(!resp.ok) throw new Error("Δεν βρέθηκε: " + path);
+  const json = await resp.json();
+  GEO_CACHE.set(path, json);
+  return json;
+}
+
+/* ===================== LOAD / MAP / ON-OFF LOGIC ===================== */
+async function loadToTool(path, name){
+  updateMeteoStatus("Φόρτωση: " + name + "…");
+  try{
+    const gj = await fetchGeoJSON(path);
+
+    // Only basins are expected to populate the tool inputs
+    const isBasin = path.includes('data/basins/');
+    if(isBasin){
+      SELECTED_GEO = gj;
+      SELECTED_BASIN_KEY = path;
+      document.getElementById('selectedBasinName').innerText = name;
+
+      // reset only if you want a clean start
+      // (keep user's values if not present)
+      const p = getPropsMerged(gj);
+
+      if(p.area!=null)   setVal('area', p.area);
+      if(p.length!=null) setVal('length', p.length);
+      if(p.height!=null) setVal('height', p.height);
+      if(p.coef!=null)   setVal('coef', p.coef);
+
+      if(p.drains!=null)   setVal('drains', p.drains);
+      if(p.drainCap!=null) setVal('drainCap', p.drainCap);
+
+      if(p.strWidth!=null) setVal('strWidth', p.strWidth);
+      if(p.strZ!=null)     setVal('strZ', p.strZ);
+      if(p.strDepth!=null) setVal('strDepth', p.strDepth);
+
+      if(p.strLen!=null)   setVal('strLen', p.strLen);
+      if(p.strDrop!=null)  setVal('strDrop', p.strDrop);
+
+      if(p.strType!=null){
+        // if exact match exists in select
+        const sel = document.getElementById('strType');
+        const val = String(p.strType);
+        if([...sel.options].some(o=>o.value===val)) sel.value = val;
+      }
+
+      // IMPORTANT: do NOT auto-open map; do NOT change On/Off here
+      updateMeteoStatus(`Φορτώθηκε στο εργαλείο: ${name}`);
+      runMasterCalculation();
+      drawBasinPlan();
+    } else {
+      // non-basin: just cache + message
+      updateMeteoStatus(`Φορτώθηκε (cache): ${name}`);
+    }
+
+  }catch(e){
+    alert("Σφάλμα: " + e.message);
+    updateMeteoStatus("Σφάλμα φόρτωσης.");
+  }
+}
+
+// Map preview: opens map, zooms to that layer, WITHOUT changing On/Off
+async function previewOnMap(path, name){
+  try{
+    openMapModal();
+    const gj = await fetchGeoJSON(path);
+
+    // remove old preview
+    if(PREVIEW_LAYER && map){
+      map.removeLayer(PREVIEW_LAYER);
+      PREVIEW_LAYER = null;
+    }
+
+    const cat = categoryFromPath(path);
+    PREVIEW_LAYER = L.geoJSON(gj, {
+      style: styleForCategory(cat, true)
+    }).addTo(map);
+
+    try{
+      map.fitBounds(PREVIEW_LAYER.getBounds(), { padding:[20,20] });
+    }catch(_){}
+
+    // ensure visible layers remain visible (do not alter VISIBLE)
+    syncVisibleLayersToMap();
+  }catch(e){
+    console.error(e);
+    alert("Map error: " + e.message);
+  }
+}
+
+// On/Off toggle: NO map open; NO zoom; just state + map update if map is open
+async function toggleLayer(path, name){
+  const btn = document.getElementById('btn-onoff-' + cssSafe(path));
+  const turningOn = !VISIBLE.has(path);
+
+  if(turningOn) VISIBLE.add(path);
+  else VISIBLE.delete(path);
+
+  if(btn){
+    btn.textContent = turningOn ? 'On' : 'Off';
+    btn.classList.toggle('btn-on', turningOn);
+    btn.classList.toggle('btn-off', !turningOn);
+  }
+
+  // only update map if already open
+  if(map) syncVisibleLayersToMap();
+}
+
+// Turn everything off
+function turnAllOff(){
+  VISIBLE.clear();
+  // update buttons
+  document.querySelectorAll('button[id^="btn-onoff-"]').forEach(b=>{
+    b.textContent = 'Off';
+    b.classList.remove('btn-on');
+    b.classList.add('btn-off');
+  });
+  if(map) syncVisibleLayersToMap();
+}
+
+/* ===================== MAP MODAL ===================== */
+function openMapModal(){
+  const modal = document.getElementById('mapModal');
+  modal.style.display = 'flex';
+  if(!map){
+    map = L.map('mapBox', { zoomControl:true });
+    baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19, attribution:'&copy; OpenStreetMap'
+    }).addTo(map);
+    map.setView([38.02, 23.80], 12);
+  }
+  setTimeout(()=>map.invalidateSize(), 80);
+  syncVisibleLayersToMap();
+}
+
+function closeMapModal(){
+  const modal = document.getElementById('mapModal');
+  modal.style.display = 'none';
+  // remove preview layer when closing (keeps On/Off layers persistent)
+  if(PREVIEW_LAYER && map){
+    map.removeLayer(PREVIEW_LAYER);
+    PREVIEW_LAYER = null;
+  }
+}
+
+function categoryFromPath(path){
+  if(path.includes('data/boundaries/')) return 'boundaries';
+  if(path.includes('data/streams/')) return 'streams';
+  return 'basins';
+}
+
+function styleForCategory(cat, preview=false){
+  if(cat==='boundaries'){
+    return { color: preview ? '#e74c3c' : '#c0392b', weight: preview ? 3 : 2, fill:false, dashArray: preview ? '6 4' : null };
+  }
+  if(cat==='streams'){
+    return { color: preview ? '#2ecc71' : '#2980b9', weight: preview ? 4 : 3, fill:false, dashArray: preview ? '6 4' : null };
+  }
+  // basins
+  return { color: preview ? '#27ae60' : '#d35400', weight: preview ? 2 : 2, fill:true, fillOpacity: preview ? 0.12 : 0.18, dashArray: preview ? '6 4' : null };
+}
+
+// Ensure map shows exactly all "On" layers (plus preview if present)
+async function syncVisibleLayersToMap(){
+  if(!map) return;
+
+  // remove cached layers not in VISIBLE
+  for(const [path, layer] of LAYER_CACHE.entries()){
+    if(!VISIBLE.has(path) && map.hasLayer(layer)){
+      map.removeLayer(layer);
+    }
+  }
+
+  // add layers in VISIBLE
+  for(const path of VISIBLE){
+    let layer = LAYER_CACHE.get(path);
+    if(!layer){
+      const gj = await fetchGeoJSON(path);
+      const cat = categoryFromPath(path);
+      layer = L.geoJSON(gj, { style: styleForCategory(cat, false) });
+      LAYER_CACHE.set(path, layer);
+    }
+    if(!map.hasLayer(layer)) layer.addTo(map);
+  }
+}
+
+/* ===================== PROPERTIES EXTRACTION ===================== */
+function getPropsMerged(gj){
+  // merge props from FeatureCollection[0].properties or root.properties
+  let p = {};
+  try{
+    if(gj && gj.features && gj.features[0] && gj.features[0].properties){
+      p = {...gj.features[0].properties};
+    } else if(gj && gj.properties){
+      p = {...gj.properties};
+    }
+  }catch(_){}
+
+  // normalize keys commonly used
+  // area
+  const area = pickNumber(p, ['A','a','area','Area','A_m2','area_m2','AREA_M2']);
+  const length = pickNumber(p, ['L','l','length','Length','L_m','length_m','LEN_M']);
+  const height = pickNumber(p, ['H','h','height','Height','H_m','height_m','DROP_M']);
+  const coef = pickNumber(p, ['C','c','coef','Coef','runoff','runoff_coef']);
+
+  const drains = pickNumber(p, ['drains','DrainCount','n_drains']);
+  const drainCap = pickNumber(p, ['drainCap','DrainCap','drain_cap']);
+
+  const strWidth = pickNumber(p, ['strWidth','b','width']);
+  const strZ = pickNumber(p, ['strZ','z','side_slope']);
+  const strDepth = pickNumber(p, ['strDepth','h_depth','depth']);
+
+  const strLen = pickNumber(p, ['strLen','stream_len','channel_len']);
+  const strDrop = pickNumber(p, ['strDrop','stream_drop','channel_drop']);
+  const strType = pickNumber(p, ['strType','manning','n']);
+
+  const out = {};
+  if(area!=null) out.area = area;
+  if(length!=null) out.length = length;
+  if(height!=null) out.height = height;
+  if(coef!=null) out.coef = coef;
+
+  if(drains!=null) out.drains = drains;
+  if(drainCap!=null) out.drainCap = drainCap;
+
+  if(strWidth!=null) out.strWidth = strWidth;
+  if(strZ!=null) out.strZ = strZ;
+  if(strDepth!=null) out.strDepth = strDepth;
+
+  if(strLen!=null) out.strLen = strLen;
+  if(strDrop!=null) out.strDrop = strDrop;
+  if(strType!=null) out.strType = strType;
+
+  return out;
+}
+
+function pickNumber(obj, keys){
+  for(const k of keys){
+    if(obj && obj[k]!=null && String(obj[k]).trim()!==''){
+      const n = parseFloat(String(obj[k]).replace(',','.'));
+      if(isFiniteNumber(n)) return n;
+    }
+  }
+  return null;
+}
+
+/* ===================== METEO: Stations list ===================== */
+
+function normalizeStationUrl(u){
+  u = (u || '').trim();
+  if(!u) return '';
+  // allow protocol-relative or missing scheme
+  if(/^https?:\/\//i.test(u)) return u;
+  if(/^\/\//.test(u)) return 'https:' + u;
+  return 'https://' + u;
+}
+
+function parseStationsText(text, sourcePath){
+  const entries = [];
+  const lines = (text || '').split(/\r?\n/);
+  for(const raw of lines){
+    const line = (raw || '').trim();
+    if(!line) continue;
+    if(line.startsWith('#') || line.startsWith('//')) continue;
+
+    let name = '';
+    let url  = line;
+
+    if(line.includes('|')){
+      const parts = line.split('|');
+      name = (parts.shift() || '').trim();
+      url  = parts.join('|').trim();
+    }else{
+      name = url.replace(/^https?:\/\//i,'').slice(0, 60);
+    }
+
+    url = normalizeStationUrl(url);
+    if(!url) continue;
+    if(!name) name = url.replace(/^https?:\/\//i,'').slice(0, 60);
+
+    entries.push({ name, url, from: sourcePath || '' });
+  }
+  return entries;
+}
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+
+/* ===================== DATETIME: 24h formatting ===================== */
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function formatDateTime24(d){
+  if(!(d instanceof Date) || isNaN(d.getTime())) return '—';
+  return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function parseAnyDateTime(ts, opts){
+  if(ts == null) return null;
+  if(ts instanceof Date) return ts;
+  const assumeUTC = !!(opts && opts.assumeUTC);
+  const s0 = String(ts).trim();
+  if(!s0) return null;
+
+  // Normalize ISO strings with space separator
+  const s = s0.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})/, '$1T$2');
+
+  // If ISO includes explicit timezone (Z or +/-hh:mm), let Date parse it.
+  if(/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/i.test(s)){
+    const d = new Date(s);
+    if(!isNaN(d.getTime())) return d;
+  }
+
+  // Greek / EU: dd/mm/yyyy, hh:mm(:ss) with optional π.μ./μ.μ.
+  if(s0.includes('/')){
+    const m = s0.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(π\.μ\.|μ\.μ\.))?/i);
+    if(m){
+      const day = parseInt(m[1],10);
+      const mon = parseInt(m[2],10) - 1;
+      const year = parseInt(m[3],10);
+      let hh = parseInt(m[4],10);
+      const mi = parseInt(m[5],10);
+      const ss = parseInt(m[6] || '0',10);
+      const mer = (m[7] || '').toLowerCase();
+
+      if(mer.includes('μ.μ') && hh < 12) hh += 12;
+      if(mer.includes('π.μ') && hh === 12) hh = 0;
+
+      return new Date(year, mon, day, hh, mi, ss);
+    }
+  }
+
+  // ISO-like without timezone: yyyy-mm-ddThh:mm(:ss)
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m2){
+    const year = parseInt(m2[1],10);
+    const mon = parseInt(m2[2],10) - 1;
+    const day = parseInt(m2[3],10);
+    const hh = parseInt(m2[4],10);
+    const mi = parseInt(m2[5],10);
+    const ss = parseInt(m2[6] || '0',10);
+    return assumeUTC ? new Date(Date.UTC(year, mon, day, hh, mi, ss)) : new Date(year, mon, day, hh, mi, ss);
+  }
+
+  // Fallback: let Date try (RFC formats, etc.)
+  const d = new Date(s0);
+  if(!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+function ts24(ts, opts){
+  if(ts == null) return '—';
+  const d = parseAnyDateTime(ts, opts);
+  return d ? formatDateTime24(d) : String(ts);
+}
+
+function nowTs24(){
+  return formatDateTime24(new Date());
+}
+
+
+function renderWatchlist(){
+  const box = document.getElementById('watchlist');
+  if(!box) return;
+  box.innerHTML = '';
+  if(!watchlist.size){
+    box.innerHTML = '<span style="font-size:11px;color:#94a3b8;">(κανένας επιλεγμένος)</span>';
+    return;
+  }
+  for(const [url,name] of watchlist.entries()){
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `<b>${escapeHtml(name)}</b><button title="Αφαίρεση" aria-label="Αφαίρεση">✕</button>`;
+    chip.querySelector('button').addEventListener('click', (e)=>{ 
+      e.stopPropagation();
+      watchlist.delete(url); 
+      renderWatchlist(); 
+    });
+    chip.addEventListener('click', ()=>{
+      const sel = document.getElementById('meteoStationSelect');
+      if(!sel) return;
+      const opt = Array.from(sel.options).find(o => o.value === url);
+      if(opt){ sel.value = url; sel.dispatchEvent(new Event('change')); }
+    });
+    box.appendChild(chip);
+  }
+}
+
+function addToWatchlist(){
+  const sel = document.getElementById('meteoStationSelect');
+  if(!sel) return;
+  const url = sel.value;
+  if(!url) return;
+  const name = (sel.options[sel.selectedIndex]?.textContent || url).trim();
+  watchlist.set(url, name);
+  renderWatchlist();
+}
+
+function clearWatchlist(){
+  watchlist.clear();
+  renderWatchlist();
+  const multi = document.getElementById('stationMultiList');
+  if(multi){ multi.style.display='none'; multi.innerHTML=''; }
+}
+
+function getFetchTargets(){
+  const sel = document.getElementById('meteoStationSelect');
+  const primaryUrl = sel?.value || '';
+  const primaryName = primaryUrl ? (sel.options[sel.selectedIndex]?.textContent || primaryUrl).trim() : '';
+  const targets = [];
+  if(primaryUrl) targets.push({url: primaryUrl, name: primaryName, primary:true});
+  for(const [url,name] of watchlist.entries()){
+    if(url && url !== primaryUrl) targets.push({url, name, primary:false});
+  }
+  return targets;
+}
+
+function renderStationMultiList(results){
+  const box = document.getElementById('stationMultiList');
+  if(!box) return;
+  if(!results || results.length <= 1){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  const rest = results.slice(1);
+  if(!rest.length){ box.style.display='none'; box.innerHTML=''; return; }
+
+  const rows = rest.map(r=>{
+    const rr = (r.rr!=null && isFiniteNumber(r.rr)) ? r.rr.toFixed(1) : '—';
+    const ts = ts24(r.tsText || '—');
+    return `<div class="multi-row">
+      <div class="multi-name">${escapeHtml(r.name || '—')}</div>
+      <div class="multi-metric">${rr} mm/h</div>
+      <div class="multi-ts">${escapeHtml(ts)}</div>
+    </div>`;
+  }).join('');
+
+  box.style.display = 'block';
+  box.innerHTML = `<div style="font-size:11px;color:#6b7a86;margin-bottom:6px;">Επιπλέον σταθμοί</div>
+                   <div class="multi-table">${rows}</div>`;
+}
+
+
+async function readStationsFromTxt(path){
+  const resp = await fetch(RAW_URL + path, { cache: 'no-store' });
+  if(!resp.ok) throw new Error(`Δεν φορτώθηκε: ${path}`);
+  const text = await resp.text();
+  return parseStationsText(text, path);
+}
+
+function bindStationSelect(){
+  if(STATION_SELECT_BOUND) return;
+  const sel = document.getElementById('meteoStationSelect');
+  if(!sel) return;
+
+  sel.addEventListener('change', ()=>{
+    const isEmpty = !sel.value;
+    setTxt('stationName', isEmpty ? '—' : (sel.options[sel.selectedIndex]?.textContent || '—'));
+    setTxt('stationTimestamp','—');
+    setTxt('stationRainRate','—');
+    setTxt('stationDP','—');
+    setTxt('stationR60','—');
+    setStationMsg('—');
+
+    // Switch series context so histories do not mix across stations
+    switchPrimarySeriesContext();
+  });
+
+  STATION_SELECT_BOUND = true;
+}
+
+// New loader: populate dropdown from folder structure
+async function fetchStationsFromFolders(files){
+  try{
+    const apiTxt = (files || [])
+      .filter(f => f.type === 'blob' && f.path.startsWith('data/meteostations/api/') && f.path.toLowerCase().endsWith('.txt'))
+      .map(f => f.path)
+      .sort();
+
+    const webTxt = (files || [])
+      .filter(f => f.type === 'blob' && f.path.startsWith('data/meteostations/weblinks/') && f.path.toLowerCase().endsWith('.txt'))
+      .map(f => f.path)
+      .sort();
+
+    if(apiTxt.length === 0 && webTxt.length === 0) return false;
+
+    const sel = document.getElementById('meteoStationSelect');
+    sel.innerHTML = '<option value="">Επιλογή σταθμού...</option>';
+
+    const grpApi  = document.createElement('optgroup'); grpApi.label  = "API / JSON";
+    const grpLink = document.createElement('optgroup'); grpLink.label = "Web Links";
+
+    const seen = new Set();
+
+    let apiCount = 0;
+    for(const p of apiTxt){
+      let entries = [];
+      try{ entries = await readStationsFromTxt(p); }catch(e){ console.warn(e); continue; }
+      for(const it of entries){
+        const key = it.url;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        const opt = document.createElement('option');
+        opt.value = it.url;
+        opt.textContent = it.name;
+        opt.dataset.from = it.from;
+        grpApi.appendChild(opt);
+        apiCount++;
+      }
+    }
+
+    let webCount = 0;
+    for(const p of webTxt){
+      let entries = [];
+      try{ entries = await readStationsFromTxt(p); }catch(e){ console.warn(e); continue; }
+      for(const it of entries){
+        const key = it.url;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        const opt = document.createElement('option');
+        opt.value = it.url;
+        opt.textContent = it.name;
+        opt.dataset.from = it.from;
+        grpLink.appendChild(opt);
+        webCount++;
+      }
+    }
+
+    sel.appendChild(grpApi);
+    sel.appendChild(grpLink);
+
+    bindStationSelect();
+
+    renderWatchlist();
+
+    updateMeteoStatus(`Σταθμοί: API ${apiCount}, Web ${webCount}`);
+    return (apiCount + webCount) > 0;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+
+
+async function fetchStations(path){
+  try{
+    const resp = await fetch(RAW_URL + path);
+    const text = await resp.text();
+    const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
+
+    const sel = document.getElementById('meteoStationSelect');
+    sel.innerHTML = '<option value="">Επιλογή σταθμού...</option>';
+
+    const grpApi  = document.createElement('optgroup'); grpApi.label  = "API / JSON";
+    const grpLink = document.createElement('optgroup'); grpLink.label = "Web Links";
+
+    for(const line of lines){
+      let name="", url=line;
+      if(line.includes('|')){
+        const parts = line.split('|');
+        name = parts[0].trim();
+        url = parts[1].trim();
+      }else{
+        name = url.replace(/^https?:\/\//,'').slice(0,50);
+      }
+      url = normalizeStationUrl(url);
+      const opt = document.createElement('option');
+      opt.value = url;
+      opt.textContent = name || 'Station';
+
+      // heuristic: if it looks like JSON/API endpoint or includes "exec"/"api"
+      if(/(exec|api|json|\?)/i.test(url) && !/penteli\.meteo\.gr\/stations/i.test(url)) grpApi.appendChild(opt);
+      else grpLink.appendChild(opt);
+    }
+    sel.appendChild(grpApi);
+    sel.appendChild(grpLink);
+
+    bindStationSelect();
+
+  }catch(e){
+    console.error(e);
+  }
+}
+
+function openStationWeb(){
+  const url = document.getElementById('meteoStationSelect').value;
+  if(url) window.open(url, '_blank');
+}
+
+/* ===================== METEO: Fetch (API button) ===================== */
+
+async function fetchStationDataSingle(url, label, updatePrimary){
+  if(!url) return null;
+
+  if(updatePrimary){
+    // Primary station has its own context (do not mix with Open-Meteo or other stations)
+    switchSeriesContext(`url:${url}`);
+    updateMeteoStatus("Σύνδεση…");
+    setTxt('stationName', label || '—');
+  }
+
+  try{
+    // 1) If URL is a JSON endpoint
+    if(/json|api|exec|\?/i.test(url) && !/penteli\.meteo\.gr\/stations/i.test(url)){
+      const r = await fetch(url, {cache:'no-store'}).then(res=>res.json());
+      lastStationPayload = r;
+
+      const rr = extractRainRate(r);
+      const tsRaw = extractTimestamp(r) || new Date().toISOString();
+      const ts = ts24(tsRaw);
+      const totals = extractTotals(r);
+
+      if(updatePrimary){
+        setTxt('stationTimestamp', ts);
+        setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
+        setTxt('stationTotalSrc', totals.totalSrc === 'storm' ? '(storm)' : totals.totalSrc === 'today' ? '(today)' : '');
+        updateMeteoStatus(`Λήψη OK: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
+        setStationMsg("Λήψη από endpoint.");
+
+        if(rr!=null){
+          // keep a sample for DP/R60 (only for primary)
+          onNewStationSample(String(ts), ts, rr, label || 'Station', totals);
+        }
+        runMasterCalculation();
+      }
+
+      if(!updatePrimary && rr!=null){
+        // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
+        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false);
+      }
+
+      return { url, name: label, rr, tsText: ts };
+    }
+
+    // 2) If it's a meteo station page (Penteli)
+    if(/penteli\.meteo\.gr\/stations/i.test(url)){
+      const mirrorUrl = url.startsWith('https://') ? ('https://r.jina.ai/' + url) : ('https://r.jina.ai/https://' + url);
+      const text = await fetch(mirrorUrl, {cache:'no-store'}).then(res=>res.text());
+
+      const parsed = parseMeteoPageMinimal(text);
+      const rr = parsed?.rr ?? null;
+      const tsRaw = parsed?.timestamp ?? new Date().toISOString();
+      const ts = ts24(tsRaw, {assumeUTC: !!parsed?.timestampIsUTC});
+      const totals = parsed?.totals ?? null;
+
+      if(updatePrimary){
+        setTxt('stationTimestamp', ts);
+        setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
+        setTxt('stationTotalSrc', totals && totals.totalSrc === 'storm' ? '(storm)' : totals && totals.totalSrc === 'today' ? '(today)' : '');
+        updateMeteoStatus(`Λήψη OK: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
+        setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
+
+        if(rr!=null){
+          // keep a sample for DP/R60 (only for primary)
+          onNewStationSample(String(ts), ts, rr, label || 'Station', totals);
+        }
+        runMasterCalculation();
+      }
+
+      if(!updatePrimary && rr!=null){
+        // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
+        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false);
+      }
+
+      return { url, name: label, rr, tsText: ts };
+    }
+
+    if(updatePrimary){
+      updateMeteoStatus("Δεν είναι API — χρησιμοποίησε το Web.");
+      setStationMsg("Μη-API σύνδεσμος.");
+    }
+    return { url, name: label, rr: null, tsText: '—' };
+
+  }catch(e){
+    console.error(e);
+    if(updatePrimary){
+      updateMeteoStatus("Σφάλμα λήψης δεδομένων.");
+      setStationMsg("Σφάλμα: " + e.message);
+    }
+    return { url, name: label, rr: null, tsText: '—' };
+  }
+}
+
+async function fetchStationData(){
+  const targets = getFetchTargets();
+  if(!targets.length){
+    return;
+  }
+
+  // Fetch all (primary + watchlist). Primary updates main UI.
+  const settled = await Promise.allSettled(targets.map(t => fetchStationDataSingle(t.url, t.name, t.primary)));
+  const results = settled.filter(x=>x.status==='fulfilled').map(x=>x.value).filter(Boolean);
+
+  // Render extra stations list (excluding primary)
+  renderStationMultiList(results);
+}
+
+/* ===== Open-Meteo button (uses basin centroid if available) ===== */
+async function fetchLiveMeteo(){
+  updateMeteoStatus("Open-Meteo…");
+
+  // Treat Open-Meteo as its own source/context
+  switchSeriesContext('open-meteo');
+  setTxt('stationName','Open-Meteo');
+
+  try{
+    // default coords near Chalandri
+    let lat = 38.02, lon = 23.80;
+
+    // if selected basin exists, use first coordinate as quick proxy
+    if(SELECTED_GEO && SELECTED_GEO.features && SELECTED_GEO.features[0]){
+      const g = SELECTED_GEO.features[0].geometry;
+      let c = null;
+      if(g.type === 'Polygon') c = g.coordinates?.[0]?.[0];
+      if(g.type === 'MultiPolygon') c = g.coordinates?.[0]?.[0]?.[0];
+      if(g.type === 'LineString') c = g.coordinates?.[0];
+      if(Array.isArray(c) && c.length>=2){
+        lon = c[0]; lat = c[1];
+      }
+    }
+
+    // include current precipitation_rate (mm/h) + hourly precipitation for R60 proxy
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&timezone=Europe%2FAthens&current=precipitation_rate&hourly=precipitation`;
+    const r = await fetch(u).then(res=>res.json());
+
+    const rr = r?.current?.precipitation_rate;
+    const tsRaw = r?.current?.time ? String(r.current.time) : new Date().toISOString();
+    const ts = ts24(tsRaw);
+
+    updateStationMonitor(rr!=null ? rr : null, ts, null);
+    updateMeteoStatus(`Live: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
+
+    // keep sample if valid
+    if(rr!=null){
+      onNewStationSample(String(ts), ts, rr, 'Open-Meteo', null);
+      setStationMsg("Live από Open-Meteo (precipitation_rate).");
+      runMasterCalculation();
+    }
+  }catch(e){
+    console.error(e);
+    updateMeteoStatus("Error Open-Meteo");
+    setStationMsg("Σφάλμα Open-Meteo: " + e.message);
+  }
+}
+
+/* ===================== Station monitor logic ===================== */
+function extractRainRate(obj){
+  // common keys
+  const keys = ['rainRate_mmh','rain_rate','rainRate','i','intensity','precipitation_rate','precip_rate'];
+  for(const k of keys){
+    if(obj && obj[k]!=null){
+      const n = parseFloat(String(obj[k]).replace(',','.'));
+      if(isFiniteNumber(n)) return n;
+    }
+  }
+  // open-meteo shape
+  const n2 = obj?.current?.precipitation_rate;
+  if(isFiniteNumber(n2)) return n2;
+  return null;
+}
+function extractTimestamp(obj){
+  const keys = ['station_ts','timestamp','time','datetime','dateTime','lastUpdate','last_update'];
+  for(const k of keys){
+    if(obj && obj[k]) return String(obj[k]).trim();
+  }
+  // open-meteo
+  if(obj?.current?.time) return String(obj.current.time);
+  return null;
+}
+function extractTotals(obj){
+  const t = {};
+  t.today = pickNumber(obj, ['rainToday_mm','rain_today_mm','todayRain','today_rain']);
+  t.storm = pickNumber(obj, ['stormTotal_mm','storm_total_mm','rainStorm','storm_total']);
+  if(t.storm!=null){ t.total=t.storm; t.totalSrc='storm'; }
+  else if(t.today!=null){ t.total=t.today; t.totalSrc='today'; }
+  else { t.total=null; t.totalSrc=null; }
+  return t;
+}
+
+
+function parseMeteoPageMinimal(text){
+  const out = { rr: null, timestamp: null, timestampIsUTC: false, totals: null };
+
+  // 1) Prefer the visible timestamp near "Latest Values / Τελευταίες Τιμές" (LOCAL time)
+  let mTs = text.match(/(?:Latest Values|Τελευταίες\s*Τιμές)[\s\S]{0,160}?(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}:\d{2})(?::(\d{2}))?/i);
+  if(mTs){
+    out.timestamp = `${mTs[1]}, ${mTs[2]}:${mTs[3] || '00'}`;
+    out.timestampIsUTC = false;
+  }
+
+  // 2) "Timestamp:" style (often present in page source; ISO-like is typically UTC)
+  if(!out.timestamp){
+    const ts1 = text.match(/Timestamp\s*:?\s*([^\n<]{8,80})/i);
+    if(ts1){
+      out.timestamp = ts1[1].trim();
+      out.timestampIsUTC = /\d{4}-\d{2}-\d{2}/.test(out.timestamp);
+    }
+  }
+
+  // 3) ISO-like fallback anywhere (treat as UTC)
+  if(!out.timestamp){
+    const ts2 = text.match(/(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2})?)/);
+    if(ts2){
+      out.timestamp = ts2[1].trim();
+      out.timestampIsUTC = true;
+    }
+  }
+
+  // rain rate (mm/h)
+  let m = text.match(/Βροχ[^\n]{0,40}?([0-9]+(?:\.[0-9]+)?)\s*mm\/h/i);
+  if(!m) m = text.match(/([0-9]+(?:\.[0-9]+)?)\s*mm\/h/i);
+  if(m) out.rr = Number(m[1]);
+
+  // totals (today/storm) — supports Penteli/NOA pages like Chalandri:
+  // "Today's Rain / Σημερινός Υετός" and "Storm Total / Τρέχουσα κακοκαιρία"
+  let today = null, storm = null;
+
+  const mtoday1 = text.match(/Σύνολο\s*Ημέρας[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  const mtoday2 = text.match(/(?:Today's\s*Rain|Σημερινός\s*Υετός)[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  if(mtoday1) today = Number(mtoday1[1]);
+  else if(mtoday2) today = Number(mtoday2[1]);
+
+  const mstorm1 = text.match(/Σύνολο\s*Καταιγίδας[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  const mstorm2 = text.match(/(?:Storm\s*Total|Τρέχουσα\s*κακοκαιρία)[\s\S]{0,80}?([0-9]+(?:\.[0-9]+)?)\s*mm/i);
+  if(mstorm1) storm = Number(mstorm1[1]);
+  else if(mstorm2) storm = Number(mstorm2[1]);
+
+  let total = null, totalSrc = null;
+  if(storm != null){ total = storm; totalSrc = 'storm'; }
+  else if(today != null){ total = today; totalSrc = 'today'; }
+
+  if(total != null) out.totals = { today, storm, total, totalSrc };
+
+  return out;
+}
+
+function parseMeteoPage(text){
+  // very lightweight heuristic (may vary by station page)
+  // Try to find a mm/h value near "Rain Rate" or "mm/h"
+  const rx = /([0-9]+(?:\.[0-9]+)?)\s*mm\/h/i;
+  const m = text.match(rx);
+  const rainRate = m ? parseFloat(m[1]) : null;
+
+  // Try to find a timestamp-like pattern
+  const tx = /(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/;
+  const t = text.match(tx);
+  const timestamp = t ? t[1] : null;
+
+  return { rainRate, timestamp };
+}
+
+function updateStationMonitor(rainRate, tsText, totals){
+  setTxt('stationTimestamp', tsText ? ts24(tsText) : '—');
+  setTxt('stationRainRate', (rainRate!=null && isFiniteNumber(rainRate)) ? rainRate.toFixed(1) : '—');
+
+  // dp/r60 derived from series
+  if(totals && totals.total!=null){
+    setTxt('stationTotalSrc', totals.totalSrc === 'storm' ? '(Storm)' : (totals.totalSrc === 'today' ? '(Σήμερα)' : ''));
+  } else {
+    setTxt('stationTotalSrc','');
+  }
+  updateStationReadouts();
+}
+
+function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, updateUI){
+  const key = seriesKey || 'open-meteo';
+  if(!sampleKey) return;
+
+  const lastKey = stationLastKeyByKey[key] || null;
+  if(sampleKey === lastKey) return;
+
+  const series = stationSeriesByKey[key] || [];
+  const prev = series.length ? series[series.length-1] : null;
+
+  let dp = null;
+  if(totals && totals.total!=null && prev && prev.total!=null && prev.totalSrc && prev.totalSrc === totals.totalSrc){
+    dp = totals.total - prev.total;
+    if(dp < 0) dp = totals.total;
+  }
+
+  const dParsed = parseAnyDateTime(tsText) || new Date();
+  const dateMs = dParsed.getTime();
+
+  series.push({
+    key: sampleKey,
+    tsText: tsText || sampleKey,
+    val,
+    label,
+    total: totals ? totals.total : null,
+    totalSrc: totals ? totals.totalSrc : null,
+    dp,
+    dateMs
+  });
+
+  if(series.length > STATION_SERIES_MAX){
+    series.splice(0, series.length - STATION_SERIES_MAX);
+  }
+
+  stationSeriesByKey[key] = series;
+  stationLastKeyByKey[key] = sampleKey;
+
+  // keep globals in sync if this is the active context
+  if(key === currentStationKey){
+    stationSeries = series;
+    stationLastKey = sampleKey;
+    if(updateUI !== false) updateStationReadouts();
+  }
+}
+
+function onNewStationSample(sampleKey, tsText, val, label, totals){
+  storeSampleForKey(currentStationKey, sampleKey, tsText, val, label, totals, true);
+}
+
+function updateStationReadouts(){
+  const latest = stationSeries.length ? stationSeries[stationSeries.length-1] : null;
+
+  // dp = last dp if available
+  const dp = latest?.dp;
+  setTxt('stationDP', (dp!=null && isFiniteNumber(dp)) ? dp.toFixed(1) : '—');
+
+  // R60: sum dp over last 60 minutes if dp exists
+  if(stationSeries.length && stationSeries.some(s=>s.dp!=null)){
+    const now = stationSeries[stationSeries.length-1].dateMs;
+    const cutoff = now - 60*60*1000;
+    const sum = stationSeries.filter(s=>s.dateMs>=cutoff && s.dp!=null).reduce((a,b)=>a+b.dp,0);
+    setTxt('stationR60', isFiniteNumber(sum) ? sum.toFixed(1) : '—');
+  } else {
+    setTxt('stationR60', '—');
+  }
+  renderStationSeriesList();
+}
+
+function renderStationSeriesList(){
+  const box = document.getElementById('stationSeriesList');
+  if(!box) return;
+  if(!stationSeries || !stationSeries.length){
+    box.innerHTML = '—';
+    return;
+  }
+  // show newest first
+  const rows = stationSeries.slice().reverse().map(s=>{
+    const ts = escapeHtml(ts24(s.tsText || '—'));
+    const val = (s.val!=null && isFiniteNumber(s.val)) ? `${s.val.toFixed(1)} mm/h` : '—';
+    const dp = (s.dp!=null && isFiniteNumber(s.dp)) ? `ΔP ${s.dp.toFixed(1)} mm` : '';
+    return `<div class="series-row">
+      <div class="series-ts">${ts}</div>
+      <div class="series-val">${val}</div>
+      <div class="series-dp">${dp}</div>
+    </div>`;
+  }).join('');
+  box.innerHTML = rows;
+}
+
+
+
+/* ===================== STATION BUTTONS UI ===================== */
+function updateStationButtons(){
+  const autoBtn = document.getElementById('btnAutoStation');
+  const liveBtn = document.getElementById('btnLiveStation');
+
+  if(autoBtn){
+    // Auto stays blue; Live is independent
+    autoBtn.classList.add('btn-auto-default');
+    autoBtn.classList.remove('btn-auto-live');
+  }
+  if(liveBtn){
+    liveBtn.classList.toggle('btn-live-on', stationLiveOn);
+    liveBtn.classList.toggle('btn-live-off', !stationLiveOn);
+  }
+}
+
+function flashTempGreen(btnOrId, ms=3000){
+  const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
+  if(!btn) return;
+  btn.classList.add('temp-green');
+  setTimeout(()=> btn.classList.remove('temp-green'), ms);
+}
+
+
+function applyAutoI(){
+  // Use latest station rain rate if exists
+  const latest = stationSeries.length ? stationSeries[stationSeries.length-1] : null;
+  if(latest && latest.val!=null){
+    setVal('rainI', latest.val.toFixed(1));
+    setStationMsg("Load: i ενημερώθηκε από σταθμό.");
+    flashTempGreen('btnAutoStation', 3000);
+    runMasterCalculation();
+  } else if(lastStationPayload){
+    const rr = extractRainRate(lastStationPayload);
+    if(rr!=null){
+      setVal('rainI', rr.toFixed(1));
+      setStationMsg("Load: i ενημερώθηκε από payload.");
+      flashTempGreen('btnAutoStation', 3000);
+      runMasterCalculation();
+    } else {
+      setStationMsg("Load: δεν υπάρχει τιμή βροχής.");
+    }
+  } else {
+    setStationMsg("Load: δεν υπάρχει τιμή βροχής.");
+  }
+}
+
+function toggleLive(){
+  stationLiveOn = !stationLiveOn;
+  updateStationButtons();
+
+  const doFetch = ()=> {
+    // prefer API fetch if selected OR watchlist monitoring
+    const url = document.getElementById('meteoStationSelect')?.value;
+    if(url || watchlist.size) fetchStationData();
+    else fetchLiveMeteo();
+  };
+
+  if(stationLiveOn){
+    setStationMsg("Live: ON (ανά 90s)");
+    // άμεση πρώτη λήψη για να δεις αποτέλεσμα χωρίς να περιμένεις 90s
+    doFetch();
+    if(stationLiveTimer) clearInterval(stationLiveTimer);
+    stationLiveTimer = setInterval(doFetch, 90000);
+  } else {
+    setStationMsg("Live: OFF");
+    if(stationLiveTimer) clearInterval(stationLiveTimer);
+    stationLiveTimer = null;
+  }
+}
+
+function clearStationSeries(){
+  const ok = confirm("Να γίνει καθαρισμός της χρονοσειράς του σταθμού;");
+  if(!ok) return;
+
+  stationSeries = [];
+  stationLastKey = null;
+
+  // update store for current station context
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
+  setTxt('stationDP','—');
+  setTxt('stationR60','—');
+  setStationMsg("Series καθαρίστηκε.");
+
+  // οπτική επιβεβαίωση: πράσινο για 3s και μετά επιστροφή
+  flashTempGreen('btnClearStation', 3000);
+}
+
+/* ===================== CALCULATIONS (ver14-style) ===================== */
+function calculateTc(L, H){
+  return (!L || !H) ? 10 : 0.0195 * Math.pow(L, 0.77) * Math.pow((H/L), -0.385);
+}
+
+function runMasterCalculation(){
+  const area   = getVal('area');
+  const length = getVal('length');
+  const height = getVal('height');
+  const coef   = getVal('coef');
+
+  const rainI  = getVal('rainI');
+  const rainD  = getVal('rainD');
+
+  const drains   = getVal('drains');
+  const drainCap = getVal('drainCap');
+
+  const strWidth = getVal('strWidth');
+  const strZ     = getVal('strZ');
+  const strDepth = getVal('strDepth');
+  const strDrop  = getVal('strDrop');
+  const strLen   = getVal('strLen');
+  const strType  = getVal('strType');
+  const strYEl   = document.getElementById('strY');
+
+  if(!(area>0)){
+    // still draw empty
+    setTxt('res-slope','—');
+    setTxt('res-tc','—');
+    setTxt('res-qsel','—');
+    setTxt('res-drains','—');
+    setTxt('res-stream','—');
+    setTxt('res-adequacy','—');
+    document.getElementById('tableBody').innerHTML='';
+    drawChannel(0);
+    drawBasinPlan();
+    return;
+  }
+
+  const A_km2 = area / 1e6;
+  const S = (length>0 && height>0) ? (height/length) : 0.01;
+
+  const Tc = calculateTc(length, height);
+  const Dused = (rainD > 0) ? rainD : Math.max(5.0, Tc);
+
+  const Qsel = 0.278 * coef * rainI * A_km2;
+
+  const CapNet = drains * drainCap;
+
+  // Stream slope
+  const sLen = (strLen>0) ? strLen : (length>0 ? length : 0);
+  const sDrop = (strDrop>0) ? strDrop : (height>0 ? height : 0);
+  const sSlope = (sLen>0) ? (sDrop/sLen) : 0;
+
+  // Manning trapezoid capacity + normal depth by bisection
+  let CapStr = 0;
+  let yCalc = 0;
+
+  const calcQ = (d) => {
+    if(!(strWidth>0) || !(sSlope>0) || !(strType>0) || d<=0) return 0;
+    const A = (strWidth + strZ*d) * d;
+    const P = strWidth + 2*d*Math.sqrt(1 + Math.pow(strZ,2));
+    return (1/strType) * Math.pow(A, 5/3) * Math.pow(P, -2/3) * Math.sqrt(sSlope);
+  };
+
+  if(strWidth>0 && strDepth>0 && sSlope>0){
+    CapStr = calcQ(strDepth);
+
+    if(Qsel>0){
+      let low=0, high=(strDepth*2)||20;
+      for(let i=0;i<22;i++){
+        const mid=(low+high)/2;
+        if(calcQ(mid) < Qsel) low=mid;
+        else high=mid;
+      }
+      yCalc = (low+high)/2;
+    }
+  }
+
+  // Manual y logic: if user types, treat as manual until resetStrY()
+  if(strYEl){
+    strYEl.addEventListener('input', ()=>{ strYEl.dataset.manual='true'; });
+  }
+  const isManual = strYEl?.dataset?.manual === 'true';
+  const yMan = isManual ? num(strYEl.value) : 0;
+  const finalY = isManual ? yMan : yCalc;
+
+  // update y field if auto
+  if(!isManual && document.activeElement !== strYEl){
+    strYEl.value = (yCalc>0) ? yCalc.toFixed(2) : "";
+  }
+
+  // Stats
+  setTxt('res-slope', (S*100).toFixed(1) + " %");
+
+  // Tc display with min rule (like ver14 dual)
+  const tcEl = document.getElementById('res-tc');
+  if((!rainD || rainD<=0) && Tc < 5){
+    tcEl.innerHTML = `<span style="color:#d35400;font-weight:900">5.0 min</span>
+                      <div style="font-size:10px;color:#6b7a86">(calc: ${Tc.toFixed(2)})</div>`;
+  }else{
+    tcEl.textContent = Tc.toFixed(1) + " min";
+  }
+
+  setTxt('res-qsel', Qsel.toFixed(2) + " m³/s");
+  setTxt('res-drains', (CapNet>0 ? CapNet.toFixed(2) : "0.00") + " m³/s");
+  setTxt('res-stream', (CapStr>0 ? CapStr.toFixed(2) : "0.00") + " m³/s");
+
+  // adequacy label
+  let adq = "<span style='color:#6b7a86'>—</span>";
+  if(CapNet>0 && CapStr>0) adq = "<span class='status-ok'>Διπλός έλεγχος</span>";
+  else if(CapNet>0) adq = "<span class='status-fail'>Μόνο συλλογή</span>";
+  else if(CapStr>0) adq = "<span class='status-fail'>Μόνο διόδευση</span>";
+  else adq = "<span class='status-warn'>Χωρίς Qcap</span>";
+  document.getElementById('res-adequacy').innerHTML = adq;
+
+  // Scenario table
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = "";
+
+  const status = (Q, Cap) => {
+    if(!(Cap>0)) return "<span class='status-fail' style='font-size:11px'>—</span>";
+    if(Q <= Cap*0.85) return "<span class='status-ok'>OK</span>";
+    if(Q <= Cap) return "<span class='status-warn'>Οριακό</span>";
+    return "<span class='status-fail'>Υπέρβαση</span>";
+  };
+
+  for(let i=5;i<=200;i+=5){
+    const P = i*(Dused/60);
+    const Q = 0.278*coef*i*A_km2;
+    const V = area*(P/1000)*coef;
+    const Peq = P*coef;
+
+    let cls="risk-safe", txt="Χαμηλή";
+    if(Peq>=60){cls="risk-extreme";txt="Ακραία";}
+    else if(Peq>=40){cls="risk-red";txt="Πολύ Υψηλή";}
+    else if(Peq>=25){cls="risk-orange";txt="Υψηλή";}
+    else if(Peq>=10){cls="risk-warn";txt="Μέτρια";}
+
+    const tr = document.createElement('tr');
+    tr.className = cls;
+    tr.innerHTML = `
+      <td><b>${i}</b></td>
+      <td>${Dused.toFixed(1)}</td>
+      <td>${P.toFixed(1)}</td>
+      <td>${Q.toFixed(2)}</td>
+      <td>${Math.round(V).toLocaleString('el-GR')}</td>
+      <td>${txt}<br><span style="font-size:11px;color:#6b7a86">Peq=${Peq.toFixed(1)}</span></td>
+      <td>${status(Q, CapNet)}</td>
+      <td>${status(Q, CapStr)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  drawChannel(finalY);
+  drawBasinPlan();
+}
+
+function resetStrY(){
+  const el = document.getElementById('strY');
+  if(!el) return;
+  el.value = "";
+  delete el.dataset.manual;
+  runMasterCalculation();
+}
+
+/* ===================== VISUALIZERS ===================== */
+function drawBasinPlan(){
+  const canvas = document.getElementById('basinCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  // background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,w,h);
+
+  // If we have GeoJSON rings, draw them; else schematic
+  const gj = SELECTED_GEO;
+  const rings = gj ? geojsonToRings(gj) : [];
+  const style = basinStyleFromInputs();
+
+  if(rings && rings.length && drawGeoRings(ctx, rings, w, h, style)){
+    // label
+    ctx.fillStyle = "#2c3e50";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("Περίγραμμα (GeoJSON)", 8, 14);
+    drawBasinLegend(ctx, style);
+    return;
+  }
+
+  // schematic fallback based on A & L
+  const A = getVal('area'), L = getVal('length');
+  if(!(A>0) || !(L>0)){
+    ctx.fillStyle="#9aa6b2";
+    ctx.font="12px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("Ορίστε A & L ή φορτώστε λεκάνη", w/2, h/2);
+    drawBasinLegend(ctx, style);
+    return;
+  }
+  const W = A / L;
+  const pad=14;
+  const maxW=w-2*pad, maxH=h-2*pad;
+  const scale = Math.min(maxW/(L||1), maxH/((W||1)));
+  const Ls=L*scale, Ws=(W||1)*scale;
+  const x=(w-Ls)/2, y=(h-Ws)/2;
+
+  roundRect(ctx, x,y,Ls,Ws, Math.min(12, Ws/2, Ls/8));
+  ctx.fillStyle = style.fill;
+  ctx.fill();
+  ctx.strokeStyle = style.stroke;
+  ctx.lineWidth = style.lineWidth;
+  ctx.stroke();
+
+  ctx.fillStyle="#2c3e50";
+  ctx.font="bold 10px Arial";
+  ctx.textAlign="center";
+  ctx.fillText(`L≈${Math.round(L)} m`, w/2, h-6);
+
+  ctx.save();
+  ctx.translate(10, h/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.textAlign="center";
+  ctx.fillText(`W≈${Math.round(W)} m`, 0, 0);
+  ctx.restore();
+
+  drawBasinLegend(ctx, style);
+}
+
+function basinStyleFromInputs(){
+  const Qpeak = 0.278 * getVal('coef') * getVal('rainI') * (getVal('area')/1e6);
+  const CapNet = getVal('drains') * getVal('drainCap');
+  const CapStr = estimateStreamCap();
+  // simple coloring: fill by Peq class, stroke by capacity stress
+  const Dused = (getVal('rainD')>0) ? getVal('rainD') : Math.max(5, calculateTc(getVal('length'), getVal('height')));
+  const P = getVal('rainI')*(Dused/60);
+  const Peq = P*getVal('coef');
+
+  let fill="#eafaf1";
+  if(Peq>=60) fill="#ffd1d1";
+  else if(Peq>=40) fill="#ffe0e0";
+  else if(Peq>=25) fill="#ffe9d6";
+  else if(Peq>=10) fill="#fff7e6";
+
+  let stroke="#2c3e50";
+  let lw=2;
+  const netBad = (CapNet>0 && Qpeak>CapNet);
+  const strBad = (CapStr>0 && Qpeak>CapStr);
+  if(netBad || strBad){ stroke="#c0392b"; lw=3; }
+  else if((CapNet>0 && Qpeak>CapNet*0.85) || (CapStr>0 && Qpeak>CapStr*0.85)){ stroke="#d35400"; lw=3; }
+
+  return { fill, stroke, lineWidth: lw };
+}
+
+function estimateStreamCap(){
+  const strWidth = getVal('strWidth');
+  const strZ = getVal('strZ');
+  const strDepth = getVal('strDepth');
+  const strDrop = getVal('strDrop');
+  const strLen = getVal('strLen');
+  const strType = getVal('strType');
+  const length = getVal('length');
+  const height = getVal('height');
+
+  const sLen = (strLen>0)? strLen : length;
+  const sDrop = (strDrop>0)? strDrop : height;
+  const sSlope = (sLen>0)? (sDrop/sLen) : 0;
+  if(!(strWidth>0) || !(strDepth>0) || !(sSlope>0) || !(strType>0)) return 0;
+  const A = (strWidth + strZ*strDepth)*strDepth;
+  const P = strWidth + 2*strDepth*Math.sqrt(1+strZ*strZ);
+  return (1/strType) * Math.pow(A, 5/3) * Math.pow(P, -2/3) * Math.sqrt(sSlope);
+}
+
+function drawBasinLegend(ctx, style){
+  const x=8, y=ctx.canvas.height-16;
+  ctx.fillStyle="#2c3e50";
+  ctx.font="bold 10px Arial";
+  ctx.textAlign="left";
+  ctx.fillText("Fill=Peq, Stroke=Qcap stress", x, y);
+  // swatches
+  ctx.fillStyle = style.fill;
+  ctx.fillRect(ctx.canvas.width-58, ctx.canvas.height-22, 18, 12);
+  ctx.strokeStyle = style.stroke;
+  ctx.lineWidth = style.lineWidth;
+  ctx.strokeRect(ctx.canvas.width-30, ctx.canvas.height-22, 18, 12);
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x, y+h, rr);
+  ctx.arcTo(x, y+h, x, y, rr);
+  ctx.arcTo(x, y, x+w, y, rr);
+  ctx.closePath();
+}
+
+function geojsonToRings(gj){
+  const rings = [];
+  try{
+    const feat = gj.features ? gj.features[0] : gj;
+    const g = feat.geometry || feat;
+    if(!g) return rings;
+
+    const pushPoly = (poly) => {
+      // poly: [ [ [lon,lat], ... ] , holes... ]
+      if(Array.isArray(poly) && poly.length){
+        rings.push(poly[0]);
+      }
+    };
+
+    if(g.type === 'Polygon') pushPoly(g.coordinates);
+    if(g.type === 'MultiPolygon'){
+      for(const poly of g.coordinates) pushPoly(poly);
+    }
+  }catch(_){}
+  return rings;
+}
+
+function drawGeoRings(ctx, rings, w, h, style){
+  try{
+    // find bounds
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    for(const r of rings){
+      for(const [x,y] of r){
+        if(x<minX) minX=x;
+        if(y<minY) minY=y;
+        if(x>maxX) maxX=x;
+        if(y>maxY) maxY=y;
+      }
+    }
+    if(!isFinite(minX) || !isFinite(maxX)) return false;
+
+    const pad=14;
+    const sx=(w-2*pad)/((maxX-minX)||1);
+    const sy=(h-2*pad)/((maxY-minY)||1);
+    const s=Math.min(sx,sy);
+
+    const tx = (x)=> pad + (x-minX)*s;
+    const ty = (y)=> h-pad - (y-minY)*s; // flip
+
+    ctx.beginPath();
+    for(const r of rings){
+      for(let i=0;i<r.length;i++){
+        const p = r[i];
+        const X = tx(p[0]);
+        const Y = ty(p[1]);
+        if(i===0) ctx.moveTo(X,Y);
+        else ctx.lineTo(X,Y);
+      }
+      ctx.closePath();
+    }
+    ctx.fillStyle = style.fill;
+    ctx.fill();
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = style.lineWidth;
+    ctx.stroke();
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function drawChannel(y_real){
+  const canvas = document.getElementById('channelCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const b = getVal('strWidth');
+  const z = getVal('strZ');
+  const H = getVal('strDepth');
+  const y = y_real;
+
+  if(b<=0 && H<=0){
+    ctx.fillStyle="#9aa6b2";
+    ctx.font="12px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("Ορίστε b & h", w/2, h/2);
+    return;
+  }
+
+  const maxH = Math.max(H, y);
+  const topW = b + 2*(z*maxH);
+  const pad=20;
+  const scale = Math.min((w-pad)/(topW||1),(h-pad)/(maxH||1));
+  const cx=w/2, cy=h-16;
+
+  const gx = (wd)=>(wd*scale)/2;
+  const gy = (d)=> cy - (d*scale);
+
+  const drawPoly = (tw, d, fill, stroke, dash=[])=>{
+    ctx.beginPath();
+    ctx.moveTo(cx-gx(tw), gy(d));
+    ctx.lineTo(cx-gx(b), cy);
+    ctx.lineTo(cx+gx(b), cy);
+    ctx.lineTo(cx+gx(tw), gy(d));
+    ctx.closePath();
+    if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+    if(stroke){
+      ctx.strokeStyle=stroke;
+      ctx.setLineDash(dash);
+      ctx.lineWidth=2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  };
+
+  // banks outline
+  if(H>0){
+    drawPoly(b+2*z*H, H, null, "#5D4037");
+  }
+  // water
+  if(y>0){
+    const isOver = (H>0 && y>H);
+    drawPoly(b+2*z*Math.min(y, H*1.5||y), Math.min(y, H*1.5||y),
+      isOver ? "rgba(231,76,60,0.55)" : "rgba(52,152,219,0.55)",
+      isOver ? "#c0392b" : "#2980b9",
+      []
+    );
+    // waterline
+    ctx.beginPath();
+    ctx.moveTo(cx-gx(b+2*z*y), gy(y));
+    ctx.lineTo(cx+gx(b+2*z*y), gy(y));
+    ctx.strokeStyle="#2c3e50";
+    ctx.lineWidth=1;
+    ctx.stroke();
+
+    ctx.fillStyle="#2c3e50";
+    ctx.font="bold 10px Arial";
+    ctx.textAlign="center";
+    ctx.fillText(`y=${y.toFixed(2)}m`, cx, gy(y)-6);
+  }
+
+  ctx.fillStyle="#2c3e50";
+  ctx.font="bold 10px Arial";
+  ctx.textAlign="center";
+  if(b>0) ctx.fillText(`b=${b}m`, cx, cy+12);
+}
+
+/* ===================== Inputs binding ===================== */
+function bindInputs(){
+  const ids = [
+    'rainI','rainD','area','length','height','coef',
+    'drains','drainCap',
+    'strWidth','strZ','strDepth','strDrop','strLen','strType','strY'
+  ];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input', runMasterCalculation);
+    el.addEventListener('change', runMasterCalculation);
+  });
+}
+
+
+</script>
+
+<script>
+/* ===================== BOOT ===================== */
+init();
+</script>
+
+</body>
+</html>
