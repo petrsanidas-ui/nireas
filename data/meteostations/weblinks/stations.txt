@@ -13,3 +13,5 @@ https://penteli.meteo.gr/stations/kifissia/
 https://penteli.meteo.gr/stations/ekali/
 https://penteli.meteo.gr/stations/zireia/
 https://penteli.meteo.gr/stations/vamvakou/
+https://penteli.meteo.gr/stations/karditsa/
+
