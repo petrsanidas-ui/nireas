@@ -2,9 +2,9 @@
 ΝΟΜΙΣΜΑΤΟΚΟΠΕΙΟ | https://penteli.meteo.gr/stations/chalandri/ttps://penteli.meteo.gr/stations/nomismatokopeio/
 ΠΑΠΑΓΟΥ | https://penteli.meteo.gr/stations/papagou/
 Ελληνογαλλική σχολή - Lycee Franco-Hellenique Eugene Delacroix - ΓΙΑ ΠΑΡΑΣΚΕΥΗ | https://penteli.meteo.gr/stations/delacroix-attiki/
-Αμερικανικό Κολλέγιο Ελλάδος - ΑΓΙΑ ΠΑΡΑΣΚΕΥΗ | ttps://penteli.meteo.gr/stations/agiaparaskevi/
+Αμερικανικό Κολλέγιο Ελλάδος - ΑΓΙΑ ΠΑΡΑΣΚΕΥΗ | https://penteli.meteo.gr/stations/agiaparaskevi/
 ΨΥΧΙΚΟ | https://penteli.meteo.gr/stations/psychico/
-ΒΡΙΛΗΗΣΙΑ 1 | ttps://penteli.meteo.gr/stations/vrilissia/
+ΒΡΙΛΗΗΣΙΑ 1 | https://penteli.meteo.gr/stations/vrilissia/
 ΒΡΙΛΗΗΣΙΑ 2 | https://penteli.meteo.gr/stations/vrilissia2/
 ΜΑΡΟΥΣΙ 1 | https://penteli.meteo.gr/stations/ursulines/
 ΠΕΝΕΤΕΛΗ ΨΗΛΑ |https://penteli.meteo.gr/stations/penteli-top/
@@ -14,4 +14,5 @@ https://penteli.meteo.gr/stations/ekali/
 https://penteli.meteo.gr/stations/zireia/
 https://penteli.meteo.gr/stations/vamvakou/
 https://penteli.meteo.gr/stations/karditsa/
+
 
