@@ -1181,68 +1181,103 @@ function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 }
 
-/* ===================== DATETIME: 24h formatting ===================== */
+/* ===================== DATETIME: Athens TZ + 24h formatting ===================== */
+const ATHENS_TZ = 'Europe/Athens';
+// en-GB gives: "dd/mm/yyyy, HH:MM:SS"
+const _DTF_ATHENS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: ATHENS_TZ,
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hour12: false
+});
+
+// If your station network timestamps are UTC (no timezone), keep this true.
+let STATIONS_ASSUME_UTC = true;
+
 function pad2(n){ return String(n).padStart(2,'0'); }
 
-function formatDateTime24(d){
+function formatDateTimeAthens(d){
   if(!(d instanceof Date) || isNaN(d.getTime())) return '—';
-  return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  return _DTF_ATHENS.format(d);
 }
 
-function parseAnyDateTime(ts){
-  if(ts == null) return null;
-  if(ts instanceof Date) return ts;
-  const s = String(ts).trim();
+function parsePartsGreekOrISO(s){
   if(!s) return null;
 
   // Greek / EU: dd/mm/yyyy, hh:mm(:ss) with optional π.μ./μ.μ.
   if(s.includes('/')){
     const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(π\.μ\.|μ\.μ\.))?/i);
     if(m){
-      const day = parseInt(m[1],10);
-      const mon = parseInt(m[2],10) - 1;
+      const day  = parseInt(m[1],10);
+      const mon  = parseInt(m[2],10) - 1;
       const year = parseInt(m[3],10);
-      let hh = parseInt(m[4],10);
-      const mi = parseInt(m[5],10);
-      const ss = parseInt(m[6] || '0',10);
-      const mer = (m[7] || '').toLowerCase();
+      let hh     = parseInt(m[4],10);
+      const mi   = parseInt(m[5],10);
+      const ss   = parseInt(m[6] || '0',10);
+      const mer  = (m[7] || '').toLowerCase();
 
       if(mer.includes('μ.μ') && hh < 12) hh += 12;
       if(mer.includes('π.μ') && hh === 12) hh = 0;
 
-      return new Date(year, mon, day, hh, mi, ss);
+      return {year, mon, day, hh, mi, ss};
     }
   }
 
-  // ISO-like: yyyy-mm-ddThh:mm(:ss)
+  // ISO-like: yyyy-mm-ddThh:mm(:ss) (without timezone)
   const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if(m2){
     const year = parseInt(m2[1],10);
-    const mon = parseInt(m2[2],10) - 1;
-    const day = parseInt(m2[3],10);
-    const hh = parseInt(m2[4],10);
-    const mi = parseInt(m2[5],10);
-    const ss = parseInt(m2[6] || '0',10);
-    return new Date(year, mon, day, hh, mi, ss);
+    const mon  = parseInt(m2[2],10) - 1;
+    const day  = parseInt(m2[3],10);
+    const hh   = parseInt(m2[4],10);
+    const mi   = parseInt(m2[5],10);
+    const ss   = parseInt(m2[6] || '0',10);
+    return {year, mon, day, hh, mi, ss};
   }
-
-  // Fallback: let Date try (RFC formats, etc.)
-  const d = new Date(s);
-  if(!isNaN(d.getTime())) return d;
 
   return null;
 }
 
-function ts24(ts){
+function dateFromParts(p, asUTC){
+  if(!p) return null;
+  return asUTC
+    ? new Date(Date.UTC(p.year, p.mon, p.day, p.hh, p.mi, p.ss))
+    : new Date(p.year, p.mon, p.day, p.hh, p.mi, p.ss);
+}
+
+function tsAthens(ts, assumeUTC=false){
   if(ts == null) return '—';
-  const d = parseAnyDateTime(ts);
-  return d ? formatDateTime24(d) : String(ts);
+  if(ts instanceof Date) return formatDateTimeAthens(ts);
+
+  const s = String(ts).trim();
+  if(!s) return '—';
+
+  // If explicit timezone is present (Z or ±HH:MM), trust native parsing.
+  if(/Z$/i.test(s) || /[+\-]\d{2}:?\d{2}$/i.test(s) || /GMT|UTC/i.test(s)){
+    const d = new Date(s);
+    if(!isNaN(d.getTime())) return formatDateTimeAthens(d);
+  }
+
+  const parts = parsePartsGreekOrISO(s);
+  if(parts){
+    const d = dateFromParts(parts, assumeUTC);
+    return d ? formatDateTimeAthens(d) : s;
+  }
+
+  // Fallback: let Date try (RFC formats, etc.)
+  const d = new Date(s);
+  if(!isNaN(d.getTime())) return formatDateTimeAthens(d);
+
+  return s;
 }
 
-function nowTs24(){
-  return formatDateTime24(new Date());
-}
+// Station timestamps often arrive as UTC without timezone → convert to Athens.
+function tsStation(ts){ return tsAthens(ts, STATIONS_ASSUME_UTC); }
 
+// Local/Athens timestamps (e.g. Open‑Meteo with timezone=Europe/Athens)
+function tsLocal(ts){ return tsAthens(ts, false); }
+
+function nowTsAthens(){ return formatDateTimeAthens(new Date()); }
 
 function renderWatchlist(){
   const box = document.getElementById('watchlist');
@@ -1300,31 +1335,110 @@ function getFetchTargets(){
   return targets;
 }
 
+function renderExtraSeriesList(){
+  const sel = document.getElementById('extraSeriesSelect');
+  const box = document.getElementById('extraSeriesList');
+  if(!sel || !box) return;
+
+  const url = sel.value || '';
+  extraSeriesSelectedUrl = url;
+
+  const key = url ? `url:${url}` : '';
+  const series = key ? (stationSeriesByKey[key] || []) : [];
+
+  if(!series.length){
+    box.innerHTML = '—';
+    return;
+  }
+
+  const rows = series.slice().reverse().map(s=>{
+    const ts = escapeHtml(s.tsText || '—');
+    const val = (s.val!=null && isFiniteNumber(s.val)) ? `${s.val.toFixed(1)} mm/h` : '—';
+    const dp  = (s.dp!=null && isFiniteNumber(s.dp)) ? `ΔP ${s.dp.toFixed(1)} mm` : '';
+    return `<div class="series-row">
+      <div class="series-ts">${ts}</div>
+      <div class="series-val">${val}</div>
+      <div class="series-dp">${dp}</div>
+    </div>`;
+  }).join('');
+
+  box.innerHTML = rows;
+}
+
 function renderStationMultiList(results){
   const box = document.getElementById('stationMultiList');
   if(!box) return;
+
   if(!results || results.length <= 1){
     box.style.display = 'none';
     box.innerHTML = '';
+    extraSeriesSelectedUrl = '';
     return;
   }
-  const rest = results.slice(1);
-  if(!rest.length){ box.style.display='none'; box.innerHTML=''; return; }
+
+  const rest = results.slice(1).filter(r => r && r.url);
+  if(!rest.length){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    extraSeriesSelectedUrl = '';
+    return;
+  }
 
   const rows = rest.map(r=>{
     const rr = (r.rr!=null && isFiniteNumber(r.rr)) ? r.rr.toFixed(1) : '—';
-    const ts = ts24(r.tsText || '—');
-    return `<div class="multi-row">
+    const ts = (r.tsText || '—');
+    return `<div class="multi-row" data-url="${escapeHtml(r.url)}" style="cursor:pointer;">
       <div class="multi-name">${escapeHtml(r.name || '—')}</div>
       <div class="multi-metric">${rr} mm/h</div>
       <div class="multi-ts">${escapeHtml(ts)}</div>
     </div>`;
   }).join('');
 
+  const options = rest.map(r=>{
+    return `<option value="${escapeHtml(r.url)}">${escapeHtml(r.name || r.url)}</option>`;
+  }).join('');
+
   box.style.display = 'block';
   box.innerHTML = `<div style="font-size:11px;color:#6b7a86;margin-bottom:6px;">Επιπλέον σταθμοί</div>
-                   <div class="multi-table">${rows}</div>`;
+                   <div class="multi-table" id="multiTable">${rows}</div>
+                   <details id="extraSeriesDetails" style="margin-top:10px;">
+                     <summary style="cursor:pointer;font-size:11px;color:var(--ink);">Ιστορικό Επιπλέον Σταθμού (12 τελευταίες)</summary>
+                     <div style="margin-top:6px;display:flex;gap:8px;align-items:center;font-size:11px;">
+                       <span style="color:#6b7a86">Σταθμός:</span>
+                       <select id="extraSeriesSelect" style="flex:1;padding:6px;border:1px solid #dfe7ee;border-radius:8px;font-size:12px;">
+                         ${options}
+                       </select>
+                     </div>
+                     <div id="extraSeriesList" class="series-list">—</div>
+                   </details>`;
+
+  const sel = document.getElementById('extraSeriesSelect');
+  if(sel){
+    const exists = rest.some(r => r.url === extraSeriesSelectedUrl);
+    if(exists) sel.value = extraSeriesSelectedUrl;
+    else extraSeriesSelectedUrl = sel.value || '';
+
+    sel.addEventListener('change', renderExtraSeriesList);
+  }
+
+  // Click a row → show its history
+  const table = document.getElementById('multiTable');
+  if(table && sel){
+    table.querySelectorAll('.multi-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const u = row.getAttribute('data-url') || '';
+        if(u){
+          sel.value = u;
+          sel.dispatchEvent(new Event('change'));
+          document.getElementById('extraSeriesDetails')?.setAttribute('open','');
+        }
+      });
+    });
+  }
+
+  renderExtraSeriesList();
 }
+
 
 
 async function readStationsFromTxt(path){
@@ -1478,9 +1592,11 @@ function openStationWeb(){
 async function fetchStationDataSingle(url, label, updatePrimary){
   if(!url) return null;
 
+  const stKey = `url:${url}`;
+
   if(updatePrimary){
-    // Primary station has its own context (do not mix with Open-Meteo or other stations)
-    switchSeriesContext(`url:${url}`);
+    // Primary station has its own context (do not mix with Open‑Meteo or other stations)
+    switchSeriesContext(stKey);
     updateMeteoStatus("Σύνδεση…");
     setTxt('stationName', label || '—');
   }
@@ -1493,69 +1609,69 @@ async function fetchStationDataSingle(url, label, updatePrimary){
 
       const rr = extractRainRate(r);
       const tsRaw = extractTimestamp(r) || new Date().toISOString();
-      const ts = ts24(tsRaw);
+      const ts = tsStation(tsRaw);
       const totals = extractTotals(r);
 
       if(updatePrimary){
         setTxt('stationTimestamp', ts);
         setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
-        setTxt('stationTotalSrc', totals.totalSrc === 'storm' ? '(storm)' : totals.totalSrc === 'today' ? '(today)' : '');
+        setTxt('stationTotalSrc', totals.totalSrc === 'storm' ? '(Storm)' : totals.totalSrc === 'today' ? '(Σήμερα)' : '');
         updateMeteoStatus(`Λήψη OK: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
         setStationMsg("Λήψη από endpoint.");
-
-        if(rr!=null){
-          // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals);
-        }
-        runMasterCalculation();
       }
+
+      if(rr!=null){
+        const sampleKey = String(tsRaw || ts);
+        pushStationSampleForKey(stKey, sampleKey, ts, rr, label || 'Station', totals);
+      }
+
+      if(updatePrimary) runMasterCalculation();
       return { url, name: label, rr, tsText: ts };
     }
 
     // 2) If it's a meteo station page (Penteli)
     if(/penteli\.meteo\.gr\/stations/i.test(url)){
-      const mirrorUrl = url.startsWith('https://') ? ('https://r.jina.ai/' + url) : ('https://r.jina.ai/https://' + url);
-      const text = await fetch(mirrorUrl, {cache:'no-store'}).then(res=>res.text());
+      const mirrorUrl = url.startsWith('https://')
+        ? ('https://r.jina.ai/' + url)
+        : ('https://r.jina.ai/https://' + url);
 
+      const text = await fetch(mirrorUrl, {cache:'no-store'}).then(res=>res.text());
       const parsed = parseMeteoPageMinimal(text);
-      const rr = parsed?.rr ?? null;
-      const tsRaw = parsed?.timestamp ?? new Date().toISOString();
-      const ts = ts24(tsRaw);
-      const totals = parsed?.totals ?? null;
+
+      const rr = parsed.rr;
+      const tsRaw = parsed.ts || '';
+      const ts = tsRaw ? tsStation(tsRaw) : nowTsAthens();
+      const totals = parsed.totals;
 
       if(updatePrimary){
         setTxt('stationTimestamp', ts);
         setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
-        setTxt('stationTotalSrc', totals && totals.totalSrc === 'storm' ? '(storm)' : totals && totals.totalSrc === 'today' ? '(today)' : '');
+        setTxt('stationTotalSrc', totals.totalSrc === 'storm' ? '(Storm)' : totals.totalSrc === 'today' ? '(Σήμερα)' : '');
         updateMeteoStatus(`Λήψη OK: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
         setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
-
-        if(rr!=null){
-          // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals);
-        }
-        runMasterCalculation();
       }
+
+      if(rr!=null){
+        const sampleKey = String(tsRaw || ts);
+        pushStationSampleForKey(stKey, sampleKey, ts, rr, label || 'Station', totals);
+      }
+
+      if(updatePrimary) runMasterCalculation();
       return { url, name: label, rr, tsText: ts };
     }
 
-    if(updatePrimary){
-      updateMeteoStatus("Δεν είναι API — χρησιμοποίησε το Web.");
-      setStationMsg("Μη-API σύνδεσμος.");
-    }
-    return { url, name: label, rr: null, tsText: '—' };
-
-  }catch(e){
+    throw new Error("Μη υποστηριζόμενη διεύθυνση σταθμού.");
+  } catch(e){
     console.error(e);
     if(updatePrimary){
-      updateMeteoStatus("Σφάλμα λήψης δεδομένων.");
-      setStationMsg("Σφάλμα: " + e.message);
+      updateMeteoStatus("Σφάλμα σύνδεσης.");
+      setStationMsg("Σφάλμα: " + (e.message || e));
     }
     return { url, name: label, rr: null, tsText: '—' };
   }
 }
 
-async function fetchStationData(){
+async function fetchStationData(async function fetchStationData(){
   const targets = getFetchTargets();
   if(!targets.length){
     return;
@@ -1599,7 +1715,7 @@ async function fetchLiveMeteo(){
 
     const rr = r?.current?.precipitation_rate;
     const tsRaw = r?.current?.time ? String(r.current.time) : new Date().toISOString();
-    const ts = ts24(tsRaw);
+    const ts = tsLocal(tsRaw);
 
     updateStationMonitor(rr!=null ? rr : null, ts, null);
     updateMeteoStatus(`Live: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
@@ -1692,7 +1808,7 @@ function parseMeteoPage(text){
 }
 
 function updateStationMonitor(rainRate, tsText, totals){
-  setTxt('stationTimestamp', tsText ? ts24(tsText) : '—');
+  setTxt('stationTimestamp', tsText || '—');
   setTxt('stationRainRate', (rainRate!=null && isFiniteNumber(rainRate)) ? rainRate.toFixed(1) : '—');
 
   // dp/r60 derived from series
@@ -1704,12 +1820,18 @@ function updateStationMonitor(rainRate, tsText, totals){
   updateStationReadouts();
 }
 
-function onNewStationSample(sampleKey, tsText, val, label, totals){
-  if(!sampleKey) return;
-  if(sampleKey === stationLastKey) return;
-  stationLastKey = sampleKey;
+let extraSeriesSelectedUrl = '';
 
-  const prev = stationSeries.length ? stationSeries[stationSeries.length-1] : null;
+function pushStationSampleForKey(stKey, sampleKey, tsText, val, label, totals){
+  const key = stKey || 'open-meteo';
+  if(!sampleKey) return;
+
+  let series = stationSeriesByKey[key] || [];
+  let lastKey = stationLastKeyByKey[key] || (series.length ? series[series.length-1].key : null);
+
+  if(sampleKey === lastKey) return;
+
+  const prev = series.length ? series[series.length-1] : null;
 
   let dp = null;
   if(totals && totals.total!=null && prev && prev.total!=null && prev.totalSrc && prev.totalSrc === totals.totalSrc){
@@ -1718,7 +1840,7 @@ function onNewStationSample(sampleKey, tsText, val, label, totals){
   }
 
   const d = new Date();
-  stationSeries.push({
+  series.push({
     key: sampleKey,
     tsText: tsText || sampleKey,
     val,
@@ -1729,16 +1851,29 @@ function onNewStationSample(sampleKey, tsText, val, label, totals){
     dateMs: d.getTime()
   });
 
-  if(stationSeries.length > STATION_SERIES_MAX) stationSeries = stationSeries.slice(-STATION_SERIES_MAX);
+  if(series.length > STATION_SERIES_MAX) series = series.slice(-STATION_SERIES_MAX);
 
-  // keep per-station context in sync when array reference changes
-  stationSeriesByKey[currentStationKey] = stationSeries;
-  stationLastKeyByKey[currentStationKey] = stationLastKey;
+  stationSeriesByKey[key] = series;
+  stationLastKeyByKey[key] = sampleKey;
 
-  updateStationReadouts();
+  if(key === currentStationKey){
+    stationSeries = series;
+    stationLastKey = sampleKey;
+    updateStationReadouts();
+  }
+
+  // If extra history panel is showing this station, refresh it.
+  if(extraSeriesSelectedUrl && key === `url:${extraSeriesSelectedUrl}`){
+    try{ renderExtraSeriesList(); }catch(e){}
+  }
 }
 
-function updateStationReadouts(){
+// Backwards-compatible wrapper: pushes sample to the current (primary) context
+function onNewStationSample(sampleKey, tsText, val, label, totals){
+  pushStationSampleForKey(currentStationKey, sampleKey, tsText, val, label, totals);
+}
+
+function updateStationReadouts(function updateStationReadouts(){
   const latest = stationSeries.length ? stationSeries[stationSeries.length-1] : null;
 
   // dp = last dp if available
@@ -1766,7 +1901,7 @@ function renderStationSeriesList(){
   }
   // show newest first
   const rows = stationSeries.slice().reverse().map(s=>{
-    const ts = escapeHtml(ts24(s.tsText || '—'));
+    const ts = escapeHtml(s.tsText || '—');
     const val = (s.val!=null && isFiniteNumber(s.val)) ? `${s.val.toFixed(1)} mm/h` : '—';
     const dp = (s.dp!=null && isFiniteNumber(s.dp)) ? `ΔP ${s.dp.toFixed(1)} mm` : '';
     return `<div class="series-row">
