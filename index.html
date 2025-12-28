@@ -485,6 +485,17 @@
             <button class="mini-btn btn-map" onclick="openStationWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
           </div>
 
+          <details class="no-print" style="margin-top:8px;">
+            <summary style="cursor:pointer;font-size:11px;color:#6b7a86;">➕ Προσθήκη custom σταθμού (με URL)</summary>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; align-items:center;">
+              <input id="customStationName" placeholder="Όνομα (π.χ. ΧΑΛΑΝΔΡΙ)" style="flex:1; min-width:220px; padding:8px; border:1px solid #dfe7ee; border-radius:10px; font-size:12px;">
+              <input id="customStationUrl" placeholder="URL (Open‑Meteo API ή penteli link)" style="flex:2; min-width:320px; padding:8px; border:1px solid #dfe7ee; border-radius:10px; font-size:12px;">
+              <button class="mini-btn btn-on" onclick="addCustomStation()" title="Προσθήκη custom σταθμού">➕</button>
+              <button class="mini-btn btn-gray" onclick="clearCustomStations()" title="Διαγραφή custom λίστας (τοπικά)">🧹</button>
+            </div>
+            <div id="customStationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">Αποθηκεύεται τοπικά στον browser.</div>
+          </details>
+
           <div id="watchlistWrap" style="margin-top:8px;" class="no-print">
             <div style="font-size:11px;color:#6b7a86;margin-bottom:4px;">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
             <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
@@ -759,6 +770,141 @@ stationLastKeyByKey[currentStationKey] = stationLastKey;
 let stationLiveOn = false;
 const watchlist = new Map(); // url -> display name
 
+const LS_WATCHLIST_KEY = 'nireas_watchlist_v1';
+const LS_CUSTOM_KEY   = 'nireas_customstations_v1';
+
+function setCustomMsg(msg){
+  const el = document.getElementById('customStationMsg');
+  if(el) el.textContent = msg;
+}
+
+function saveWatchlist(){
+  try{
+    const arr = Array.from(watchlist.entries()).map(([url,name]) => ({url, name}));
+    localStorage.setItem(LS_WATCHLIST_KEY, JSON.stringify(arr));
+  }catch(e){}
+}
+
+function loadWatchlist(){
+  try{
+    const raw = localStorage.getItem(LS_WATCHLIST_KEY);
+    if(!raw) return;
+    const arr = JSON.parse(raw);
+    if(!Array.isArray(arr)) return;
+    watchlist.clear();
+    for(const it of arr){
+      if(it && it.url){
+        watchlist.set(String(it.url), String(it.name || it.url));
+      }
+    }
+  }catch(e){}
+}
+
+function getCustomStations(){
+  try{
+    const raw = localStorage.getItem(LS_CUSTOM_KEY);
+    if(!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+
+function saveCustomStations(arr){
+  try{
+    localStorage.setItem(LS_CUSTOM_KEY, JSON.stringify(arr || []));
+  }catch(e){}
+}
+
+function ensureCustomOptgroup(selectEl){
+  if(!selectEl) return null;
+  // try to find existing optgroup by label
+  const groups = Array.from(selectEl.querySelectorAll('optgroup'));
+  let grp = groups.find(g => (g.label || '').toLowerCase().includes('custom'));
+  if(!grp){
+    grp = document.createElement('optgroup');
+    grp.label = 'Custom (Local)';
+    selectEl.appendChild(grp);
+  }
+  return grp;
+}
+
+function upsertCustomOption(name, url){
+  const sel = document.getElementById('meteoStationSelect');
+  if(!sel) return;
+  const normalized = normalizeStationUrl(url);
+  if(!normalized) return;
+
+  // if option already exists, just update its label if needed
+  const existing = Array.from(sel.options).find(o => o.value === normalized);
+  if(existing){
+    if(name && existing.textContent !== name) existing.textContent = name;
+    return;
+  }
+
+  const grp = ensureCustomOptgroup(sel);
+  const opt = document.createElement('option');
+  opt.value = normalized;
+  opt.textContent = (name || normalized.replace(/^https?:\/\//i,'').slice(0,60));
+  opt.dataset.from = 'local';
+  grp.appendChild(opt);
+}
+
+function loadCustomStationsIntoSelect(){
+  const list = getCustomStations();
+  if(!list.length) return;
+  for(const it of list){
+    if(!it || !it.url) continue;
+    upsertCustomOption(it.name || '', it.url);
+  }
+}
+
+function addCustomStation(){
+  const nameEl = document.getElementById('customStationName');
+  const urlEl  = document.getElementById('customStationUrl');
+  const name = (nameEl?.value || '').trim();
+  const urlRaw = (urlEl?.value || '').trim();
+  if(!urlRaw){
+    setCustomMsg('Δώσε URL σταθμού.');
+    return;
+  }
+  const url = normalizeStationUrl(urlRaw);
+  if(!url){
+    setCustomMsg('Μη έγκυρο URL.');
+    return;
+  }
+
+  // save to custom list
+  const list = getCustomStations();
+  const exists = list.some(x => String(x?.url||'') === url);
+  if(!exists){
+    list.push({name: name || url.replace(/^https?:\/\//i,'').slice(0,60), url});
+    saveCustomStations(list);
+  }
+
+  // also add to dropdown + watchlist immediately
+  upsertCustomOption(name, url);
+  watchlist.set(url, name || url.replace(/^https?:\/\//i,'').slice(0,60));
+  renderWatchlist();
+  saveWatchlist();
+
+  // clear inputs
+  if(nameEl) nameEl.value = '';
+  if(urlEl) urlEl.value = '';
+
+  setCustomMsg('✅ Προστέθηκε (τοπικά).');
+
+  // immediately fetch to show data
+  fetchStationData();
+}
+
+function clearCustomStations(){
+  const ok = confirm('Να διαγραφούν οι custom σταθμοί που έχεις αποθηκεύσει τοπικά στον browser;');
+  if(!ok) return;
+  saveCustomStations([]);
+  setCustomMsg('🧹 Καθαρίστηκε η custom λίστα.');
+  // Note: options will disappear on next reload of station list.
+}
+
 let stationLiveTimer = null;
 let lastStationPayload = null;
 
@@ -876,6 +1022,17 @@ if(!loaded){
     bindInputs();
     runMasterCalculation();
     updateStationButtons();
+    // Restore local custom stations + watchlist (no coding required)
+    loadCustomStationsIntoSelect();
+    loadWatchlist();
+    renderWatchlist();
+
+    // If nothing selected but watchlist exists, fetch immediately to show values
+    const sel = document.getElementById('meteoStationSelect');
+    if((!sel || !sel.value) && watchlist.size){
+      fetchStationData();
+    }
+
   }catch(e){
     console.error(e);
     updateMeteoStatus("Σφάλμα GitHub: " + e.message);
@@ -1303,6 +1460,8 @@ function renderWatchlist(){
       e.stopPropagation();
       watchlist.delete(url); 
       renderWatchlist(); 
+      saveWatchlist();
+      fetchStationData();
     });
     chip.addEventListener('click', ()=>{
       const sel = document.getElementById('meteoStationSelect');
@@ -1322,13 +1481,24 @@ function addToWatchlist(){
   const name = (sel.options[sel.selectedIndex]?.textContent || url).trim();
   watchlist.set(url, name);
   renderWatchlist();
+  saveWatchlist();
+  fetchStationData();
 }
 
 function clearWatchlist(){
   watchlist.clear();
   renderWatchlist();
+  saveWatchlist();
   const multi = document.getElementById('stationMultiList');
   if(multi){ multi.style.display='none'; multi.innerHTML=''; }
+  // also reset main station display if nothing is selected
+  const sel = document.getElementById('meteoStationSelect');
+  if(sel && !sel.value){
+    setTxt('stationName','—');
+    setTxt('stationTimestamp','—');
+    setTxt('stationRainRate','—');
+    setTxt('stationDP','—');
+  }
 }
 
 function getFetchTargets(){
