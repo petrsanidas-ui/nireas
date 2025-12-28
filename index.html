@@ -1189,15 +1189,25 @@ function formatDateTime24(d){
   return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
-function parseAnyDateTime(ts){
+function parseAnyDateTime(ts, opts){
   if(ts == null) return null;
   if(ts instanceof Date) return ts;
-  const s = String(ts).trim();
-  if(!s) return null;
+  const assumeUTC = !!(opts && opts.assumeUTC);
+  const s0 = String(ts).trim();
+  if(!s0) return null;
+
+  // Normalize ISO strings with space separator
+  const s = s0.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})/, '$1T$2');
+
+  // If ISO includes explicit timezone (Z or +/-hh:mm), let Date parse it.
+  if(/^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/i.test(s)){
+    const d = new Date(s);
+    if(!isNaN(d.getTime())) return d;
+  }
 
   // Greek / EU: dd/mm/yyyy, hh:mm(:ss) with optional π.μ./μ.μ.
-  if(s.includes('/')){
-    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(π\.μ\.|μ\.μ\.))?/i);
+  if(s0.includes('/')){
+    const m = s0.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(π\.μ\.|μ\.μ\.))?/i);
     if(m){
       const day = parseInt(m[1],10);
       const mon = parseInt(m[2],10) - 1;
@@ -1214,8 +1224,8 @@ function parseAnyDateTime(ts){
     }
   }
 
-  // ISO-like: yyyy-mm-ddThh:mm(:ss)
-  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  // ISO-like without timezone: yyyy-mm-ddThh:mm(:ss)
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if(m2){
     const year = parseInt(m2[1],10);
     const mon = parseInt(m2[2],10) - 1;
@@ -1223,19 +1233,19 @@ function parseAnyDateTime(ts){
     const hh = parseInt(m2[4],10);
     const mi = parseInt(m2[5],10);
     const ss = parseInt(m2[6] || '0',10);
-    return new Date(year, mon, day, hh, mi, ss);
+    return assumeUTC ? new Date(Date.UTC(year, mon, day, hh, mi, ss)) : new Date(year, mon, day, hh, mi, ss);
   }
 
   // Fallback: let Date try (RFC formats, etc.)
-  const d = new Date(s);
+  const d = new Date(s0);
   if(!isNaN(d.getTime())) return d;
 
   return null;
 }
 
-function ts24(ts){
+function ts24(ts, opts){
   if(ts == null) return '—';
-  const d = parseAnyDateTime(ts);
+  const d = parseAnyDateTime(ts, opts);
   return d ? formatDateTime24(d) : String(ts);
 }
 
@@ -1423,7 +1433,6 @@ async function fetchStationsFromFolders(files){
     return (apiCount + webCount) > 0;
   }catch(e){
     console.error(e);
-    updateMeteoStatus("Σφάλμα φόρτωσης σταθμών: " + (e && e.message ? e.message : e));
     return false;
   }
 }
@@ -1431,11 +1440,7 @@ async function fetchStationsFromFolders(files){
 
 async function fetchStations(path){
   try{
-    updateMeteoStatus("Φόρτωση λίστας σταθμών…");
-
-    const resp = await fetch(RAW_URL + path, { cache:'no-store' });
-    if(!resp.ok) throw new Error(`Δεν φορτώθηκε: ${path} (${resp.status})`);
-
+    const resp = await fetch(RAW_URL + path);
     const text = await resp.text();
     const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
 
@@ -1455,8 +1460,6 @@ async function fetchStations(path){
         name = url.replace(/^https?:\/\//,'').slice(0,50);
       }
       url = normalizeStationUrl(url);
-      if(!url) continue;
-
       const opt = document.createElement('option');
       opt.value = url;
       opt.textContent = name || 'Station';
@@ -1465,22 +1468,13 @@ async function fetchStations(path){
       if(/(exec|api|json|\?)/i.test(url) && !/penteli\.meteo\.gr\/stations/i.test(url)) grpApi.appendChild(opt);
       else grpLink.appendChild(opt);
     }
-
-    if(grpApi.children.length) sel.appendChild(grpApi);
-    if(grpLink.children.length) sel.appendChild(grpLink);
+    sel.appendChild(grpApi);
+    sel.appendChild(grpLink);
 
     bindStationSelect();
-    renderWatchlist();
-
-    const apiN = grpApi.children.length;
-    const webN = grpLink.children.length;
-    const total = apiN + webN;
-
-    updateMeteoStatus(total ? `Σταθμοί: API ${apiN}, Web ${webN}` : `Λίστα σταθμών κενή: ${path}`);
 
   }catch(e){
     console.error(e);
-    updateMeteoStatus("Σφάλμα φόρτωσης λίστας σταθμών: " + e.message);
   }
 }
 
@@ -1525,6 +1519,12 @@ async function fetchStationDataSingle(url, label, updatePrimary){
         }
         runMasterCalculation();
       }
+
+      if(!updatePrimary && rr!=null){
+        // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
+        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false);
+      }
+
       return { url, name: label, rr, tsText: ts };
     }
 
@@ -1536,7 +1536,7 @@ async function fetchStationDataSingle(url, label, updatePrimary){
       const parsed = parseMeteoPageMinimal(text);
       const rr = parsed?.rr ?? null;
       const tsRaw = parsed?.timestamp ?? new Date().toISOString();
-      const ts = ts24(tsRaw);
+      const ts = ts24(tsRaw, {assumeUTC: !!parsed?.timestampIsUTC});
       const totals = parsed?.totals ?? null;
 
       if(updatePrimary){
@@ -1552,6 +1552,12 @@ async function fetchStationDataSingle(url, label, updatePrimary){
         }
         runMasterCalculation();
       }
+
+      if(!updatePrimary && rr!=null){
+        // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
+        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false);
+      }
+
       return { url, name: label, rr, tsText: ts };
     }
 
@@ -1669,11 +1675,32 @@ function extractTotals(obj){
 
 
 function parseMeteoPageMinimal(text){
-  const out = { rr: null, timestamp: null, totals: null };
+  const out = { rr: null, timestamp: null, timestampIsUTC: false, totals: null };
 
-  // timestamp (heuristic)
-  const ts1 = text.match(/Timestamp\s*:?\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4}[^\n<]{0,40})/i);
-  if(ts1) out.timestamp = ts1[1].trim();
+  // 1) Prefer the visible timestamp near "Latest Values / Τελευταίες Τιμές" (LOCAL time)
+  let mTs = text.match(/(?:Latest Values|Τελευταίες\s*Τιμές)[\s\S]{0,160}?(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}:\d{2})(?::(\d{2}))?/i);
+  if(mTs){
+    out.timestamp = `${mTs[1]}, ${mTs[2]}:${mTs[3] || '00'}`;
+    out.timestampIsUTC = false;
+  }
+
+  // 2) "Timestamp:" style (often present in page source; ISO-like is typically UTC)
+  if(!out.timestamp){
+    const ts1 = text.match(/Timestamp\s*:?\s*([^\n<]{8,80})/i);
+    if(ts1){
+      out.timestamp = ts1[1].trim();
+      out.timestampIsUTC = /\d{4}-\d{2}-\d{2}/.test(out.timestamp);
+    }
+  }
+
+  // 3) ISO-like fallback anywhere (treat as UTC)
+  if(!out.timestamp){
+    const ts2 = text.match(/(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}(?::\d{2})?)/);
+    if(ts2){
+      out.timestamp = ts2[1].trim();
+      out.timestampIsUTC = true;
+    }
+  }
 
   // rain rate (mm/h)
   let m = text.match(/Βροχ[^\n]{0,40}?([0-9]+(?:\.[0-9]+)?)\s*mm\/h/i);
@@ -1720,12 +1747,15 @@ function updateStationMonitor(rainRate, tsText, totals){
   updateStationReadouts();
 }
 
-function onNewStationSample(sampleKey, tsText, val, label, totals){
+function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, updateUI){
+  const key = seriesKey || 'open-meteo';
   if(!sampleKey) return;
-  if(sampleKey === stationLastKey) return;
-  stationLastKey = sampleKey;
 
-  const prev = stationSeries.length ? stationSeries[stationSeries.length-1] : null;
+  const lastKey = stationLastKeyByKey[key] || null;
+  if(sampleKey === lastKey) return;
+
+  const series = stationSeriesByKey[key] || [];
+  const prev = series.length ? series[series.length-1] : null;
 
   let dp = null;
   if(totals && totals.total!=null && prev && prev.total!=null && prev.totalSrc && prev.totalSrc === totals.totalSrc){
@@ -1733,8 +1763,10 @@ function onNewStationSample(sampleKey, tsText, val, label, totals){
     if(dp < 0) dp = totals.total;
   }
 
-  const d = new Date();
-  stationSeries.push({
+  const dParsed = parseAnyDateTime(tsText) || new Date();
+  const dateMs = dParsed.getTime();
+
+  series.push({
     key: sampleKey,
     tsText: tsText || sampleKey,
     val,
@@ -1742,16 +1774,26 @@ function onNewStationSample(sampleKey, tsText, val, label, totals){
     total: totals ? totals.total : null,
     totalSrc: totals ? totals.totalSrc : null,
     dp,
-    dateMs: d.getTime()
+    dateMs
   });
 
-  if(stationSeries.length > STATION_SERIES_MAX) stationSeries = stationSeries.slice(-STATION_SERIES_MAX);
+  if(series.length > STATION_SERIES_MAX){
+    series.splice(0, series.length - STATION_SERIES_MAX);
+  }
 
-  // keep per-station context in sync when array reference changes
-  stationSeriesByKey[currentStationKey] = stationSeries;
-  stationLastKeyByKey[currentStationKey] = stationLastKey;
+  stationSeriesByKey[key] = series;
+  stationLastKeyByKey[key] = sampleKey;
 
-  updateStationReadouts();
+  // keep globals in sync if this is the active context
+  if(key === currentStationKey){
+    stationSeries = series;
+    stationLastKey = sampleKey;
+    if(updateUI !== false) updateStationReadouts();
+  }
+}
+
+function onNewStationSample(sampleKey, tsText, val, label, totals){
+  storeSampleForKey(currentStationKey, sampleKey, tsText, val, label, totals, true);
 }
 
 function updateStationReadouts(){
