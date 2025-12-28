@@ -656,6 +656,8 @@ const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_
 let DATA_GROUPS = { boundaries: [], streams: [], basins: [] }; // NOTE ORDER
 let SELECTED_GEO = null;
 let SELECTED_BASIN_KEY = null;
+let STATION_SELECT_BOUND = false; // bind dropdown change listener once
+
 
 /* ===== Map state (multi-layer) ===== */
 let map = null;
@@ -722,17 +724,25 @@ async function init(){
 
     renderFileList();
 
-    const stationFile =
-      files.find(f => f.path === 'data/meteostations/weblinks/stations.txt') ||
-      files.find(f => f.path.endsWith('/stations.txt') || f.path.endsWith('stations.txt')) ||
-      files.find(f => f.path.endsWith('openmeteo.txt')) ||
-      files.find(f => f.path.endsWith('ecmwf.txt'));
+    // Auto-populate stations dropdown from folder structure:
+// - data/meteostations/api/*.txt      -> API / JSON
+// - data/meteostations/weblinks/*.txt -> Web Links
+const loaded = await fetchStationsFromFolders(files);
 
-    if(stationFile) fetchStations(stationFile.path);
-    else {
-      updateMeteoStatus("Δεν βρέθηκε αρχείο σταθμών (stations.txt / openmeteo.txt / ecmwf.txt)");
-      // safe fallback: keep dropdown empty
-    }
+if(!loaded){
+  // Backward-compatible fallback (older layouts)
+  const stationFile =
+    files.find(f => f.path === 'data/meteostations/weblinks/stations.txt') ||
+    files.find(f => f.path.endsWith('/stations.txt') || f.path.endsWith('stations.txt')) ||
+    files.find(f => f.path.endsWith('openmeteo.txt')) ||
+    files.find(f => f.path.endsWith('ecmwf.txt'));
+
+  if(stationFile) await fetchStations(stationFile.path);
+  else {
+    updateMeteoStatus("Δεν βρέθηκαν αρχεία σταθμών (.txt) σε data/meteostations/api ή data/meteostations/weblinks");
+    // safe fallback: keep dropdown empty
+  }
+}
 
     bindInputs();
     runMasterCalculation();
@@ -1032,6 +1042,139 @@ function pickNumber(obj, keys){
 }
 
 /* ===================== METEO: Stations list ===================== */
+
+function normalizeStationUrl(u){
+  u = (u || '').trim();
+  if(!u) return '';
+  // allow protocol-relative or missing scheme
+  if(/^https?:\/\//i.test(u)) return u;
+  if(/^\/\//.test(u)) return 'https:' + u;
+  return 'https://' + u;
+}
+
+function parseStationsText(text, sourcePath){
+  const entries = [];
+  const lines = (text || '').split(/\r?\n/);
+  for(const raw of lines){
+    const line = (raw || '').trim();
+    if(!line) continue;
+    if(line.startsWith('#') || line.startsWith('//')) continue;
+
+    let name = '';
+    let url  = line;
+
+    if(line.includes('|')){
+      const parts = line.split('|');
+      name = (parts.shift() || '').trim();
+      url  = parts.join('|').trim();
+    }else{
+      name = url.replace(/^https?:\/\//i,'').slice(0, 60);
+    }
+
+    url = normalizeStationUrl(url);
+    if(!url) continue;
+    if(!name) name = url.replace(/^https?:\/\//i,'').slice(0, 60);
+
+    entries.push({ name, url, from: sourcePath || '' });
+  }
+  return entries;
+}
+
+async function readStationsFromTxt(path){
+  const resp = await fetch(RAW_URL + path, { cache: 'no-store' });
+  if(!resp.ok) throw new Error(`Δεν φορτώθηκε: ${path}`);
+  const text = await resp.text();
+  return parseStationsText(text, path);
+}
+
+function bindStationSelect(){
+  if(STATION_SELECT_BOUND) return;
+  const sel = document.getElementById('meteoStationSelect');
+  if(!sel) return;
+
+  sel.addEventListener('change', ()=>{
+    setTxt('stationName', sel.options[sel.selectedIndex]?.textContent || '—');
+    setTxt('stationTimestamp','—');
+    setTxt('stationRainRate','—');
+    setTxt('stationDP','—');
+    setTxt('stationR60','—');
+    setStationMsg('—');
+  });
+
+  STATION_SELECT_BOUND = true;
+}
+
+// New loader: populate dropdown from folder structure
+async function fetchStationsFromFolders(files){
+  try{
+    const apiTxt = (files || [])
+      .filter(f => f.type === 'blob' && f.path.startsWith('data/meteostations/api/') && f.path.toLowerCase().endsWith('.txt'))
+      .map(f => f.path)
+      .sort();
+
+    const webTxt = (files || [])
+      .filter(f => f.type === 'blob' && f.path.startsWith('data/meteostations/weblinks/') && f.path.toLowerCase().endsWith('.txt'))
+      .map(f => f.path)
+      .sort();
+
+    if(apiTxt.length === 0 && webTxt.length === 0) return false;
+
+    const sel = document.getElementById('meteoStationSelect');
+    sel.innerHTML = '<option value="">Επιλογή σταθμού...</option>';
+
+    const grpApi  = document.createElement('optgroup'); grpApi.label  = "API / JSON";
+    const grpLink = document.createElement('optgroup'); grpLink.label = "Web Links";
+
+    const seen = new Set();
+
+    let apiCount = 0;
+    for(const p of apiTxt){
+      let entries = [];
+      try{ entries = await readStationsFromTxt(p); }catch(e){ console.warn(e); continue; }
+      for(const it of entries){
+        const key = it.url;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        const opt = document.createElement('option');
+        opt.value = it.url;
+        opt.textContent = it.name;
+        opt.dataset.from = it.from;
+        grpApi.appendChild(opt);
+        apiCount++;
+      }
+    }
+
+    let webCount = 0;
+    for(const p of webTxt){
+      let entries = [];
+      try{ entries = await readStationsFromTxt(p); }catch(e){ console.warn(e); continue; }
+      for(const it of entries){
+        const key = it.url;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        const opt = document.createElement('option');
+        opt.value = it.url;
+        opt.textContent = it.name;
+        opt.dataset.from = it.from;
+        grpLink.appendChild(opt);
+        webCount++;
+      }
+    }
+
+    sel.appendChild(grpApi);
+    sel.appendChild(grpLink);
+
+    bindStationSelect();
+
+    updateMeteoStatus(`Σταθμοί: API ${apiCount}, Web ${webCount}`);
+    return (apiCount + webCount) > 0;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+
+
 async function fetchStations(path){
   try{
     const resp = await fetch(RAW_URL + path);
@@ -1053,6 +1196,7 @@ async function fetchStations(path){
       }else{
         name = url.replace(/^https?:\/\//,'').slice(0,50);
       }
+      url = normalizeStationUrl(url);
       const opt = document.createElement('option');
       opt.value = url;
       opt.textContent = name || 'Station';
@@ -1064,14 +1208,7 @@ async function fetchStations(path){
     sel.appendChild(grpApi);
     sel.appendChild(grpLink);
 
-    sel.addEventListener('change', ()=>{
-      setTxt('stationName', sel.options[sel.selectedIndex]?.textContent || '—');
-      setTxt('stationTimestamp','—');
-      setTxt('stationRainRate','—');
-      setTxt('stationDP','—');
-      setTxt('stationR60','—');
-      setStationMsg('—');
-    });
+    bindStationSelect();
 
   }catch(e){
     console.error(e);
