@@ -555,7 +555,7 @@
           <div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
           <details id="seriesDetails" open style="margin-top:10px;">
-            <summary style="cursor:pointer;font-size:11px;color:var(--ink);">Χρονοσειρά (τελευταία 12)</summary>
+            <summary style="cursor:pointer;font-size:11px;color:var(--ink);"><span id="seriesSummaryMain">Ιστορικό Κύριου Σταθμού (12 τελευταίες)</span> <span id="seriesSummaryName" style="color:#6b7a86;margin-left:6px"></span></summary>
             <div id="stationSeriesList" class="series-list">—</div>
           </details>
 
@@ -710,8 +710,19 @@ let PREVIEW_LAYER = null;          // temporary layer for Map button preview
 
 /* ===== Station monitor ===== */
 const STATION_SERIES_MAX = 12;
+
+// Per-station series contexts (do not mix histories across different primary stations)
+const stationSeriesByKey  = Object.create(null);  // key -> array
+const stationLastKeyByKey = Object.create(null);  // key -> last sample key
+let currentStationKey = 'open-meteo';
+
 let stationSeries = [];
 let stationLastKey = null;
+
+// initialize default context
+stationSeriesByKey[currentStationKey] = stationSeries;
+stationLastKeyByKey[currentStationKey] = stationLastKey;
+
 let stationLiveOn = false;
 const watchlist = new Map(); // url -> display name
 
@@ -734,7 +745,49 @@ function setStationMsg(msg){
   const el = document.getElementById('stationMsg');
   if(el) el.innerText = msg;
 }
-function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; }
+function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; if(id==='stationName') updateSeriesSummaryName(); }
+function updateSeriesSummaryName(){
+  const el = document.getElementById('seriesSummaryName');
+  if(!el) return;
+  const name = (document.getElementById('stationName')?.textContent || '').trim();
+  if(!name || name==='—'){
+    el.textContent = '';
+    return;
+  }
+  el.textContent = `• ${name}`;
+}
+
+// --- Station series context helpers (per primary station) ---
+function getPrimaryStationKey(){
+  const sel = document.getElementById('meteoStationSelect');
+  const url = sel?.value || '';
+  return url ? `url:${url}` : 'open-meteo';
+}
+
+function switchSeriesContext(newKey){
+  const key = newKey || 'open-meteo';
+
+  // save current context
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
+  // load new context
+  currentStationKey = key;
+  stationSeries = stationSeriesByKey[currentStationKey] || [];
+  stationLastKey = stationLastKeyByKey[currentStationKey]
+    || (stationSeries.length ? stationSeries[stationSeries.length-1].key : null);
+
+  // ensure stored
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
+  // refresh readouts + list for the currently selected station
+  updateStationReadouts();
+}
+
+function switchPrimarySeriesContext(){
+  switchSeriesContext(getPrimaryStationKey());
+}
 
 function isFiniteNumber(x){ return typeof x === 'number' && isFinite(x); }
 function num(val){
@@ -1287,12 +1340,16 @@ function bindStationSelect(){
   if(!sel) return;
 
   sel.addEventListener('change', ()=>{
-    setTxt('stationName', sel.options[sel.selectedIndex]?.textContent || '—');
+    const isEmpty = !sel.value;
+    setTxt('stationName', isEmpty ? '—' : (sel.options[sel.selectedIndex]?.textContent || '—'));
     setTxt('stationTimestamp','—');
     setTxt('stationRainRate','—');
     setTxt('stationDP','—');
     setTxt('stationR60','—');
     setStationMsg('—');
+
+    // Switch series context so histories do not mix across stations
+    switchPrimarySeriesContext();
   });
 
   STATION_SELECT_BOUND = true;
@@ -1422,6 +1479,8 @@ async function fetchStationDataSingle(url, label, updatePrimary){
   if(!url) return null;
 
   if(updatePrimary){
+    // Primary station has its own context (do not mix with Open-Meteo or other stations)
+    switchSeriesContext(`url:${url}`);
     updateMeteoStatus("Σύνδεση…");
     setTxt('stationName', label || '—');
   }
@@ -1513,6 +1572,11 @@ async function fetchStationData(){
 /* ===== Open-Meteo button (uses basin centroid if available) ===== */
 async function fetchLiveMeteo(){
   updateMeteoStatus("Open-Meteo…");
+
+  // Treat Open-Meteo as its own source/context
+  switchSeriesContext('open-meteo');
+  setTxt('stationName','Open-Meteo');
+
   try{
     // default coords near Chalandri
     let lat = 38.02, lon = 23.80;
@@ -1666,6 +1730,11 @@ function onNewStationSample(sampleKey, tsText, val, label, totals){
   });
 
   if(stationSeries.length > STATION_SERIES_MAX) stationSeries = stationSeries.slice(-STATION_SERIES_MAX);
+
+  // keep per-station context in sync when array reference changes
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
   updateStationReadouts();
 }
 
@@ -1788,6 +1857,11 @@ function clearStationSeries(){
 
   stationSeries = [];
   stationLastKey = null;
+
+  // update store for current station context
+  stationSeriesByKey[currentStationKey] = stationSeries;
+  stationLastKeyByKey[currentStationKey] = stationLastKey;
+
   setTxt('stationDP','—');
   setTxt('stationR60','—');
   setStationMsg("Series καθαρίστηκε.");
