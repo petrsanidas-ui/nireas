@@ -134,6 +134,22 @@
     .btn-gray{background:var(--btn-gray)}
     .btn-on{background:var(--btn-green)}
     .btn-off{background:var(--btn-gray)}
+
+    /* Station monitor button states */
+    .btn-auto-default{background:var(--btn-blue)}
+    .btn-auto-live{background:var(--btn-green)}
+    .btn-live-off{background:var(--danger)}
+    .btn-live-on{background:var(--btn-green)}
+    .temp-green{background:var(--btn-green)!important}
+
+/* Station time-series list */
+.series-list{margin-top:6px;border:1px solid #dfe7ee;border-radius:10px;padding:6px;background:#fff;max-height:160px;overflow:auto;font-size:11px}
+.series-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed #e6eef5}
+.series-row:last-child{border-bottom:none}
+.series-ts{color:var(--muted);min-width:125px}
+.series-val{font-weight:700;white-space:nowrap}
+.series-dp{color:var(--muted);white-space:nowrap}
+
     .mini-btn:hover{filter:brightness(.95)}
     .mini-btn:active{transform:translateY(1px)}
 
@@ -532,12 +548,17 @@
           </div>
 
           <div class="station-actions no-print">
-            <button class="mini-btn btn-load" onclick="applyAutoI()">Auto</button>
-            <button class="mini-btn btn-map" onclick="toggleLive()">Live</button>
-            <button class="mini-btn btn-gray" onclick="clearStationSeries()">Καθαρισμός</button>
+            <button id="btnAutoStation" class="mini-btn btn-auto-default" onclick="applyAutoI()">Load</button>
+            <button id="btnLiveStation" class="mini-btn btn-live-off" onclick="toggleLive()">Live</button>
+            <button id="btnClearStation" class="mini-btn btn-gray" onclick="clearStationSeries()">Καθαρισμός</button>
           </div>
           <div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
+          <details id="seriesDetails" open style="margin-top:10px;">
+            <summary style="cursor:pointer;font-size:11px;color:var(--ink);">Χρονοσειρά (τελευταία 12)</summary>
+            <div id="stationSeriesList" class="series-list">—</div>
+          </details>
+
         </div>
       </div>
 
@@ -768,6 +789,7 @@ if(!loaded){
 
     bindInputs();
     runMasterCalculation();
+    updateStationButtons();
   }catch(e){
     console.error(e);
     updateMeteoStatus("Σφάλμα GitHub: " + e.message);
@@ -1106,6 +1128,69 @@ function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 }
 
+/* ===================== DATETIME: 24h formatting ===================== */
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function formatDateTime24(d){
+  if(!(d instanceof Date) || isNaN(d.getTime())) return '—';
+  return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function parseAnyDateTime(ts){
+  if(ts == null) return null;
+  if(ts instanceof Date) return ts;
+  const s = String(ts).trim();
+  if(!s) return null;
+
+  // Greek / EU: dd/mm/yyyy, hh:mm(:ss) with optional π.μ./μ.μ.
+  if(s.includes('/')){
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(π\.μ\.|μ\.μ\.))?/i);
+    if(m){
+      const day = parseInt(m[1],10);
+      const mon = parseInt(m[2],10) - 1;
+      const year = parseInt(m[3],10);
+      let hh = parseInt(m[4],10);
+      const mi = parseInt(m[5],10);
+      const ss = parseInt(m[6] || '0',10);
+      const mer = (m[7] || '').toLowerCase();
+
+      if(mer.includes('μ.μ') && hh < 12) hh += 12;
+      if(mer.includes('π.μ') && hh === 12) hh = 0;
+
+      return new Date(year, mon, day, hh, mi, ss);
+    }
+  }
+
+  // ISO-like: yyyy-mm-ddThh:mm(:ss)
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m2){
+    const year = parseInt(m2[1],10);
+    const mon = parseInt(m2[2],10) - 1;
+    const day = parseInt(m2[3],10);
+    const hh = parseInt(m2[4],10);
+    const mi = parseInt(m2[5],10);
+    const ss = parseInt(m2[6] || '0',10);
+    return new Date(year, mon, day, hh, mi, ss);
+  }
+
+  // Fallback: let Date try (RFC formats, etc.)
+  const d = new Date(s);
+  if(!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+function ts24(ts){
+  if(ts == null) return '—';
+  const d = parseAnyDateTime(ts);
+  return d ? formatDateTime24(d) : String(ts);
+}
+
+function nowTs24(){
+  return formatDateTime24(new Date());
+}
+
+
 function renderWatchlist(){
   const box = document.getElementById('watchlist');
   if(!box) return;
@@ -1175,7 +1260,7 @@ function renderStationMultiList(results){
 
   const rows = rest.map(r=>{
     const rr = (r.rr!=null && isFiniteNumber(r.rr)) ? r.rr.toFixed(1) : '—';
-    const ts = r.tsText || '—';
+    const ts = ts24(r.tsText || '—');
     return `<div class="multi-row">
       <div class="multi-name">${escapeHtml(r.name || '—')}</div>
       <div class="multi-metric">${rr} mm/h</div>
@@ -1348,7 +1433,8 @@ async function fetchStationDataSingle(url, label, updatePrimary){
       lastStationPayload = r;
 
       const rr = extractRainRate(r);
-      const ts = extractTimestamp(r) || new Date().toLocaleString('el-GR');
+      const tsRaw = extractTimestamp(r) || new Date().toISOString();
+      const ts = ts24(tsRaw);
       const totals = extractTotals(r);
 
       if(updatePrimary){
@@ -1374,7 +1460,8 @@ async function fetchStationDataSingle(url, label, updatePrimary){
 
       const parsed = parseMeteoPageMinimal(text);
       const rr = parsed?.rr ?? null;
-      const ts = parsed?.timestamp ?? new Date().toLocaleString('el-GR');
+      const tsRaw = parsed?.timestamp ?? new Date().toISOString();
+      const ts = ts24(tsRaw);
       const totals = parsed?.totals ?? null;
 
       if(updatePrimary){
@@ -1447,7 +1534,8 @@ async function fetchLiveMeteo(){
     const r = await fetch(u).then(res=>res.json());
 
     const rr = r?.current?.precipitation_rate;
-    const ts = r?.current?.time ? String(r.current.time) : new Date().toLocaleString('el-GR');
+    const tsRaw = r?.current?.time ? String(r.current.time) : new Date().toISOString();
+    const ts = ts24(tsRaw);
 
     updateStationMonitor(rr!=null ? rr : null, ts, null);
     updateMeteoStatus(`Live: ${rr!=null ? rr.toFixed(1) : '—'} mm/h`);
@@ -1540,7 +1628,7 @@ function parseMeteoPage(text){
 }
 
 function updateStationMonitor(rainRate, tsText, totals){
-  setTxt('stationTimestamp', tsText || '—');
+  setTxt('stationTimestamp', tsText ? ts24(tsText) : '—');
   setTxt('stationRainRate', (rainRate!=null && isFiniteNumber(rainRate)) ? rainRate.toFixed(1) : '—');
 
   // dp/r60 derived from series
@@ -1597,39 +1685,96 @@ function updateStationReadouts(){
   } else {
     setTxt('stationR60', '—');
   }
+  renderStationSeriesList();
 }
+
+function renderStationSeriesList(){
+  const box = document.getElementById('stationSeriesList');
+  if(!box) return;
+  if(!stationSeries || !stationSeries.length){
+    box.innerHTML = '—';
+    return;
+  }
+  // show newest first
+  const rows = stationSeries.slice().reverse().map(s=>{
+    const ts = escapeHtml(ts24(s.tsText || '—'));
+    const val = (s.val!=null && isFiniteNumber(s.val)) ? `${s.val.toFixed(1)} mm/h` : '—';
+    const dp = (s.dp!=null && isFiniteNumber(s.dp)) ? `ΔP ${s.dp.toFixed(1)} mm` : '';
+    return `<div class="series-row">
+      <div class="series-ts">${ts}</div>
+      <div class="series-val">${val}</div>
+      <div class="series-dp">${dp}</div>
+    </div>`;
+  }).join('');
+  box.innerHTML = rows;
+}
+
+
+
+/* ===================== STATION BUTTONS UI ===================== */
+function updateStationButtons(){
+  const autoBtn = document.getElementById('btnAutoStation');
+  const liveBtn = document.getElementById('btnLiveStation');
+
+  if(autoBtn){
+    // Auto stays blue; Live is independent
+    autoBtn.classList.add('btn-auto-default');
+    autoBtn.classList.remove('btn-auto-live');
+  }
+  if(liveBtn){
+    liveBtn.classList.toggle('btn-live-on', stationLiveOn);
+    liveBtn.classList.toggle('btn-live-off', !stationLiveOn);
+  }
+}
+
+function flashTempGreen(btnOrId, ms=3000){
+  const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
+  if(!btn) return;
+  btn.classList.add('temp-green');
+  setTimeout(()=> btn.classList.remove('temp-green'), ms);
+}
+
 
 function applyAutoI(){
   // Use latest station rain rate if exists
   const latest = stationSeries.length ? stationSeries[stationSeries.length-1] : null;
   if(latest && latest.val!=null){
     setVal('rainI', latest.val.toFixed(1));
-    setStationMsg("Auto: i ενημερώθηκε από σταθμό.");
+    setStationMsg("Load: i ενημερώθηκε από σταθμό.");
+    flashTempGreen('btnAutoStation', 3000);
     runMasterCalculation();
   } else if(lastStationPayload){
     const rr = extractRainRate(lastStationPayload);
     if(rr!=null){
       setVal('rainI', rr.toFixed(1));
-      setStationMsg("Auto: i ενημερώθηκε από payload.");
+      setStationMsg("Load: i ενημερώθηκε από payload.");
+      flashTempGreen('btnAutoStation', 3000);
       runMasterCalculation();
     } else {
-      setStationMsg("Auto: δεν υπάρχει τιμή βροχής.");
+      setStationMsg("Load: δεν υπάρχει τιμή βροχής.");
     }
   } else {
-    setStationMsg("Auto: δεν υπάρχει τιμή βροχής.");
+    setStationMsg("Load: δεν υπάρχει τιμή βροχής.");
   }
 }
 
 function toggleLive(){
   stationLiveOn = !stationLiveOn;
+  updateStationButtons();
+
+  const doFetch = ()=> {
+    // prefer API fetch if selected OR watchlist monitoring
+    const url = document.getElementById('meteoStationSelect')?.value;
+    if(url || watchlist.size) fetchStationData();
+    else fetchLiveMeteo();
+  };
+
   if(stationLiveOn){
     setStationMsg("Live: ON (ανά 90s)");
-    stationLiveTimer = setInterval(()=> {
-      // prefer API fetch if selected
-      const url = document.getElementById('meteoStationSelect').value;
-      if(url || watchlist.size) fetchStationData();
-      else fetchLiveMeteo();
-    }, 90000);
+    // άμεση πρώτη λήψη για να δεις αποτέλεσμα χωρίς να περιμένεις 90s
+    doFetch();
+    if(stationLiveTimer) clearInterval(stationLiveTimer);
+    stationLiveTimer = setInterval(doFetch, 90000);
   } else {
     setStationMsg("Live: OFF");
     if(stationLiveTimer) clearInterval(stationLiveTimer);
@@ -1638,11 +1783,17 @@ function toggleLive(){
 }
 
 function clearStationSeries(){
+  const ok = confirm("Να γίνει καθαρισμός της χρονοσειράς του σταθμού;");
+  if(!ok) return;
+
   stationSeries = [];
   stationLastKey = null;
   setTxt('stationDP','—');
   setTxt('stationR60','—');
   setStationMsg("Series καθαρίστηκε.");
+
+  // οπτική επιβεβαίωση: πράσινο για 3s και μετά επιστροφή
+  flashTempGreen('btnClearStation', 3000);
 }
 
 /* ===================== CALCULATIONS (ver14-style) ===================== */
