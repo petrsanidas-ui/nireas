@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ΝΗΡΕΑΣ — GitHub Data + Peq Screening Tool</title>
 
-  <!-- Leaflet -->
+  
+  <link rel="icon" type="image/png" href="nireas_logo.png" />
+<!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -426,6 +428,31 @@
   .multi-metric{ min-width:88px; text-align:right; font-variant-numeric: tabular-nums; }
   .multi-ts{ min-width:140px; text-align:right; color:#64748b; font-variant-numeric: tabular-nums; }
 
+
+    /* ====== NIREAS brand/logo ====== */
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+    .nireas-logo{
+      height:42px;
+      width:auto;
+      border-radius:10px;
+      background:#fff;
+      padding:2px;
+      border:1px solid #dfe7ee;
+      box-shadow:0 6px 14px rgba(0,0,0,.10);
+      flex:0 0 auto;
+    }
+    .brand h1{
+      margin:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
 </style>
 </head>
 
@@ -502,7 +529,10 @@
   <!-- ================= RIGHT: Peq Screening Tool ================= -->
   <main class="main-panel">
     <div class="tool-header">
-      <h1>ΔΕΙΚΤΕΣ ΑΠΟΚΡΙΣΗΣ ΤΟΠΙΚΩΝ ΛΕΚΑΝΩΝ ΑΠΟΡΡΟΗΣ — Peq Screening Tool</h1>
+      <div class="brand">
+        <img class="nireas-logo" src="nireas_logo.png" alt="ΝΗΡΕΑΣ" />
+        <h1>ΔΕΙΚΤΕΣ ΑΠΟΚΡΙΣΗΣ ΤΟΠΙΚΩΝ ΛΕΚΑΝΩΝ ΑΠΟΡΡΟΗΣ — Peq Screening Tool</h1>
+      </div>
       <button class="print-btn no-print" onclick="window.print()">ΕΚΤΥΠΩΣΗ</button>
     </div>
 
