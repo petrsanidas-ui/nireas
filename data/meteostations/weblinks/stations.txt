@@ -1,16 +1,17 @@
 ΧΑΛΑΝΔΡΙ | https://penteli.meteo.gr/stations/chalandri/
 ΝΟΜΙΣΜΑΤΟΚΟΠΕΙΟ | https://penteli.meteo.gr/stations/chalandri/ttps://penteli.meteo.gr/stations/nomismatokopeio/
 ΠΑΠΑΓΟΥ | https://penteli.meteo.gr/stations/papagou/
-ΑΓΙΑ ΠΑΡΑΣΚΕΥΗ 1 | https://penteli.meteo.gr/stations/delacroix-attiki/
-hΑΓΙΑ ΠΑΡΑΣΚΕΥΗ 2 | ttps://penteli.meteo.gr/stations/agiaparaskevi/
+Ελληνογαλλική σχολή - Lycee Franco-Hellenique Eugene Delacroix - ΓΙΑ ΠΑΡΑΣΚΕΥΗ | https://penteli.meteo.gr/stations/delacroix-attiki/
+Αμερικανικό Κολλέγιο Ελλάδος - ΑΓΙΑ ΠΑΡΑΣΚΕΥΗ | ttps://penteli.meteo.gr/stations/agiaparaskevi/
 ΨΥΧΙΚΟ | https://penteli.meteo.gr/stations/psychico/
 ΒΡΙΛΗΗΣΙΑ 1 | ttps://penteli.meteo.gr/stations/vrilissia/
 ΒΡΙΛΗΗΣΙΑ 2 | https://penteli.meteo.gr/stations/vrilissia2/
 ΜΑΡΟΥΣΙ 1 | https://penteli.meteo.gr/stations/ursulines/
 ΠΕΝΕΤΕΛΗ ΨΗΛΑ |https://penteli.meteo.gr/stations/penteli-top/
-ΓΕΡΚΑΣ | https://penteli.meteo.gr/stations/gerakas/
+ΓΕΡΑΚΑΣ | https://penteli.meteo.gr/stations/gerakas/
 https://penteli.meteo.gr/stations/kifissia/
 https://penteli.meteo.gr/stations/ekali/
 https://penteli.meteo.gr/stations/zireia/
 https://penteli.meteo.gr/stations/vamvakou/
 https://penteli.meteo.gr/stations/karditsa/
+
