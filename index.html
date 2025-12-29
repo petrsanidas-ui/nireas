@@ -422,11 +422,19 @@
   .chip b{ font-weight:600; }
   .chip button{ border:0; background:transparent; cursor:pointer; font-size:12px; line-height:1; color:#64748b; padding:0; }
   .multi-table{ width:100%; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; background:#fff; }
-  .multi-row{ display:flex; gap:8px; padding:6px 8px; border-top:1px solid #e2e8f0; align-items:center; font-size:11px; }
+  .multi-row{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr; /* name | timestamp | spacer -> timestamp stays centered */
+    gap:8px;
+    padding:6px 8px;
+    border-top:1px solid #e2e8f0;
+    align-items:center;
+    font-size:11px;
+  }
   .multi-row:first-child{ border-top:0; }
-  .multi-name{ flex:1; font-weight:600; }
-  .multi-metric{ min-width:88px; text-align:right; font-variant-numeric: tabular-nums; }
-  .multi-ts{ min-width:140px; text-align:right; color:#64748b; font-variant-numeric: tabular-nums; }
+  .multi-name{ min-width:0; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .multi-ts{ justify-self:center; text-align:center; color:#64748b; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .multi-spacer{ }
 
     /* Multi-station extra list: include latest values chips */
     .multi-block{ border-top:1px solid #e2e8f0; padding:6px 8px; }
@@ -553,6 +561,15 @@
       font-variant-numeric:tabular-nums;
       margin-top:auto;          /* push value to bottom consistently */
       padding-bottom:1px;
+    }
+
+
+    /* De-emphasize empty/missing metrics while preserving alignment */
+    .latest-chips .chip.empty{
+      opacity:.55;
+    }
+    .latest-chips .chip.empty .val{
+      font-weight:800;
     }
 
     /* Keep a hidden plain-text version (for copy/debug) */
@@ -1856,13 +1873,12 @@ function renderStationMultiList(results){
   if(!rest.length){ box.style.display='none'; box.innerHTML=''; return; }
 
   const rows = rest.map(r=>{
-    const rr = (r.rr!=null && isFiniteNumber(r.rr)) ? r.rr.toFixed(1) : '—';
     const ts = ts24(r.tsText || '—');
 
     const items = makeLatestChipItems(r.latest);
     const chips = items.length
       ? items.map(it => `
-          <div class="chip">
+          <div class="chip${it.v==='—' ? ' empty' : ''}">
             <div class="el">${escapeHtml(it.el)}</div>
             <div class="en">${escapeHtml(it.en)}</div>
             <div class="val">${escapeHtml(it.v)}</div>
@@ -1874,8 +1890,8 @@ function renderStationMultiList(results){
     return `<div class="multi-block">
       <div class="multi-row">
         <div class="multi-name">${escapeHtml(r.name || '—')}</div>
-        <div class="multi-metric">${rr} mm/h</div>
         <div class="multi-ts">${escapeHtml(ts)}</div>
+        <div class="multi-spacer"></div>
       </div>
       <div class="multi-latest">
         <div class="latest-chips multi" style="--chip-count:${chipCount}">
@@ -2287,33 +2303,46 @@ return parts.length ? parts.join(' • ') : null;
 }
 
 
+
 function makeLatestChipItems(lat){
+  // Return a FIXED, ordered set of chips so all station rows align perfectly.
+  // If a metric is missing, we keep its slot and show "—" (styled as .empty).
   if(!lat || typeof lat !== 'object') return [];
-  const items = [];
-  const add = (el, en, v) => {
-    if(v==null) return;
-    const s = String(v).trim();
-    if(!s || s === '—') return;
-    items.push({ el, en, v: s });
-  };
 
-  // Keep the same order as the "Latest Values" table on penteli.meteo.gr
-  if(lat.temp!=null)  add('Θερμοκρασία',      'Temperature',  `${fmtNum(lat.temp,1)} °C`);
-  if(lat.hum!=null)   add('Υγρασία',          'Humidity',     `${fmtNum(lat.hum,0)} %`);
-  if(lat.dew!=null)   add('Σημείο Δρόσου',    'Dew Point',    `${fmtNum(lat.dew,1)} °C`);
-  if(lat.wind)        add('Άνεμος',           'Wind',         lat.wind);
-  if(lat.baro!=null)  add('Βαρόμετρο',        'Barometer',    `${fmtNum(lat.baro,1)} hPa`);
 
-  if(lat.today!=null) add('Σημερινός Υετός',  "Today's Rain", `${fmtNum(lat.today,1)} mm`);
-  if(lat.rr!=null)    add('Ραγδαιότητα',      'Rain Rate',    `${fmtNum(lat.rr,1)} mm/h`);
-  if(lat.storm!=null) add('Τρέχουσα κακοκαιρία','Storm Total',`${fmtNum(lat.storm,1)} mm`);
-  if(lat.month!=null) add('Μηνιαίος Υετός',   'Monthly Rain', `${fmtNum(lat.month,1)} mm`);
-  if(lat.year!=null)  add('Ετήσιος Υετός',    'Yearly Rain',  `${fmtNum(lat.year,1)} mm`);
+  const vTemp  = (lat.temp  != null) ? `${fmtNum(lat.temp,1)} °C`  : '—';
+  const vHum   = (lat.hum   != null) ? `${fmtNum(lat.hum,0)} %`    : '—';
+  const vDew   = (lat.dew   != null) ? `${fmtNum(lat.dew,1)} °C`   : '—';
+  const vWind  = (lat.wind  != null && String(lat.wind).trim()) ? String(lat.wind).trim() : '—';
+  const vBaro  = (lat.baro  != null) ? `${fmtNum(lat.baro,1)} hPa` : '—';
 
-  if(lat.chill!=null) add('Αίσθηση ψύχους',   'Wind Chill',   `${fmtNum(lat.chill,1)} °C`);
-  if(lat.heat!=null)  add('Δείκτης δυσφορίας','Heat Index',   `${fmtNum(lat.heat,1)} °C`);
-return items;
+  const vToday = (lat.today != null) ? `${fmtNum(lat.today,1)} mm` : '—';
+  const vRr    = (lat.rr    != null) ? `${fmtNum(lat.rr,1)} mm/h`  : '—';
+  const vStorm = (lat.storm != null) ? `${fmtNum(lat.storm,1)} mm` : '—';
+  const vMonth = (lat.month != null) ? `${fmtNum(lat.month,1)} mm` : '—';
+  const vYear  = (lat.year  != null) ? `${fmtNum(lat.year,1)} mm`  : '—';
+
+  const vChill = (lat.chill != null) ? `${fmtNum(lat.chill,1)} °C` : '—';
+  const vHeat  = (lat.heat  != null) ? `${fmtNum(lat.heat,1)} °C`  : '—';
+
+  return [
+    { el:'Θερμοκρασία',        en:'Temperature',  v: vTemp  },
+    { el:'Υγρασία',            en:'Humidity',     v: vHum   },
+    { el:'Σημείο Δρόσου',      en:'Dew Point',    v: vDew   },
+    { el:'Άνεμος',             en:'Wind',         v: vWind  },
+    { el:'Βαρόμετρο',          en:'Barometer',    v: vBaro  },
+
+    { el:'Σημερινός Υετός',    en:"Today's Rain", v: vToday },
+    { el:'Ραγδαιότητα',        en:'Rain Rate',    v: vRr    },
+    { el:'Τρέχουσα κακοκαιρία',en:'Storm Total',  v: vStorm },
+    { el:'Μηνιαίος Υετός',     en:'Monthly Rain', v: vMonth },
+    { el:'Ετήσιος Υετός',      en:'Yearly Rain',  v: vYear  },
+
+    { el:'Αίσθηση ψύχους',     en:'Wind Chill',   v: vChill },
+    { el:'Δείκτης δυσφορίας',  en:'Heat Index',   v: vHeat  },
+  ];
 }
+
 
 function setLatestValuesDisplay(lat, lineText){
   // hidden/plain text (for copy/debug)
@@ -2335,7 +2364,7 @@ function setLatestValuesDisplay(lat, lineText){
 
   for(const it of items){
     const chip = document.createElement('div');
-    chip.className = 'chip';
+    chip.className = 'chip' + (it.v === '—' ? ' empty' : '');
 
     const el = document.createElement('div');
     el.className = 'el';
