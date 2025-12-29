@@ -1458,49 +1458,110 @@ async function syncVisibleLayersToMap(){
 }
 
 /* ===================== PROPERTIES EXTRACTION ===================== */
-function getPropsMerged(gj){
-  // merge props from FeatureCollection[0].properties or root.properties
+function parseKVPairsFromDescription(desc){
+  const out = {};
+  if(desc == null) return out;
+
+  let s = String(desc);
+
+  // normalize KML/HTML-ish line breaks
+  s = s.replace(/<br\s*\/?>/gi, '\n')
+       .replace(/&nbsp;/gi, ' ')
+       .replace(/&#10;|&#13;/g, '\n');
+
+  // split by newline or semicolon
+  const parts = s.split(/[\n;]+/);
+
+  for(let part of parts){
+    part = String(part || '').trim();
+    if(!part) continue;
+
+    // allow "key=value" or "key: value"
+    const m = part.match(/^([A-Za-zΑ-Ωα-ω0-9_\- ]+)\s*[:=]\s*(.+)$/);
+    if(!m) continue;
+
+    const key = m[1].trim();
+    let val = m[2].trim();
+
+    // strip basic tags if any
+    val = val.replace(/<\/?[^>]+>/g, '').trim();
+    val = val.replace(/[;,]$/,'').trim();
+
+    const n = parseFloat(val.replace(',','.'));
+    out[key] = isFiniteNumber(n) ? n : val;
+  }
+  return out;
+}
+
+function mergeFeatureCollectionProps(gj){
   let p = {};
   try{
-    if(gj && gj.features && gj.features[0] && gj.features[0].properties){
-      p = {...gj.features[0].properties};
-    } else if(gj && gj.properties){
-      p = {...gj.properties};
+    if(gj && gj.properties && typeof gj.properties === 'object'){
+      p = { ...p, ...gj.properties };
+    }
+
+    if(gj && Array.isArray(gj.features)){
+      // Prefer Polygon/MultiPolygon props (basin), but keep others too (streams, etc.)
+      const primary = gj.features.find(f => f && f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') && f.properties)
+                    || gj.features.find(f => f && f.properties)
+                    || gj.features[0];
+
+      // Merge non-primary first
+      for(const f of gj.features){
+        if(!f || !f.properties) continue;
+        if(f === primary) continue;
+        p = { ...p, ...f.properties };
+      }
+
+      // Merge primary last (takes precedence)
+      if(primary && primary.properties) p = { ...p, ...primary.properties };
     }
   }catch(_){}
+  return p;
+}
+
+function getPropsMerged(gj){
+  // Merge props from root + features (prefer polygon)
+  let p = mergeFeatureCollectionProps(gj);
+
+  // If values are stored inside "description", parse them (supports "area=...;\nlength=...;")
+  const desc = (p && (p.description ?? p.Description ?? p.desc ?? p.DESC)) || '';
+  const parsed = parseKVPairsFromDescription(desc);
+
+  // Merge so explicit properties win over parsed description
+  p = { ...parsed, ...p };
 
   // normalize keys commonly used
-  // area
-  const area = pickNumber(p, ['A','a','area','Area','A_m2','area_m2','AREA_M2']);
-  const length = pickNumber(p, ['L','l','length','Length','L_m','length_m','LEN_M']);
-  const height = pickNumber(p, ['H','h','height','Height','H_m','height_m','DROP_M']);
-  const coef = pickNumber(p, ['C','c','coef','Coef','runoff','runoff_coef']);
+  const area   = pickNumber(p, ['A','a','area','Area','A_m2','area_m2','AREA_M2','AREA','Area_m2']);
+  const length = pickNumber(p, ['L','l','length','Length','L_m','length_m','LEN_M','LEN','stream_length']);
+  const height = pickNumber(p, ['H','h','height','Height','H_m','height_m','DROP_M','drop','relief']);
+  const coef   = pickNumber(p, ['C','c','coef','Coef','runoff','runoff_coef','RC','CN','C_runoff']);
 
-  const drains = pickNumber(p, ['drains','DrainCount','n_drains']);
-  const drainCap = pickNumber(p, ['drainCap','DrainCap','drain_cap']);
+  const drains   = pickNumber(p, ['drains','DrainCount','n_drains','inlets','gullies']);
+  const drainCap = pickNumber(p, ['drainCap','DrainCap','drain_cap','inlet_cap','gully_cap']);
 
-  const strWidth = pickNumber(p, ['strWidth','b','width']);
-  const strZ = pickNumber(p, ['strZ','z','side_slope']);
-  const strDepth = pickNumber(p, ['strDepth','h_depth','depth']);
+  const strWidth = pickNumber(p, ['strWidth','b','width','B','channel_width']);
+  const strZ     = pickNumber(p, ['strZ','z','side_slope','Z','m']);
+  const strDepth = pickNumber(p, ['strDepth','h_depth','depth','Hc','channel_depth']);
 
-  const strLen = pickNumber(p, ['strLen','stream_len','channel_len']);
-  const strDrop = pickNumber(p, ['strDrop','stream_drop','channel_drop']);
-  const strType = pickNumber(p, ['strType','manning','n']);
+  const strLen  = pickNumber(p, ['strLen','stream_len','channel_len','channel_length','reach_len']);
+  const strDrop = pickNumber(p, ['strDrop','stream_drop','channel_drop','drop_channel','reach_drop']);
+  const strType = pickNumber(p, ['strType','manning','n','Manning_n']);
 
   const out = {};
-  if(area!=null) out.area = area;
+  if(area!=null)   out.area = area;
   if(length!=null) out.length = length;
   if(height!=null) out.height = height;
-  if(coef!=null) out.coef = coef;
+  if(coef!=null)   out.coef = coef;
 
-  if(drains!=null) out.drains = drains;
+  if(drains!=null)   out.drains = drains;
   if(drainCap!=null) out.drainCap = drainCap;
 
   if(strWidth!=null) out.strWidth = strWidth;
-  if(strZ!=null) out.strZ = strZ;
+  if(strZ!=null)     out.strZ = strZ;
   if(strDepth!=null) out.strDepth = strDepth;
 
-  if(strLen!=null) out.strLen = strLen;
+  if(strLen!=null)  out.strLen = strLen;
   if(strDrop!=null) out.strDrop = strDrop;
   if(strType!=null) out.strType = strType;
 
@@ -1516,7 +1577,6 @@ function pickNumber(obj, keys){
   }
   return null;
 }
-
 /* ===================== METEO: Stations list ===================== */
 
 function normalizeStationUrl(u){
