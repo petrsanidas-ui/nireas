@@ -773,16 +773,18 @@ const watchlist = new Map(); // url -> display name
 const LS_WATCHLIST_KEY = 'nireas_watchlist_v1';
 const LS_CUSTOM_KEY   = 'nireas_customstations_v1';
 
+/* ===================== UI PERSISTENCE (keep values on refresh) ===================== */
+const LS_UI_STATE_KEY = 'nireas_ui_state_v1';
 
-/* ===================== APP STATE (persist on refresh) ===================== */
-const LS_APP_STATE_KEY = 'nireas_app_state_v3';
-let __saveTimer = null;
-let __pendingSelectRestores = [];
-let __IS_RESTORING = false;
+let __uiSaveTimer = null;
+function scheduleSaveUiState(){
+  if(__uiSaveTimer) clearTimeout(__uiSaveTimer);
+  __uiSaveTimer = setTimeout(saveUiStateNow, 250); // debounce
+}
 
-function readAppState(){
+function getSavedUiState(){
   try{
-    const raw = localStorage.getItem(LS_APP_STATE_KEY);
+    const raw = localStorage.getItem(LS_UI_STATE_KEY);
     if(!raw) return null;
     const st = JSON.parse(raw);
     return (st && typeof st === 'object') ? st : null;
@@ -791,247 +793,171 @@ function readAppState(){
   }
 }
 
-function scheduleSaveAppState(){
-  if(__IS_RESTORING) return;
+function saveUiStateNow(){
   try{
-    if(__saveTimer) clearTimeout(__saveTimer);
-    __saveTimer = setTimeout(saveAppStateNow, 250);
-  }catch(_){}
-}
+    const state = {};
 
-function saveAppStateNow(){
-  if(__IS_RESTORING) return;
-  try{
-    const st = { v: 3, t: Date.now() };
+    // Save all inputs/selects/textareas that have an id
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+      const tag = el.tagName.toLowerCase();
+      const type = (el.type || '').toLowerCase();
 
-    // 1) All form fields with ids
-    const form = {};
-    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el=>{
-      const id = el.id;
-      if(!id) return;
-      if(el.type === 'checkbox' || el.type === 'radio'){
-        form[id] = { t: el.type, v: !!el.checked };
-      } else {
-        form[id] = { t: 'value', v: el.value };
+      // skip buttons
+      if(tag === 'input' && (type === 'button' || type === 'submit' || type === 'reset')) return;
+
+      if(type === 'checkbox' || type === 'radio'){
+        state[el.id] = { t: type, v: !!el.checked };
+      }else{
+        state[el.id] = { t: 'value', v: el.value };
       }
-      // keep manual mode of strY if present
-      if(id === 'strY'){
-        form[id].manual = (el.dataset && el.dataset.manual === 'true') ? true : false;
+
+      // keep manual flag for strY
+      if(el.id === 'strY'){
+        state.__strYManual = (el.dataset.manual === 'true');
       }
     });
-    st.form = form;
 
-    // 2) Collapsed UI panels
-    st.collapsed = {};
-    ['sideBody','meteoBody','filesBody'].forEach(id=>{
-      const el = document.getElementById(id);
-      if(el) st.collapsed[id] = el.classList.contains('collapsed');
-    });
+    // Save selected basin + visible layers (GeoJSON project state)
+    state.__selectedBasinKey = SELECTED_BASIN_KEY || null;
+    state.__selectedBasinName = document.getElementById('selectedBasinName')?.innerText || null;
+    state.__visiblePaths = Array.from(VISIBLE || []);
 
-    // 3) Visible GeoJSON layers + selected basin
-    st.visible = Array.from(VISIBLE || []);
-    st.selectedBasinKey = SELECTED_BASIN_KEY || null;
-    st.selectedBasinName = (document.getElementById('selectedBasinName')?.textContent || '').trim();
-
-    // 4) Details open state
-    const sd = document.getElementById('seriesDetails');
-    if(sd) st.seriesDetailsOpen = !!sd.open;
-
-    // 5) Station series (history) + last sample keys
-    st.stationCtx = {
-      seriesByKey: stationSeriesByKey || {},
-      lastKeyByKey: stationLastKeyByKey || {}
-    };
-
-    // 6) Station snapshot (so you don't see "—" until fetch finishes)
-    const snapIds = ['stationName','stationTimestamp','stationRainRate','stationDP','stationR60','stationTotalSrc','meteoStatus','stationMsg'];
-    st.station = {};
-    snapIds.forEach(id=>{
-      const el = document.getElementById(id);
-      if(el) st.station[id] = el.textContent;
-    });
-
-    localStorage.setItem(LS_APP_STATE_KEY, JSON.stringify(st));
+    localStorage.setItem(LS_UI_STATE_KEY, JSON.stringify(state));
   }catch(_){}
 }
 
-function setCollapsedState(id, collapsed){
-  const el = document.getElementById(id);
-  if(!el) return;
-  el.classList.toggle('collapsed', !!collapsed);
-  const btn = document.querySelector(`button[onclick*="toggleCollapse('${id}'"]`);
-  if(btn) btn.textContent = collapsed ? '+' : '−';
-}
-
-function applyPendingSelectRestores(){
-  if(!__pendingSelectRestores.length) return;
-  try{
-    __pendingSelectRestores.forEach(({id,value})=>{
-      const el = document.getElementById(id);
-      if(!el || el.tagName !== 'SELECT') return;
-      const has = Array.from(el.options).some(o => o.value === value);
-      if(has) el.value = value;
-    });
-    __pendingSelectRestores = [];
-  }catch(_){}
-}
-
-function restoreStationMonitorFromSeries(){
-  try{
-    const latest = stationSeries && stationSeries.length ? stationSeries[stationSeries.length-1] : null;
-    if(latest){
-      updateStationMonitor(latest.val, latest.tsText, { total: latest.total, totalSrc: latest.totalSrc });
-    }else{
-      // no series -> just render empty
-      try{ renderStationSeriesList(); }catch(_){}
-      try{ updateSeriesSummaryName(); }catch(_){}
-    }
-  }catch(_){}
-}
-
-function restoreSelectedBasinGeometryOnly(path, name){
-  // load geometry for plan/map usage WITHOUT overwriting stored form values
-  if(!path) return;
-  fetchGeoJSON(path).then(gj=>{
-    SELECTED_GEO = gj;
-    SELECTED_BASIN_KEY = path;
-    const lbl = document.getElementById('selectedBasinName');
-    if(lbl) lbl.innerText = name || (lbl.innerText || '');
-    try{ drawBasinPlan(); }catch(_){}
-  }).catch(_=>{});
-}
-
-function restoreAppStateEarly(){
-  const st = readAppState();
+function restoreUiStateEarly(){
+  // Only things needed BEFORE renderFileList(): VISIBLE (On/Off buttons)
+  const st = getSavedUiState();
   if(!st) return;
 
-  __IS_RESTORING = true;
-
-  // Restore VISIBLE set early (used by renderFileList)
-  try{
-    if(Array.isArray(st.visible)){
+  if(Array.isArray(st.__visiblePaths)){
+    try{
       VISIBLE.clear();
-      st.visible.forEach(p=>{ if(typeof p === 'string') VISIBLE.add(p); });
-    }
-  }catch(_){}
-
-  // Restore collapsed panels
-  try{
-    if(st.collapsed && typeof st.collapsed === 'object'){
-      Object.entries(st.collapsed).forEach(([id, collapsed])=>{
-        setCollapsedState(id, !!collapsed);
-      });
-    }
-  }catch(_){}
-
-  // Restore station ctx early (history)
-  try{
-    const ctx = st.stationCtx || {};
-    const sBy = ctx.seriesByKey || {};
-    const lBy = ctx.lastKeyByKey || {};
-
-    // clear existing (Object.create(null))
-    for(const k of Object.keys(stationSeriesByKey)) delete stationSeriesByKey[k];
-    for(const k of Object.keys(stationLastKeyByKey)) delete stationLastKeyByKey[k];
-
-    Object.entries(sBy).forEach(([k, arr])=>{
-      stationSeriesByKey[k] = Array.isArray(arr) ? arr : [];
-    });
-    Object.entries(lBy).forEach(([k, v])=>{
-      stationLastKeyByKey[k] = v;
-    });
-
-    // sync current globals (default key may be open-meteo)
-    stationSeries = stationSeriesByKey[currentStationKey] || [];
-    stationLastKey = stationLastKeyByKey[currentStationKey] || (stationSeries.length ? stationSeries[stationSeries.length-1].key : null);
-  }catch(_){}
-
-  // Restore station snapshot texts (optional)
-  try{
-    if(st.station && typeof st.station === 'object'){
-      Object.entries(st.station).forEach(([id, txt])=>{
-        const el = document.getElementById(id);
-        if(el && typeof txt === 'string') el.textContent = txt;
-      });
-    }
-  }catch(_){}
-
-  // Restore details open state
-  try{
-    const sd = document.getElementById('seriesDetails');
-    if(sd && typeof st.seriesDetailsOpen === 'boolean') sd.open = st.seriesDetailsOpen;
-  }catch(_){}
-
-  __IS_RESTORING = false;
+      st.__visiblePaths.forEach(p => { if(p) VISIBLE.add(String(p)); });
+    }catch(_){}
+  }
 }
 
-function restoreAppStateLate(){
-  const st = readAppState();
+function restoreUiFieldsFromState(st){
+  const pendingSelects = [];
+  const selectsToNotify = [];
+
+  for(const [id, pack] of Object.entries(st)){
+    if(id.startsWith('__')) continue;
+
+    const el = document.getElementById(id);
+    if(!el) continue;
+
+    const tag = el.tagName.toLowerCase();
+    const type = (el.type || '').toLowerCase();
+
+    const t = (pack && typeof pack === 'object' && 't' in pack) ? pack.t : 'value';
+    const v = (pack && typeof pack === 'object' && 'v' in pack) ? pack.v : pack;
+
+    if(t === 'checkbox' || t === 'radio'){
+      el.checked = !!v;
+    }else{
+      const val = String(v ?? '');
+      if(tag === 'select'){
+        const hasOpt = Array.from(el.options).some(o => o.value === val);
+        if(!hasOpt) pendingSelects.push({ el, val });
+        else el.value = val;
+        selectsToNotify.push(el);
+      }else{
+        el.value = val;
+      }
+    }
+
+    if(id === 'strY'){
+      if(st.__strYManual) el.dataset.manual = 'true';
+      else delete el.dataset.manual;
+    }
+  }
+
+  // apply deferred selects now, and later once options are populated
+  window.__NIREAS_PENDING_SELECTS = pendingSelects;
+  window.__NIREAS_SELECTS_TO_NOTIFY = selectsToNotify;
+  applyPendingRestores();
+}
+
+function applyPendingRestores(retries=6){
+  const pending = window.__NIREAS_PENDING_SELECTS || [];
+  if(pending.length){
+    window.__NIREAS_PENDING_SELECTS = pending.filter(({el, val}) => {
+      const hasOpt = Array.from(el.options).some(o => o.value === val);
+      if(hasOpt) el.value = val;
+      return !hasOpt;
+    });
+  }
+
+  const notify = window.__NIREAS_SELECTS_TO_NOTIFY || [];
+  if(notify.length){
+    notify.forEach(el => {
+      try{ el.dispatchEvent(new Event('change', { bubbles:true })); }catch(_){}
+    });
+    window.__NIREAS_SELECTS_TO_NOTIFY = [];
+  }
+
+  // If selects weren't ready yet, retry a few times (stations/lists load async)
+  const remaining = (window.__NIREAS_PENDING_SELECTS || []).length;
+  if(remaining && retries > 0){
+    setTimeout(()=> applyPendingRestores(retries-1), 350);
+  }
+}
+
+async function restoreUiStateLate(){
+  // Restore last selected basin (GeoJSON) + all fields
+  const st = getSavedUiState();
   if(!st) return;
 
-  __IS_RESTORING = true;
-  __pendingSelectRestores = [];
-
-  // Restore form values (after stations + custom options exist)
-  try{
-    const form = st.form || {};
-    Object.entries(form).forEach(([id, obj])=>{
-      const el = document.getElementById(id);
-      if(!el || !obj) return;
-
-      if(obj.t === 'checkbox' || obj.t === 'radio'){
-        el.checked = !!obj.v;
-      }else if(obj.t === 'value'){
-        if(el.tagName === 'SELECT'){
-          const has = Array.from(el.options).some(o => o.value === obj.v);
-          if(has) el.value = obj.v;
-          else __pendingSelectRestores.push({id, value: obj.v});
-        }else{
-          el.value = obj.v;
-        }
+  // 1) Restore basin first (so geometry/state exists), then re-apply saved fields so user's last values win
+  if(st.__selectedBasinKey){
+    try{
+      const key = String(st.__selectedBasinKey);
+      const name = st.__selectedBasinName || key.split('/').pop().replace('.geojson','');
+      if(typeof loadToTool === 'function'){
+        await loadToTool(key, name);
+      }else{
+        // at least restore label
+        const el = document.getElementById('selectedBasinName');
+        if(el) el.innerText = name;
+        SELECTED_BASIN_KEY = key;
       }
+    }catch(_){}
+  }else if(st.__selectedBasinName){
+    const el = document.getElementById('selectedBasinName');
+    if(el) el.innerText = st.__selectedBasinName;
+  }
 
-      if(id === 'strY' && typeof obj.manual === 'boolean'){
-        el.dataset.manual = obj.manual ? 'true' : 'false';
-      }
-    });
-  }catch(_){}
+  // 2) Restore all tool fields
+  restoreUiFieldsFromState(st);
 
-  // apply pending selects now (custom + stations are loaded at this point)
-  applyPendingSelectRestores();
+  // 3) Re-render file list so On/Off buttons match (in case state loaded after first render)
+  try{ renderFileList(); }catch(_){}
 
-  // Restore selected basin label + geometry (no overwrite inputs)
-  try{
-    if(typeof st.selectedBasinName === 'string' && st.selectedBasinName.trim()){
-      const lbl = document.getElementById('selectedBasinName');
-      if(lbl) lbl.innerText = st.selectedBasinName.trim();
-    }
-    if(st.selectedBasinKey){
-      const key = String(st.selectedBasinKey);
-      const exists = (DATA_GROUPS?.basins || []).some(x=>x.path === key);
-      if(exists){
-        const name = (typeof st.selectedBasinName === 'string' && st.selectedBasinName.trim())
-          ? st.selectedBasinName.trim()
-          : key.split('/').pop().replace('.geojson','');
-        restoreSelectedBasinGeometryOnly(key, name);
-      }
-    }
-  }catch(_){}
-
-  // Ensure station series context matches selected station WITHOUT clearing
-  try{
-    const sel = document.getElementById('meteoStationSelect');
-    if(sel){
-      const isEmpty = !sel.value;
-      const nm = isEmpty ? '—' : (sel.options[sel.selectedIndex]?.textContent || '—');
-      setTxt('stationName', nm);
-    }
-    switchPrimarySeriesContext();
-    restoreStationMonitorFromSeries();
-  }catch(_){}
-
-  __IS_RESTORING = false;
+  // 4) Ensure calculations reflect restored values
+  try{ runMasterCalculation(); }catch(_){}
+  try{ drawBasinPlan(); }catch(_){}
 }
+
+function bindPersistenceOnce(){
+  if(window.__NIREAS_PERSIST_BOUND) return;
+  window.__NIREAS_PERSIST_BOUND = true;
+
+  // Save on any field change (captures most UI)
+  document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id) scheduleSaveUiState(); }, true);
+  document.addEventListener('change', (ev)=>{ if(ev.target && ev.target.id) scheduleSaveUiState(); }, true);
+
+  // Ensure strY becomes manual when user types (bound once)
+  const strYEl = document.getElementById('strY');
+  if(strYEl && strYEl.dataset.boundManual !== '1'){
+    strYEl.dataset.boundManual = '1';
+    strYEl.addEventListener('input', ()=>{ strYEl.dataset.manual = 'true'; scheduleSaveUiState(); });
+  }
+}
+/* =================== /UI PERSISTENCE =================== */
+
 
 function setCustomMsg(msg){
   const el = document.getElementById('customStationMsg');
@@ -1168,13 +1094,28 @@ function clearCustomStations(){
 let stationLiveTimer = null;
 let lastStationPayload = null;
 
+// Hardening: clean up timers + catch unhandled async errors
+window.addEventListener('pagehide', () => {
+  try{ if(stationLiveTimer){ clearInterval(stationLiveTimer); stationLiveTimer = null; } }catch(_){}
+});
+window.addEventListener('beforeunload', () => {
+  try{ if(stationLiveTimer){ clearInterval(stationLiveTimer); stationLiveTimer = null; } }catch(_){}
+});
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  try{
+    updateMeteoStatus('Σφάλμα (promise). Δοκίμασε ξανά.');
+    setStationMsg('Σφάλμα: ' + (event.reason?.message || String(event.reason || 'unknown')));
+  }catch(_){}
+  event.preventDefault();
+});
+
 /* ===================== UI HELPERS ===================== */
 function toggleCollapse(id, btn){
   const el = document.getElementById(id);
   if(!el) return;
   const isHidden = el.classList.toggle('collapsed');
   if(btn) btn.textContent = isHidden ? '+' : '−';
-  scheduleSaveAppState();
 }
 
 function updateMeteoStatus(msg){
@@ -1242,10 +1183,18 @@ function setVal(id, v){
   el.value = (v==null) ? "" : v;
 }
 
+function debounce(fn, wait=150){
+  let t = null;
+  return function(...args){
+    if(t) clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+
 /* ===================== GITHUB LOAD ===================== */
 async function init(){
   document.getElementById('loader').style.display = 'block';
-  restoreAppStateEarly();
   try{
     const resp = await fetch(API_TREE);
     const data = await resp.json();
@@ -1259,6 +1208,7 @@ async function init(){
     DATA_GROUPS.streams    = files.filter(f => f.path.includes('data/streams/')    && f.path.endsWith('.geojson'));
     DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/')     && f.path.endsWith('.geojson'));
 
+    restoreUiStateEarly();
     renderFileList();
 
     // Auto-populate stations dropdown from folder structure:
@@ -1281,15 +1231,18 @@ if(!loaded){
   }
 }
 
-    bindInputs();
-    runMasterCalculation();
-    updateStationButtons();
     // Restore local custom stations + watchlist (no coding required)
     loadCustomStationsIntoSelect();
     loadWatchlist();
     renderWatchlist();
-    restoreAppStateLate();
+
+    // Keep values + selected GeoJSON after refresh
+    bindPersistenceOnce();
+    await restoreUiStateLate();
+
+    bindInputs();
     runMasterCalculation();
+    updateStationButtons();
 
     // If nothing selected but watchlist exists, fetch immediately to show values
     const sel = document.getElementById('meteoStationSelect');
@@ -1365,6 +1318,7 @@ async function loadToTool(path, name){
       SELECTED_GEO = gj;
       SELECTED_BASIN_KEY = path;
       document.getElementById('selectedBasinName').innerText = name;
+      if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
 
       // reset only if you want a clean start
       // (keep user's values if not present)
@@ -1400,8 +1354,6 @@ async function loadToTool(path, name){
       // non-basin: just cache + message
       updateMeteoStatus(`Φορτώθηκε (cache): ${name}`);
     }
-
-    scheduleSaveAppState();
 
   }catch(e){
     alert("Σφάλμα: " + e.message);
@@ -1454,7 +1406,8 @@ async function toggleLayer(path, name){
 
   // only update map if already open
   if(map) syncVisibleLayersToMap();
-  scheduleSaveAppState();
+
+  if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
 }
 
 // Turn everything off
@@ -1467,7 +1420,6 @@ function turnAllOff(){
     b.classList.add('btn-off');
   });
   if(map) syncVisibleLayersToMap();
-  scheduleSaveAppState();
 }
 
 /* ===================== MAP MODAL ===================== */
@@ -1548,16 +1500,7 @@ function getPropsMerged(gj){
     }
   }catch(_){}
 
-  // parse key=value pairs from 'description' if present (keeps explicit properties as priority)
-try{
-  const desc = p.description || p.Description || p.desc || p.DESC;
-  if(typeof desc === 'string' && desc.includes('=')){
-    const extra = parseDescriptionKVs(desc);
-    p = { ...extra, ...p };
-  }
-}catch(_){}
-
-// normalize keys commonly used
+  // normalize keys commonly used
   // area
   const area = pickNumber(p, ['A','a','area','Area','A_m2','area_m2','AREA_M2']);
   const length = pickNumber(p, ['L','l','length','Length','L_m','length_m','LEN_M']);
@@ -1592,22 +1535,6 @@ try{
   if(strDrop!=null) out.strDrop = strDrop;
   if(strType!=null) out.strType = strType;
 
-  return out;
-}
-
-
-function parseDescriptionKVs(desc){
-  const out = {};
-  if(typeof desc !== 'string') return out;
-  // Accept "key=value;" per line, as exported by some KML->GeoJSON tools
-  const parts = desc.split(/[\n;]+/).map(x=>x.trim()).filter(Boolean);
-  for(const part of parts){
-    const m = part.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([-+]?\d+(?:[\.,]\d+)?)\s*$/);
-    if(!m) continue;
-    const k = m[1];
-    const v = parseFloat(m[2].replace(',','.'));
-    if(isFiniteNumber(v)) out[k] = v;
-  }
   return out;
 }
 
@@ -2291,10 +2218,7 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   stationSeriesByKey[key] = series;
   stationLastKeyByKey[key] = sampleKey;
 
-  
-
-  scheduleSaveAppState();
-// keep globals in sync if this is the active context
+  // keep globals in sync if this is the active context
   if(key === currentStationKey){
     stationSeries = series;
     stationLastKey = sampleKey;
@@ -2435,9 +2359,6 @@ function clearStationSeries(){
   setStationMsg("Series καθαρίστηκε.");
 
   // οπτική επιβεβαίωση: πράσινο για 3s και μετά επιστροφή
-  renderStationSeriesList();
-  scheduleSaveAppState();
-
   flashTempGreen('btnClearStation', 3000);
 }
 
@@ -2521,8 +2442,9 @@ function runMasterCalculation(){
   }
 
   // Manual y logic: if user types, treat as manual until resetStrY()
-  if(strYEl){
-    strYEl.addEventListener('input', ()=>{ strYEl.dataset.manual='true'; });
+  if(strYEl && strYEl.dataset.boundManual !== '1'){
+    strYEl.dataset.boundManual = '1';
+    strYEl.addEventListener('input', ()=>{ strYEl.dataset.manual='true'; if(typeof scheduleSaveUiState==='function') scheduleSaveUiState(); });
   }
   const isManual = strYEl?.dataset?.manual === 'true';
   const yMan = isManual ? num(strYEl.value) : 0;
@@ -2597,7 +2519,10 @@ function runMasterCalculation(){
 
   drawChannel(finalY);
   drawBasinPlan();
+
+  if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
 }
+
 
 function resetStrY(){
   const el = document.getElementById('strY');
@@ -2765,6 +2690,25 @@ function geojsonToRings(gj){
 
 function drawGeoRings(ctx, rings, w, h, style){
   try{
+    // safety limits (avoid UI freeze on huge/corrupted GeoJSON)
+    const MAX_RINGS = 120;
+    const MAX_POINTS = 15000;
+
+    if(!Array.isArray(rings)) return false;
+    if(rings.length > MAX_RINGS) rings = rings.slice(0, MAX_RINGS);
+
+    let totalPoints = 0;
+    rings = rings.map(r=>{
+      if(!Array.isArray(r)) return null;
+      const remain = MAX_POINTS - totalPoints;
+      if(remain <= 0) return null;
+      const take = Math.min(r.length, remain);
+      totalPoints += take;
+      return r.slice(0, take);
+    }).filter(r=>r && r.length >= 3);
+
+    if(!rings.length) return false;
+
     // find bounds
     let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
     for(const r of rings){
@@ -2892,21 +2836,28 @@ function bindInputs(){
     'drains','drainCap',
     'strWidth','strZ','strDepth','strDrop','strLen','strType','strY'
   ];
+
+  // avoid heavy recalcs while typing
+  const debouncedCalc = debounce(()=>{ runMasterCalculation(); scheduleSaveUiState(); }, 140);
+
   ids.forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
-    el.addEventListener('input', runMasterCalculation);
-    el.addEventListener('change', runMasterCalculation);
+
+    // bind once
+    if(el.dataset.boundCalc === '1') return;
+    el.dataset.boundCalc = '1';
+
+    el.addEventListener('input', debouncedCalc);
+    el.addEventListener('change', ()=>{ runMasterCalculation(); scheduleSaveUiState(); });
   });
 
-  // Persist EVERYTHING on refresh (all fields)
-  document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el=>{
-    el.addEventListener('input', scheduleSaveAppState);
-    el.addEventListener('change', scheduleSaveAppState);
-  });
-
-  const sd = document.getElementById('seriesDetails');
-  if(sd) sd.addEventListener('toggle', scheduleSaveAppState);
+  // Make strY manual once user edits it (bind once)
+  const strYEl = document.getElementById('strY');
+  if(strYEl && strYEl.dataset.boundManual !== '1'){
+    strYEl.dataset.boundManual = '1';
+    strYEl.addEventListener('input', ()=>{ strYEl.dataset.manual='true'; scheduleSaveUiState(); });
+  }
 }
 
 
