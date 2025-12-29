@@ -592,6 +592,8 @@
       border:1px solid #dfe7ee;
       color:#0f172a;
     }
+
+.status-stack{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
 </style>
 </head>
 
@@ -650,7 +652,10 @@
             <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
           </div>
 
-          <div id="meteoStatus" class="status-pill status-neutral">Αναμονή…</div>
+          <div id="meteoStatusWrap" class="status-stack">
+  <div id="primaryStatus" class="status-pill status-neutral">Κύριος: Αναμονή…</div>
+  <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
+</div>
         </div>
       </div>
 
@@ -1274,14 +1279,25 @@ function toggleCollapse(id, btn){
   if(btn) btn.textContent = isHidden ? '+' : '−';
 }
 
-function updateMeteoStatus(msg, level='neutral'){
-  const el = document.getElementById('meteoStatus');
+function setStatusById(id, msg, level='neutral'){
+  const el = document.getElementById(id);
   if(!el) return;
   el.innerText = msg;
   el.classList.remove('status-ok','status-warn','status-neutral');
   if(level==='ok') el.classList.add('status-ok');
   else if(level==='warn') el.classList.add('status-warn');
   else el.classList.add('status-neutral');
+}
+function updatePrimaryStatus(msg, level='neutral'){
+  setStatusById('primaryStatus', msg, level);
+}
+function updateExtrasStatus(msg, level='neutral'){
+  setStatusById('extrasStatus', msg, level);
+}
+// backward compatibility (sets both)
+function updateMeteoStatus(msg, level='neutral'){
+  updatePrimaryStatus(msg, level);
+  updateExtrasStatus(msg, level);
 }
 function setStationMsg(msg){
   const el = document.getElementById('stationMsg');
@@ -1866,7 +1882,7 @@ function setPrimaryStation(){
   if(!sel) return;
   const url = sel.value;
   if(!url){
-    updateMeteoStatus('Επέλεξε κύριο σταθμό.', 'warn');
+    updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
     return;
   }
   // άμεση λήψη για τον κύριο + τυχόν επιπλέον
@@ -1885,9 +1901,9 @@ function clearPrimaryStation(){
   setStationMsg('—');
   // status ενημέρωση
   if(!watchlist.size){
-    updateMeteoStatus('Επέλεξε κύριο σταθμό.', 'warn');
+    updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
   }else{
-    updateMeteoStatus('Ο κύριος σταθμός διαγράφηκε. Τα επιπλέον παραμένουν.', 'neutral');
+    updatePrimaryStatus('Κύριος: Διαγράφηκε.', 'neutral');
     fetchStationData();
   }
 }
@@ -1897,7 +1913,7 @@ function addToWatchlistFromMonitor(){
   if(!sel) return;
   const url = sel.value;
   if(!url){
-    updateMeteoStatus('Επέλεξε σταθμό παρακολούθησης.', 'warn');
+    updateExtrasStatus('Επιπλέον: Επέλεξε σταθμό παρακολούθησης.', 'warn');
     return;
   }
   const name = (sel.options[sel.selectedIndex]?.textContent || url).trim();
@@ -1915,8 +1931,19 @@ function clearWatchlist(){
   watchlist.clear();
   renderWatchlist();
   saveWatchlist();
+
+  // reset monitor dropdown back to placeholder
+  const monSel = document.getElementById('monitorStationSelect');
+  if(monSel){
+    monSel.value = '';
+    monSel.dispatchEvent(new Event('change'));
+  }
+
   const multi = document.getElementById('stationMultiList');
   if(multi){ multi.style.display='none'; multi.innerHTML=''; }
+
+  updateExtrasStatus('Επιπλέον: (καθαρίστηκαν)', 'neutral');
+
   // also reset main station display if nothing is selected
   const sel = document.getElementById('meteoStationSelect');
   if(sel && !sel.value){
@@ -1925,6 +1952,7 @@ function clearWatchlist(){
     setTxt('stationRainRate','—');
     setTxt('stationDP','—');
     setLatestValuesDisplay(null,'—');
+    updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
   }
 }
 
@@ -2182,15 +2210,38 @@ async function fetchStations(path){
 
 function openPrimaryWeb(){
   const url = document.getElementById('meteoStationSelect')?.value || '';
-  if(!url) return;
+  if(!url){
+    updatePrimaryStatus('Κύριος: Δεν έχει επιλεγεί σταθμός.', 'warn');
+    return;
+  }
   if(url === OPEN_METEO_TOKEN) { window.open('https://open-meteo.com/', '_blank'); return; }
-  window.open(url, '_blank');
+  window.open(normalizeStationUrl(url), '_blank');
 }
 function openMonitorWeb(){
+  // Open ALL monitored (watchlist) stations
+  if(watchlist && watchlist.size){
+    let opened = 0;
+    const primaryUrl = getPrimaryStationUrl();
+    for(const [url] of watchlist.entries()){
+      if(primaryUrl && url === primaryUrl) continue;
+      if(!url) continue;
+      if(url === OPEN_METEO_TOKEN) { window.open('https://open-meteo.com/', '_blank'); opened++; continue; }
+      window.open(normalizeStationUrl(url), '_blank');
+      opened++;
+    }
+    if(opened) updateExtrasStatus(`Επιπλέον: Άνοιξαν ${opened} σταθμοί σε νέες καρτέλες.`, 'ok');
+    else updateExtrasStatus('Επιπλέον: Δεν υπάρχουν έγκυρα URLs.', 'warn');
+    return;
+  }
+
+  // Fallback: open currently selected option (if any)
   const url = document.getElementById('monitorStationSelect')?.value || '';
-  if(!url) return;
+  if(!url){
+    updateExtrasStatus('Επιπλέον: Δεν έχουν επιλεγεί σταθμοί παρακολούθησης.', 'warn');
+    return;
+  }
   if(url === OPEN_METEO_TOKEN) { window.open('https://open-meteo.com/', '_blank'); return; }
-  window.open(url, '_blank');
+  window.open(normalizeStationUrl(url), '_blank');
 }
 // backward compat
 function openStationWeb(){ return openPrimaryWeb(); }
@@ -2203,7 +2254,7 @@ async function fetchStationDataSingle(url, label, updatePrimary){
   if(updatePrimary){
     // Primary station has its own context (do not mix histories across different sources)
     switchSeriesContext(url === OPEN_METEO_TOKEN ? 'open-meteo' : `url:${url}`);
-    updateMeteoStatus("Λήψη…", "neutral");
+    updatePrimaryStatus("Κύριος: Λήψη…", "neutral");
     setTxt('stationName', label || '—');
   }
 
@@ -2360,45 +2411,83 @@ setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
 
 async function fetchStationData(){
   const targets = getFetchTargets();
+  const hasPrimary = targets.some(t => t.primary);
+  const extrasTargets = targets.filter(t => !t.primary);
+
   if(!targets.length){
-    updateMeteoStatus('Επέλεξε κύριο σταθμό ή πρόσθεσε επιπλέον.', 'warn');
+    updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
+    updateExtrasStatus('Επιπλέον: Πρόσθεσε επιπλέον σταθμούς.', 'neutral');
     return;
   }
 
-  updateMeteoStatus('Λήψη…', 'neutral');
+  if(hasPrimary) updatePrimaryStatus('Κύριος: Λήψη…', 'neutral');
+  else updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
+
+  if(extrasTargets.length) updateExtrasStatus('Επιπλέον: Λήψη…', 'neutral');
+  else updateExtrasStatus('Επιπλέον: (κανένας)', 'neutral');
 
   const settled = await Promise.allSettled(
     targets.map(t => fetchStationDataSingle(t.url, t.name, t.primary))
   );
 
   const results = [];
-  const errors = [];
+  let primaryErr = null;
+  let primaryOk = false;
+  const extrasErrors = [];
+  let extrasOkCount = 0;
 
   settled.forEach((s, i)=>{
     const t = targets[i];
     if(s.status === 'fulfilled'){
       if(s.value) results.push(s.value);
-      if(s.value && s.value.ok === false){
-        const nm = (s.value.name || t.name || t.url);
-        const er = (s.value.error || 'σφάλμα');
-        errors.push(`${nm}: ${er}`);
+
+      if(t.primary){
+        if(s.value && s.value.ok === true){
+          primaryOk = true;
+        } else {
+          const er = (s.value && s.value.error) ? s.value.error : 'δεν φορτώθηκαν δεδομένα';
+          primaryErr = `${t.name || t.url}: ${er}`;
+        }
+      } else {
+        if(s.value && s.value.ok === true){
+          extrasOkCount += 1;
+        } else {
+          const nm = (s.value?.name || t.name || t.url);
+          const er = (s.value?.error || 'δεν φορτώθηκαν δεδομένα');
+          extrasErrors.push(`${nm}: ${er}`);
+        }
       }
-    }else{
-      const nm = (t.name || t.url);
+    } else {
       const er = (s.reason && s.reason.message) ? s.reason.message : String(s.reason || 'σφάλμα');
-      errors.push(`${nm}: ${er}`);
+      if(t.primary){
+        primaryErr = `${t.name || t.url}: ${er}`;
+      } else {
+        extrasErrors.push(`${t.name || t.url}: ${er}`);
+      }
     }
   });
 
   renderStationMultiList(results);
 
-  if(errors.length){
-    const short = errors.length <= 2
-      ? errors.join(' • ')
-      : (errors.slice(0,2).join(' • ') + ` • (+${errors.length-2} ακόμη)`);
-    updateMeteoStatus('Προειδοποίηση: ' + short, 'warn');
-  }else{
-    updateMeteoStatus('Λήψη OK', 'ok');
+  // Primary status
+  if(hasPrimary){
+    if(primaryOk && !primaryErr){
+      updatePrimaryStatus('Κύριος: Λήψη OK', 'ok');
+    } else {
+      updatePrimaryStatus('Κύριος: Προειδοποίηση: ' + (primaryErr || 'δεν φορτώθηκαν δεδομένα'), 'warn');
+    }
+  }
+
+  // Extras status
+  if(extrasTargets.length){
+    if(extrasErrors.length){
+      const short = extrasErrors.length <= 2
+        ? extrasErrors.join(' • ')
+        : (extrasErrors.slice(0,2).join(' • ') + ` • (+${extrasErrors.length-2} ακόμη)`);
+      updateExtrasStatus('Επιπλέον: Προειδοποίηση: ' + short, 'warn');
+    } else {
+      updateExtrasStatus('Επιπλέον: Λήψη OK', 'ok');
+    }
   }
 }
 
@@ -2449,7 +2538,7 @@ async function fetchOpenMeteoPayload(){
 
 /* ===== Open-Meteo button (uses basin centroid if available) ===== */
 async function fetchLiveMeteo(){
-  updateMeteoStatus("Λήψη…", "neutral");
+  updatePrimaryStatus("Κύριος: Λήψη…", "neutral");
 
   // Treat Open-Meteo as its own source/context
   switchSeriesContext('open-meteo');
@@ -2468,7 +2557,7 @@ async function fetchLiveMeteo(){
 
     updateStationMonitor(rr!=null ? rr : null, ts, totalsSeries);
     setLatestValuesDisplay(latest, buildLatestLine(latest));
-    updateMeteoStatus("Λήψη OK", "ok");
+    updatePrimaryStatus("Κύριος: Λήψη OK", "ok");
 
     if(rr!=null){
       onNewStationSample(String(ts), ts, rr, 'Open‑Meteo', totalsSeries);
