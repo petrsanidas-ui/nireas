@@ -644,6 +644,11 @@
             <button class="mini-btn btn-map" onclick="openMonitorWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
           </div>
 
+          <div id="meteoStatusWrap" class="status-stack" style="margin-top:6px;">
+            <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
+          </div>
+          <div id="meteoMsg" class="meteo-msg">—</div>
+
           <details class="no-print" style="margin-top:8px;">
             <summary style="cursor:pointer;font-size:11px;color:#6b7a86;">➕ Προσθήκη custom σταθμού (με URL)</summary>
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; align-items:center;">
@@ -659,10 +664,7 @@
             <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
           </div>
 
-          <div id="meteoStatusWrap" class="status-stack">
-            <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
-          </div>
-          <div id="meteoMsg" class="meteo-msg">—</div>
+
         </div>
       </div>
 
@@ -932,6 +934,8 @@ stationLastKeyByKey[currentStationKey] = stationLastKey;
 
 let stationLiveOn = false;
 const watchlist = new Map(); // url -> display name
+let ACTIVE_PRIMARY_URL = '';
+let ACTIVE_PRIMARY_NAME = '';
 
 const LS_WATCHLIST_KEY = 'nireas_watchlist_v1';
 const LS_CUSTOM_KEY   = 'nireas_customstations_v1';
@@ -1329,18 +1333,28 @@ function updateSeriesSummaryName(){
   el.textContent = `• ${name}`;
 }
 
-// --- Station series context helpers (per primary station) ---
-function getPrimaryStationKey(){
+// --- Station series context helpers (per *active* primary station) ---
+// Active primary station applies ONLY after the user presses ➕
+function getPrimaryStationUrl(){
+  return ACTIVE_PRIMARY_URL || '';
+}
+function getPrimaryStationName(){
+  return ACTIVE_PRIMARY_NAME || '';
+}
+// Pending (dropdown) selection - not applied until ➕
+function getPendingPrimaryUrl(){
+  return document.getElementById('meteoStationSelect')?.value || '';
+}
+function getPendingPrimaryName(){
   const sel = document.getElementById('meteoStationSelect');
   const url = sel?.value || '';
+  if(!sel || !url) return '';
+  return (sel.options[sel.selectedIndex]?.textContent || url).trim();
+}
+function getPrimaryStationKey(){
+  const url = getPrimaryStationUrl();
   if(!url || url === OPEN_METEO_TOKEN) return 'open-meteo';
   return `url:${url}`;
-}
-
-
-// URL of currently selected Primary station (UI dropdown)
-function getPrimaryStationUrl(){
-  return document.getElementById('meteoStationSelect')?.value || '';
 }
 
 function switchSeriesContext(newKey){
@@ -1442,9 +1456,16 @@ if(!loaded){
     runMasterCalculation();
     updateStationButtons();
 
-    // If nothing selected but watchlist exists, fetch immediately to show values
+    // If dropdown has a pending selection (but no ACTIVE yet), show "αναμονή"
     const sel = document.getElementById('meteoStationSelect');
-    if((!sel || !sel.value) && watchlist.size){
+    if(sel && sel.value && !getPrimaryStationUrl()){
+      updatePrimaryStatus('Κύριος: Αναμονή…', 'neutral');
+    } else if(!getPrimaryStationUrl()){
+      updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
+    }
+
+    // If no ACTIVE primary but watchlist exists, fetch extras immediately to show values
+    if(!getPrimaryStationUrl() && watchlist.size){
       fetchStationData();
     }
 
@@ -1894,31 +1915,55 @@ function renderWatchlist(){
 function setPrimaryStation(){
   const sel = document.getElementById('meteoStationSelect');
   if(!sel) return;
-  const url = sel.value;
+
+  const url = sel.value || '';
   if(!url){
     updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
     return;
   }
-  // άμεση λήψη για τον κύριο + τυχόν επιπλέον
+
+  // Apply as ACTIVE primary (only on ➕)
+  const name = (sel.options[sel.selectedIndex]?.textContent || url).trim();
+  ACTIVE_PRIMARY_URL = url;
+  ACTIVE_PRIMARY_NAME = name;
+
+  // Make sure histories do not mix across different primary stations
+  switchSeriesContext(url === OPEN_METEO_TOKEN ? 'open-meteo' : `url:${url}`);
+
+  // Immediate fetch for active primary + any extras
+  updatePrimaryStatus('Κύριος: Λήψη…', 'neutral');
   fetchStationData();
 }
 
 function clearPrimaryStation(){
+  // Clear ACTIVE primary (and keep watchlist/extras intact)
+  ACTIVE_PRIMARY_URL = '';
+  ACTIVE_PRIMARY_NAME = '';
+
   const sel = document.getElementById('meteoStationSelect');
   if(sel){
     sel.value = '';
     sel.dispatchEvent(new Event('change'));
   }
-  // καθάρισε την προβολή του κύριου σταθμού (χωρίς να πειράξει την παρακολούθηση)
+
+  // Clear main station display on the right
   setTxt('stationName','—');
   setTxt('stationTimestamp','—');
+  setTxt('stationRainRate','—');
+  setTxt('stationDP','—');
+  setTxt('stationR60','—');
+  setLatestValuesDisplay(null,'—');
   setStationMsg('—');
-  // status ενημέρωση
-  if(!watchlist.size){
-    updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
-  }else{
-    updatePrimaryStatus('Κύριος: Διαγράφηκε.', 'neutral');
-    fetchStationData();
+
+  // Reset series context to default
+  switchSeriesContext('open-meteo');
+
+  // Update statuses
+  if(watchlist.size){
+    updatePrimaryStatus('Κύριος: (καθαρίστηκε)', 'neutral');
+    fetchStationData(); // refresh extras only
+  } else {
+    updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
   }
 }
 
@@ -1958,22 +2003,21 @@ function clearWatchlist(){
 
   updateExtrasStatus('Επιπλέον: (καθαρίστηκαν)', 'neutral');
 
-  // also reset main station display if nothing is selected
-  const sel = document.getElementById('meteoStationSelect');
-  if(sel && !sel.value){
+  // also reset main station display if there is NO active primary
+  if(!getPrimaryStationUrl()){
     setTxt('stationName','—');
     setTxt('stationTimestamp','—');
     setTxt('stationRainRate','—');
     setTxt('stationDP','—');
+    setTxt('stationR60','—');
     setLatestValuesDisplay(null,'—');
     updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
   }
 }
 
 function getFetchTargets(){
-  const sel = document.getElementById('meteoStationSelect');
-  const primaryUrl = sel?.value || '';
-  const primaryName = primaryUrl ? (sel.options[sel.selectedIndex]?.textContent || primaryUrl).trim() : '';
+  const primaryUrl = getPrimaryStationUrl();
+  const primaryName = primaryUrl ? (getPrimaryStationName() || primaryUrl) : '';
   const targets = [];
   if(primaryUrl) targets.push({url: primaryUrl, name: primaryName, primary:true});
   for(const [url,name] of watchlist.entries()){
@@ -2053,18 +2097,13 @@ function bindStationSelect(){
   if(!sel) return;
 
   sel.addEventListener('change', ()=>{
-    const isEmpty = !sel.value;
-    setTxt('stationName', isEmpty ? '—' : (sel.options[sel.selectedIndex]?.textContent || '—'));
-    setTxt('stationTimestamp','—');
-    setTxt('stationRainRate','—');
-    setTxt('stationDP','—');
-    setLatestValuesDisplay(null,'—');
-    setTxt('stationR60','—');
-    setLatestValuesDisplay(null,'—');
-    setStationMsg('—');
-
-    // Switch series context so histories do not mix across stations
-    switchPrimarySeriesContext();
+    const url = sel.value || '';
+    if(!url){
+      updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
+      return;
+    }
+    // A new selection is pending until the user presses ➕
+    updatePrimaryStatus('Κύριος: Αναμονή…', 'neutral');
   });
 
   STATION_SELECT_BOUND = true;
@@ -2223,7 +2262,8 @@ async function fetchStations(path){
 }
 
 function openPrimaryWeb(){
-  const url = document.getElementById('meteoStationSelect')?.value || '';
+  // Prefer pending selection (dropdown). If empty, fallback to active primary (if any).
+  const url = getPendingPrimaryUrl() || getPrimaryStationUrl();
   if(!url){
     updatePrimaryStatus('Κύριος: Δεν έχει επιλεγεί σταθμός.', 'warn');
     return;
@@ -3155,8 +3195,8 @@ function toggleLive(){
   updateStationButtons();
 
   const doFetch = ()=> {
-    // prefer API fetch if selected OR watchlist monitoring
-    const url = document.getElementById('meteoStationSelect')?.value;
+    // prefer API fetch if ACTIVE primary OR watchlist monitoring
+    const url = getPrimaryStationUrl();
     if(url || watchlist.size) fetchStationData();
     else fetchLiveMeteo();
   };
