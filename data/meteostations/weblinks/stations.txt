@@ -3,7 +3,7 @@
 ΠΑΠΑΓΟΥ | https://penteli.meteo.gr/stations/papagou/ | 37.989290 | 23.803371 | 300
 Ελληνογαλλική σχολή - ΑΓΙΑ ΠΑΡΑΣΚΕΥΗ | https://penteli.meteo.gr/stations/delacroix-attiki/ | 38.01044137508833 | 23.836801728888418 | 249
 Αμερικανικό Κολλέγιο Ελλάδος - ΑΓΙΑ ΠΑΡΑΣΚΕΥΗ | https://penteli.meteo.gr/stations/agiaparaskevi/ | 38.005625878181 | 23.83325817119469 | 273
-ΨΥΧΙΚΟ | https://penteli.meteo.gr/stations/psychico/
+ΨΥΧΙΚΟ | https://penteli.meteo.gr/stations/psychico/ | 38.017263835893225 | 23.781667038243818 | 209
 ΒΡΙΛΗΗΣΙΑ (Εκπαιδευτήρια Καντά) | https://penteli.meteo.gr/stations/vrilissia/ | 38.03832607240359 | 23.825859324751814 | 245
 ΒΡΙΛΗΣΙΑ (1ο Γυμνάσιο) | https://penteli.meteo.gr/stations/vrilissia2/ | 38.033644938959135 | 23.83721222883564 | 231
 ΜΑΡΟΥΣΙ | https://penteli.meteo.gr/stations/maroussi/ | 38.05079935527162 | 23.806019069263016 | 235
@@ -21,6 +21,7 @@ neaionia | https://neaionia.meteoclub.gr/ | LAT | LON | ELEV
 chalandri-davis | https://chalandri-davis.meteoclub.gr/ | LAT | LON | ELEV
 
 ΟΝΟΜΑ | URL | LAT | LON | ELEV
+
 
 
 
