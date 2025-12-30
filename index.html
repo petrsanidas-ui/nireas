@@ -241,6 +241,23 @@
     }
     .type-cell{color:#9aa6b2;font-size:10px}
 
+    /* Keep each file row on a single line (Name | Type | Actions) */
+    #filesBody{ overflow-x:auto; }  /* fallback on very narrow screens */
+    #filesBody table{ table-layout:fixed; }
+    #filesBody th:nth-child(1), #filesBody td:nth-child(1){ width:56%; text-align:left; }
+    #filesBody th:nth-child(2), #filesBody td:nth-child(2){ width:14%; }
+    #filesBody th:nth-child(3), #filesBody td:nth-child(3){ width:30%; }
+    #filesBody td:nth-child(1){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #filesBody .actions-row{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:6px;
+      flex-wrap:nowrap;
+      white-space:nowrap;
+    }
+    #filesBody .actions-row .mini-btn{ padding:4px 8px; font-size:11px; }
+
     .hint{
       font-size:10px;
       color:var(--muted);
@@ -716,6 +733,11 @@
   line-height: 1.15;
   margin: 0;
 }
+
+    /* ===== Meteo stations (selected only) markers ===== */
+    .station-pin{width:14px;height:14px;border-radius:50%;background:#1e88e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);}
+    .station-pin.primary{width:16px;height:16px;border-radius:2px;background:#e53935;transform:rotate(45deg);}
+    .station-pin-wrap{display:flex;align-items:center;justify-content:center;}
 </style>
 </head>
 
@@ -1054,6 +1076,164 @@ const LAYER_CACHE = new Map();     // path -> leaflet layer
 const VISIBLE = new Set();         // paths currently "On"
 let PREVIEW_LAYER = null;          // temporary layer for Map button preview
 
+/* ===== Selected Meteo Stations layer (map) ===== */
+const STATIONS_META = new Map();   // url -> {name,url,lat,lon,elev}
+let METEO_STATIONS_VISIBLE = false;
+let METEO_STATIONS_LAYER = null;  // persistent selected markers layer
+let METEO_STATIONS_PREVIEW = null;// preview-only layer (Map button)
+const METEO_MARKERS = new Map();  // url -> Leaflet marker (persistent)
+
+function getSelectedStationUrls(){
+  const out = [];
+  const p = getPrimaryStationUrl ? getPrimaryStationUrl() : '';
+  if(p) out.push(p);
+  try{
+    if(typeof watchlist !== 'undefined' && watchlist && watchlist.size){
+      for(const u of watchlist.keys()) out.push(u);
+    }
+  }catch(_){}
+  return Array.from(new Set(out));
+}
+
+function meteoIcons(){
+  // cache once
+  if(meteoIcons._cache) return meteoIcons._cache;
+  const extra = L.divIcon({
+    className:'station-divicon',
+    html:'<div class="station-pin-wrap"><div class="station-pin"></div></div>',
+    iconSize:[16,16],
+    iconAnchor:[8,8]
+  });
+  const primary = L.divIcon({
+    className:'station-divicon',
+    html:'<div class="station-pin-wrap"><div class="station-pin primary"></div></div>',
+    iconSize:[18,18],
+    iconAnchor:[9,9]
+  });
+  meteoIcons._cache = { extra, primary };
+  return meteoIcons._cache;
+}
+
+function ensureMeteoStationsLayer(){
+  if(!METEO_STATIONS_LAYER) METEO_STATIONS_LAYER = L.layerGroup();
+  return METEO_STATIONS_LAYER;
+}
+
+function clearMeteoStationsPreview(){
+  if(METEO_STATIONS_PREVIEW && map && map.hasLayer(METEO_STATIONS_PREVIEW)){
+    map.removeLayer(METEO_STATIONS_PREVIEW);
+  }
+  METEO_STATIONS_PREVIEW = null;
+}
+
+async function refreshSelectedMeteoMarkers(){
+  // build persistent markers map based on current selection
+  const urls = getSelectedStationUrls();
+  const keep = new Set(urls);
+
+  // remove stale
+  for(const [u, mk] of Array.from(METEO_MARKERS.entries())){
+    if(!keep.has(u)){
+      try{ ensureMeteoStationsLayer().removeLayer(mk); }catch(_){}
+      METEO_MARKERS.delete(u);
+    }
+  }
+
+  const icons = meteoIcons();
+  const primaryUrl = (getPrimaryStationUrl ? getPrimaryStationUrl() : '') || '';
+
+  // add missing
+  for(const u of urls){
+    if(METEO_MARKERS.has(u)) continue;
+
+    // special fallback for Open‑Meteo token (shows approx Chalandri)
+    let meta = STATIONS_META.get(u);
+    if(!meta && u === OPEN_METEO_TOKEN){
+      meta = { name:'Open‑Meteo (Χαλάνδρι)', url:u, lat:38.0237, lon:23.8007, elev:null };
+    }
+    if(!meta || meta.lat == null || meta.lon == null) continue;
+
+    const icon = (u === primaryUrl) ? icons.primary : icons.extra;
+    const mk = L.marker([meta.lat, meta.lon], { icon });
+
+    const elevTxt = (meta.elev != null && !Number.isNaN(meta.elev)) ? `${meta.elev} m` : '—';
+    mk.bindPopup(`<b>${meta.name || 'Σταθμός'}</b><br/>Υψόμετρο: ${elevTxt}<br/><a href="${meta.url === OPEN_METEO_TOKEN ? '#' : meta.url}" target="_blank">Άνοιγμα link</a>`);
+
+    METEO_MARKERS.set(u, mk);
+    try{ ensureMeteoStationsLayer().addLayer(mk); }catch(_){}
+  }
+
+  // if map open and layer should be visible, add to map
+  if(map){
+    if(METEO_STATIONS_VISIBLE){
+      const layer = ensureMeteoStationsLayer();
+      if(!map.hasLayer(layer)) layer.addTo(map);
+    }else{
+      const layer = ensureMeteoStationsLayer();
+      if(map.hasLayer(layer)) map.removeLayer(layer);
+    }
+  }
+}
+
+function updateMeteoStationsRowButton(){
+  const btn = document.getElementById('btn-onoff-meteoStations');
+  if(!btn) return;
+  btn.textContent = METEO_STATIONS_VISIBLE ? 'On' : 'Off';
+  btn.classList.toggle('btn-on', METEO_STATIONS_VISIBLE);
+  btn.classList.toggle('btn-off', !METEO_STATIONS_VISIBLE);
+}
+
+function toggleMeteoStationsLayer(){
+  METEO_STATIONS_VISIBLE = !METEO_STATIONS_VISIBLE;
+  updateMeteoStationsRowButton();
+  if(map) refreshSelectedMeteoMarkers(); // will add/remove layer
+  if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+}
+
+async function meteoStationsLoad(){
+  // Refresh markers cache; do not open map, do not change On/Off
+  await refreshSelectedMeteoMarkers();
+}
+
+async function meteoStationsMap(){
+  // Preview selected stations on map WITHOUT changing On/Off
+  openMapModal();
+  clearMeteoStationsPreview();
+
+  const urls = getSelectedStationUrls();
+  const icons = meteoIcons();
+  const primaryUrl = (getPrimaryStationUrl ? getPrimaryStationUrl() : '') || '';
+
+  const grp = L.layerGroup();
+  const pts = [];
+
+  for(const u of urls){
+    let meta = STATIONS_META.get(u);
+    if(!meta && u === OPEN_METEO_TOKEN){
+      meta = { name:'Open‑Meteo (Χαλάνδρι)', url:u, lat:38.0237, lon:23.8007, elev:null };
+    }
+    if(!meta || meta.lat == null || meta.lon == null) continue;
+
+    const icon = (u === primaryUrl) ? icons.primary : icons.extra;
+    const mk = L.marker([meta.lat, meta.lon], { icon });
+    grp.addLayer(mk);
+    pts.push([meta.lat, meta.lon]);
+  }
+
+  METEO_STATIONS_PREVIEW = grp;
+  if(map && !map.hasLayer(grp)) grp.addTo(map);
+
+  // fit to points if any
+  if(map && pts.length){
+    try{
+      const b = L.latLngBounds(pts.map(p=>L.latLng(p[0], p[1])));
+      map.fitBounds(b, { padding:[20,20] });
+    }catch(_){}
+  }
+}
+
+/* ===== End Meteo Stations layer ===== */
+
 /* ===== Station monitor ===== */
 const STATION_SERIES_MAX = 12;
 
@@ -1220,6 +1400,8 @@ function saveUiStateNow(){
     state.__selectedBasinKey = SELECTED_BASIN_KEY || null;
     state.__selectedBasinName = document.getElementById('selectedBasinName')?.innerText || null;
     state.__visiblePaths = Array.from(VISIBLE || []);
+    state.__meteoStationsVisible = !!METEO_STATIONS_VISIBLE;
+
 
     localStorage.setItem(LS_UI_STATE_KEY, JSON.stringify(state));
   }catch(_){}
@@ -1236,6 +1418,11 @@ function restoreUiStateEarly(){
       st.__visiblePaths.forEach(p => { if(p) VISIBLE.add(String(p)); });
     }catch(_){}
   }
+  // restore selected meteo stations layer state
+  if(typeof st.__meteoStationsVisible === 'boolean'){
+    METEO_STATIONS_VISIBLE = !!st.__meteoStationsVisible;
+  }
+
 }
 
 function restoreUiFieldsFromState(st){
@@ -1770,6 +1957,23 @@ function renderFileList(){
   const tbody = document.getElementById('fileRows');
   tbody.innerHTML = '';
 
+
+  // 📡 Selected Meteo Stations (acts like a layer with Load/Map/On-Off)
+  const trMeteo = document.createElement('tr');
+  const onMeteo = !!METEO_STATIONS_VISIBLE;
+  trMeteo.innerHTML = `
+    <td style="text-align:left;padding-left:10px;font-weight:700;">📡 ΜΕΤΕΩΡΟΛΟΓΙΚΟΙ ΣΤΑΘΜΟΙ</td>
+    <td class="type-cell">LEXICON</td>
+    <td><div class="actions-row">
+      <button class="mini-btn btn-load" onclick="meteoStationsLoad()">Load</button>
+      <button class="mini-btn btn-map" onclick="meteoStationsMap()">Map</button>
+      <button class="mini-btn ${onMeteo ? 'btn-on' : 'btn-off'}" id="btn-onoff-meteoStations"
+              onclick="toggleMeteoStationsLayer()">${onMeteo ? 'On' : 'Off'}</button>
+    </div></td>
+  `;
+  tbody.appendChild(trMeteo);
+
+
   const addCategory = (title, list, icon, color) => {
     const trHead = document.createElement('tr');
     trHead.className = 'cat-row';
@@ -1784,12 +1988,12 @@ function renderFileList(){
       tr.innerHTML = `
         <td style="text-align:left;padding-left:10px;">${name}</td>
         <td class="type-cell">GEOJSON</td>
-        <td>
+        <td><div class="actions-row">
           <button class="mini-btn btn-load" onclick="loadToTool('${f.path}','${name}')">Load</button>
           <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')">Map</button>
           <button class="mini-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
                   onclick="toggleLayer('${f.path}','${name}')">${on ? 'On' : 'Off'}</button>
-        </td>
+        </div></td>
       `;
       tbody.appendChild(tr);
     });
@@ -1921,6 +2125,10 @@ async function toggleLayer(path, name){
 // Turn everything off
 function turnAllOff(){
   VISIBLE.clear();
+  METEO_STATIONS_VISIBLE = false;
+  updateMeteoStationsRowButton();
+  clearMeteoStationsPreview();
+
   // update buttons
   document.querySelectorAll('button[id^="btn-onoff-"]').forEach(b=>{
     b.textContent = 'Off';
@@ -1953,6 +2161,8 @@ function closeMapModal(){
     map.removeLayer(PREVIEW_LAYER);
     PREVIEW_LAYER = null;
   }
+  // remove meteo preview markers
+  clearMeteoStationsPreview();
 }
 
 function categoryFromPath(path){
@@ -1994,6 +2204,12 @@ async function syncVisibleLayersToMap(){
     }
     if(!map.hasLayer(layer)) layer.addTo(map);
   }
+
+  // 📡 Meteo stations (selected only)
+  try{
+    await refreshSelectedMeteoMarkers();
+  }catch(_){ }
+
 }
 
 /* ===================== PROPERTIES EXTRACTION ===================== */
@@ -2189,6 +2405,7 @@ function renderWatchlist(){
       watchlist.delete(url); 
       renderWatchlist(); 
       saveWatchlist();
+      try{ refreshSelectedMeteoMarkers(); }catch(_){ }
       fetchStationData('extras');
     });
     chip.addEventListener('click', ()=>{
@@ -2216,6 +2433,9 @@ function setPrimaryStation(){
   ACTIVE_PRIMARY_URL = url;
   ACTIVE_PRIMARY_NAME = name;
 
+  // update selected stations markers (if layer is On or map preview is used)
+  try{ refreshSelectedMeteoMarkers(); }catch(_){ }
+
   // Make sure histories do not mix across different primary stations
   switchSeriesContext(url === OPEN_METEO_TOKEN ? 'open-meteo' : `url:${url}`);
 
@@ -2228,6 +2448,8 @@ function clearPrimaryStation(){
   // Clear ACTIVE primary (and keep watchlist/extras intact)
   ACTIVE_PRIMARY_URL = '';
   ACTIVE_PRIMARY_NAME = '';
+
+  try{ refreshSelectedMeteoMarkers(); }catch(_){ }
 
   const sel = document.getElementById('meteoStationSelect');
   if(sel){
@@ -2269,6 +2491,7 @@ function addToWatchlistFromMonitor(){
   watchlist.set(url, name);
   renderWatchlist();
   saveWatchlist();
+  try{ refreshSelectedMeteoMarkers(); }catch(_){ }
   fetchStationData('extras');
 }
 // backward compat (older UI)
@@ -2280,6 +2503,7 @@ function clearWatchlist(){
   watchlist.clear();
   renderWatchlist();
   saveWatchlist();
+  try{ refreshSelectedMeteoMarkers(); }catch(_){ }
 
   // reset monitor dropdown back to placeholder
   const monSel = document.getElementById('monitorStationSelect');
@@ -2514,15 +2738,43 @@ async function fetchStations(path){
 
     for(const line of lines){
       let name="", url=line;
+      let lat=null, lon=null, elev=null;
+
       if(line.includes('|')){
-        const parts = line.split('|');
+        const parts = line.split('|').map(p=>String(p||'').trim());
         name = (parts[0]||'').trim();
         url  = (parts[1]||'').trim();
+        lat  = parts[2] ? parseFloat(parts[2]) : null;
+        lon  = parts[3] ? parseFloat(parts[3]) : null;
+        elev = parts[4] ? parseFloat(parts[4]) : null;
       }else{
         name = url.replace(/^https?:\/\//,'').slice(0,50);
       }
+
       url = normalizeStationUrl(url);
+
       if(!url) continue;
+
+      // Store meta if provided (lat/lon/elev) - used for map markers (selected only)
+      const latOk = Number.isFinite(lat);
+      const lonOk = Number.isFinite(lon);
+      const elevOk = Number.isFinite(elev);
+
+      const prev = STATIONS_META.get(url);
+      const prevHasCoords = prev && Number.isFinite(prev.lat) && Number.isFinite(prev.lon);
+
+      // Prefer new coordinates when available; otherwise keep existing if any
+      if(!prev || (latOk && lonOk) || !prevHasCoords){
+        STATIONS_META.set(url, {
+          name: name || (prev ? prev.name : 'Station'),
+          url,
+          lat: (latOk ? lat : (prev ? prev.lat : null)),
+          lon: (lonOk ? lon : (prev ? prev.lon : null)),
+          elev: (elevOk ? Math.round(elev) : (prev ? prev.elev : null))
+        });
+      }else if(name && prev && !prev.name){
+        prev.name = name;
+      }
 
       const isApi = /(exec|api|json|\?)/i.test(url) && !/penteli\.meteo\.gr\/stations/i.test(url);
       (isApi ? apiItems : webItems).push({name: name || 'Station', url, from: path});
