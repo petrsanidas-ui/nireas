@@ -3745,8 +3745,8 @@ function parseMeteoPageMinimal(text){
     latest.dew  = pickNumFromText(text, /(?:Dew\s*Point|Σημείο\s*Δρόσου)[\s\S]{0,80}?(-?\d+(?:\.\d+)?)\s*°\s*C/i);
 
     // Wind: "4.8 Km/h at W"
-    const windSpeed = pickNumFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,120}?(\d+(?:\.\d+)?)\s*(?:Km\/h|km\/h)/i);
-    const windDir   = pickMatchFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,140}?\d+(?:\.\d+)?\s*(?:Km\/h|km\/h)\s*(?:at\s*)?([A-Za-z]{1,3})/i);
+    const windSpeed = pickNumFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,80}?(\d+(?:\.\d+)?)\s*(?:Km\/h|km\/h)/i);
+    const windDir   = pickMatchFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,80}?\d+(?:\.\d+)?\s*(?:Km\/h|km\/h)\s*(?:at\s*)?([A-Za-z]{1,3})/i);
     if(windSpeed!=null){
       latest.wind = `${Number(windSpeed).toFixed(1)} km/h${windDir ? (' ' + windDir.toUpperCase()) : ''}`;
     }
