@@ -429,7 +429,7 @@
   .status-pill.status-neutral{ background:#f8fafc; border-color:#dfe7ee; color:#475569; }
 
   
-  .meteo-msg{ font-size:10px; color:var(--muted); margin-top:4px; font-style:italic; }
+  .meteo-msg{ display:none; font-size:10px; color:var(--muted); margin-top:4px; font-style:italic; }
 
   #primaryStatusWrap .status-pill, #meteoStatusWrap .status-pill{ margin-top:0; padding:6px 10px; }
 
@@ -649,7 +649,7 @@
           <div id="meteoStatusWrap" class="status-stack" style="margin-top:2px;">
             <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
           </div>
-          <div id="meteoMsg" class="meteo-msg">—</div>
+          <div id="meteoMsg" class="meteo-msg" style="display:none"></div>
 
           <details class="no-print" style="margin-top:8px;">
             <summary style="cursor:pointer;font-size:11px;color:#6b7a86;">➕ Προσθήκη custom σταθμού (με URL)</summary>
@@ -1303,15 +1303,27 @@ function updateExtrasStatus(msg, level='neutral'){
 }
 // backward compatibility (sets both)
 function updateMeteoStatus(msg, level='neutral'){
-  // General informational message for the METEO section (does NOT touch the two independent status pills)
+  // Optional informational message area for the METEO section.
+  // HIDDEN by default to avoid a lone "—" separator.
+  // Shows only for warnings/errors (does NOT touch the two independent status pills).
   const el = document.getElementById('meteoMsg');
-  if(el){
-    el.textContent = msg || '—';
-    return;
+  if(!el) return;
+
+  const t = (msg == null) ? '' : String(msg).trim();
+  const shouldShow = !!t && t !== '—' && (
+    level === 'warn' ||
+    /Σφάλμα/i.test(t) ||
+    /Δεν\s+βρέθηκαν/i.test(t) ||
+    /promise/i.test(t)
+  );
+
+  if(shouldShow){
+    el.textContent = t;
+    el.style.display = 'block';
+  }else{
+    el.textContent = '';
+    el.style.display = 'none';
   }
-  // fallback (older layouts)
-  updatePrimaryStatus(msg, level);
-  updateExtrasStatus(msg, level);
 }
 function setStationMsg(msg){
   const el = document.getElementById('stationMsg');
