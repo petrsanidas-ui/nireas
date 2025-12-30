@@ -144,6 +144,51 @@
     .btn-live-on{background:var(--btn-green)}
     .temp-green{background:var(--btn-green)!important}
 
+
+    /* Monitor header controls (Live + Scenario + Local Scenario) */
+    .monitor-head{
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:6px;
+      margin-bottom:0px;
+      flex-wrap:nowrap;        /* keep everything on one row */
+      overflow-x:auto;         /* if space is tight, allow horizontal scroll instead of wrapping */
+      -webkit-overflow-scrolling:touch;
+    }
+    .monitor-head h3{white-space:nowrap}
+    .monitor-head .monitor-controls{margin-left:4px; flex:0 0 auto}
+    .monitor-controls{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:nowrap;        /* keep buttons/select in one row */
+      flex:0 0 auto
+    }
+    .hdr-btn{padding:6px 12px;font-size:12px;border-radius:6px; white-space:nowrap}
+    /* Make <select> look like button */
+    select.mini-btn{
+      -webkit-appearance:none;
+      -moz-appearance:none;
+      appearance:none;
+      padding-right:28px;
+      background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.95) 50%),
+                        linear-gradient(135deg, rgba(255,255,255,.95) 50%, transparent 50%);
+      background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 9px) calc(50% - 2px);
+      background-size:5px 5px, 5px 5px;
+      background-repeat:no-repeat;
+    }
+    .btn-scenario{background:var(--btn-gray); color:#fff}
+    .btn-scenario.scenario-active{background:var(--btn-green); color:#fff; border-color:rgba(0,0,0,.12)}
+    .btn-local-off{background:var(--danger)}
+    .btn-local-on{background:var(--btn-green)}
+
+
+/* subtle horizontal scrollbar for monitor header (only if needed) */
+.monitor-head::-webkit-scrollbar{height:6px}
+.monitor-head::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:10px}
+.monitor-head::-webkit-scrollbar-track{background:transparent}
+
 /* Station time-series list */
 .series-list{margin-top:6px;border:1px solid #dfe7ee;border-radius:10px;padding:6px;background:#fff;max-height:160px;overflow:auto;font-size:11px}
 .series-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed #e6eef5}
@@ -712,7 +757,23 @@
 
     <div class="tool-wrap">
       <div class="box" style="background:#97c9d1;border-color:#dfe7ee">
-          <h3>ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)</h3>
+          <div class="monitor-head">
+            <h3 style="margin:0">ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)</h3>
+            <div class="monitor-controls no-print">
+              <select id="modelScenario" class="mini-btn hdr-btn btn-scenario" onchange="setModelScenario(this.value)" title="Επιλογή σεναρίου μοντέλου">
+                <option value="rain">Βροχή</option>
+                <option value="wind">Άνεμος</option>
+                <option value="heatwave">Καύσωνας</option>
+                <option value="frost_snow">Παγετός / Χιόνια</option>
+                <option value="storm">Καταιγίδα / Κεραυνοί</option>
+                <option value="dust_smoke">Σκόνη / Καπνός</option>
+                <option value="fog">Ομίχλη</option>
+              </select>
+              <button id="btnLiveStation" class="mini-btn hdr-btn btn-live-off" onclick="toggleLive()" title="Αυτόματη ανανέωση ανά 90s">Live OFF</button>
+              <button id="btnLocalScenario" class="mini-btn hdr-btn btn-local-off" onclick="toggleLocalScenario()" title="Ενεργοποίηση τοπικού σεναρίου">Local Scenario OFF</button>
+              <input type="checkbox" id="localScenarioToggle" style="display:none" />
+            </div>
+          </div>
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;">
             <div><b>Σταθμός:</b> <span id="stationName">—</span></div>
             <div><b>Timestamp:</b> <span id="stationTimestamp">—</span></div>
@@ -741,7 +802,6 @@
 
           <div class="station-actions no-print">
             <button id="btnAutoStation" class="mini-btn btn-auto-default" onclick="applyAutoI()">Load</button>
-            <button id="btnLiveStation" class="mini-btn btn-live-off" onclick="toggleLive()">Live</button>
             <button id="btnClearStation" class="mini-btn btn-gray" onclick="clearStationSeries()">Καθαρισμός</button>
           </div>
           <div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
@@ -757,7 +817,7 @@
 
       <div class="grid-2">
         <div class="box" style="background:#fff3cd;border-color:#f1d27a">
-          <h3>ΣΕΝΑΡΙΟ ΒΡΟΧΗΣ</h3>
+          <h3 id="scenarioTitle">ΣΕΝΑΡΙΟ: Βροχή</h3>
           <div class="row">
             <label>Ένταση i (mm/h):</label>
             <input type="number" id="rainI" value="0" step="0.1">
@@ -943,6 +1003,62 @@ let ACTIVE_PRIMARY_NAME = '';
 const LS_WATCHLIST_KEY = 'nireas_watchlist_v1';
 const LS_CUSTOM_KEY   = 'nireas_customstations_v1';
 const OPEN_METEO_TOKEN = '__OPEN_METEO__';
+
+/* ===== Model Scenario (for future model switching) ===== */
+let MODEL_SCENARIO = 'rain'; // rain | wind | heatwave | frost_snow | storm | dust_smoke | fog
+
+function setModelScenario(val){
+  MODEL_SCENARIO = String(val || 'rain');
+  // visual: mark dropdown as active (green)
+  const _sel = document.getElementById('modelScenario');
+  if(_sel){ _sel.classList.add('scenario-active'); }
+
+  // reflect on UI (title only — calculations remain the same for now)
+  const mapName = {
+    rain:'Βροχή',
+    wind:'Άνεμος',
+    heatwave:'Καύσωνας',
+    frost_snow:'Παγετός / Χιόνια',
+    storm:'Καταιγίδα / Κεραυνοί',
+    dust_smoke:'Σκόνη / Καπνός',
+    fog:'Ομίχλη'
+  };
+  const nice = mapName[MODEL_SCENARIO] || 'Βροχή';
+  const t = document.getElementById('scenarioTitle');
+  if(t) t.textContent = `ΣΕΝΑΡΙΟ: ${nice}`;
+  document.body.dataset.modelScenario = MODEL_SCENARIO;
+  try{ scheduleSaveUiState(); }catch(_){}
+}
+
+/* ===== Local Scenario toggle (for future local parameters) ===== */
+let LOCAL_SCENARIO_ON = false;
+
+function updateLocalScenarioBtn(){
+  const btn = document.getElementById('btnLocalScenario');
+  const cb  = document.getElementById('localScenarioToggle');
+  if(cb) LOCAL_SCENARIO_ON = !!cb.checked;
+
+  if(btn){
+    btn.classList.toggle('btn-local-on', LOCAL_SCENARIO_ON);
+    btn.classList.toggle('btn-local-off', !LOCAL_SCENARIO_ON);
+    btn.textContent = LOCAL_SCENARIO_ON ? 'Local Scenario ON' : 'Local Scenario OFF';
+  }
+  document.body.dataset.localScenario = LOCAL_SCENARIO_ON ? 'on' : 'off';
+}
+
+function toggleLocalScenario(){
+  const cb  = document.getElementById('localScenarioToggle');
+  if(cb){
+    cb.checked = !cb.checked;
+    try{ cb.dispatchEvent(new Event('change', {bubbles:true})); }catch(_){}
+  }else{
+    LOCAL_SCENARIO_ON = !LOCAL_SCENARIO_ON;
+  }
+  updateLocalScenarioBtn();
+  setStationMsg(LOCAL_SCENARIO_ON ? 'Local Scenario: ON' : 'Local Scenario: OFF');
+}
+
+
 
 
 /* ===================== UI PERSISTENCE (keep values on refresh) ===================== */
@@ -1463,6 +1579,8 @@ if(!loaded){
     bindInputs();
     runMasterCalculation();
     updateStationButtons();
+    setModelScenario(document.getElementById('modelScenario')?.value);
+    updateLocalScenarioBtn();
 
     // If dropdown has a pending selection (but no ACTIVE yet), show "αναμονή"
     const sel = document.getElementById('meteoStationSelect');
@@ -3212,7 +3330,10 @@ function updateStationButtons(){
   if(liveBtn){
     liveBtn.classList.toggle('btn-live-on', stationLiveOn);
     liveBtn.classList.toggle('btn-live-off', !stationLiveOn);
+    liveBtn.textContent = stationLiveOn ? 'Live ON' : 'Live OFF';
   }
+
+  updateLocalScenarioBtn();
 }
 
 function flashTempGreen(btnOrId, ms=3000){
