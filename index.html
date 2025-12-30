@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="el">
 <head>
@@ -3356,7 +3357,10 @@ function parseMeteoPage(text){
 }
 
 function updateStationMonitor(rainRate, tsText, totals){
-  setTxt('stationTimestamp', tsText ? ts24(tsText) : '—');
+  const t = tsText ? ts24(tsText) : '—';
+  setTxt('stationTimestamp', t);
+  setTxt('stationTimestampInline', t);
+  updateStationFreshnessUI();
   setTxt('stationRainRate', (rainRate!=null && isFiniteNumber(rainRate)) ? rainRate.toFixed(1) : '—');
 
   // dp/r60 derived from series
