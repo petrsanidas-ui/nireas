@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="el">
 <head>
@@ -6,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NIREAS</title>
 
-  
   <link rel="icon" type="image/png" href="nireas_logo.png" />
 <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -84,7 +82,6 @@
       font-weight:700;
       font-size:14px;
       border-bottom:1px solid rgba(255,255,255,.14);
-    
     }
     .icon-btn{
       border:none;
@@ -146,7 +143,6 @@
     .btn-live-off{background:var(--danger)}
     .btn-live-on{background:var(--btn-green)}
     .temp-green{background:var(--btn-green)!important}
-
 
     /* Monitor header controls (Live + Scenario + Local Scenario) */
     .monitor-head{
@@ -210,7 +206,6 @@
     .btn-scenario.scenario-active{background:var(--btn-green); color:#fff; border-color:rgba(0,0,0,.12)}
 .btn-local-off{background:var(--danger)}
     .btn-local-on{background:var(--btn-green)}
-
 
 /* subtle horizontal scrollbar for monitor header (only if needed) */
 .monitor-head::-webkit-scrollbar{height:6px}
@@ -568,7 +563,6 @@
       white-space:nowrap;
     }
 
-
         /* Latest values chips (station monitor) */
     .latest-row{
       margin-top:6px;
@@ -685,6 +679,35 @@
     }
 
 .status-stack{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+
+
+/* ====== Header alignment fix (side + main top bars) ====== */
+:root{
+  --appHeaderH: 44px;
+  --appHeaderPadY: 8px;
+}
+.panel-topbar,
+.tool-header{
+  min-height: var(--appHeaderH);
+  padding-top: var(--appHeaderPadY);
+  padding-bottom: var(--appHeaderPadY);
+  align-items:center;
+}
+/* Prevent the logo <img> baseline gap from pushing the bar height */
+.panel-topbar img.nireas-logo,
+.tool-header img.nireas-logo{
+  height: 22px !important;
+  width: auto !important;
+  padding: 1px !important;
+  border-radius: 6px !important;
+  display: block !important;
+  box-shadow: none !important;
+}
+/* Keep title vertically centered without increasing bar height */
+.tool-header h1{
+  line-height: 1.15;
+  margin: 0;
+}
 </style>
 </head>
 
@@ -3357,10 +3380,7 @@ function parseMeteoPage(text){
 }
 
 function updateStationMonitor(rainRate, tsText, totals){
-  const t = tsText ? ts24(tsText) : '—';
-  setTxt('stationTimestamp', t);
-  setTxt('stationTimestampInline', t);
-  updateStationFreshnessUI();
+  setTxt('stationTimestamp', tsText ? ts24(tsText) : '—');
   setTxt('stationRainRate', (rainRate!=null && isFiniteNumber(rainRate)) ? rainRate.toFixed(1) : '—');
 
   // dp/r60 derived from series
