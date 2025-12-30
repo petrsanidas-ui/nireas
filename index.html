@@ -428,6 +428,9 @@
   .status-pill.status-warn{ background:#fff7e6; border-color:#f1d27a; color:#b35300; }
   .status-pill.status-neutral{ background:#f8fafc; border-color:#dfe7ee; color:#475569; }
 
+  
+  .meteo-msg{ font-size:10px; color:var(--muted); margin-top:6px; font-style:italic; }
+
   .multi-table{ width:100%; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; background:#fff; }
   .multi-row{
     display:grid;
@@ -627,6 +630,10 @@
             <button class="mini-btn btn-map" onclick="openPrimaryWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
           </div>
 
+          <div id="primaryStatusWrap" class="status-stack" style="margin-top:6px;">
+            <div id="primaryStatus" class="status-pill status-neutral">Κύριος: Αναμονή…</div>
+          </div>
+
           <div style="font-size:11px;color:#6b7a86;margin:10px 0 4px;">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
           <div style="display:flex; gap:8px; align-items:center;">
             <select id="monitorStationSelect" style="flex:1">
@@ -653,9 +660,9 @@
           </div>
 
           <div id="meteoStatusWrap" class="status-stack">
-  <div id="primaryStatus" class="status-pill status-neutral">Κύριος: Αναμονή…</div>
-  <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
-</div>
+            <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
+          </div>
+          <div id="meteoMsg" class="meteo-msg">—</div>
         </div>
       </div>
 
@@ -1296,6 +1303,13 @@ function updateExtrasStatus(msg, level='neutral'){
 }
 // backward compatibility (sets both)
 function updateMeteoStatus(msg, level='neutral'){
+  // General informational message for the METEO section (does NOT touch the two independent status pills)
+  const el = document.getElementById('meteoMsg');
+  if(el){
+    el.textContent = msg || '—';
+    return;
+  }
+  // fallback (older layouts)
   updatePrimaryStatus(msg, level);
   updateExtrasStatus(msg, level);
 }
@@ -2394,7 +2408,7 @@ setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
     }
 
     if(updatePrimary){
-      updateMeteoStatus("Δεν είναι API — χρησιμοποίησε το Web.", "warn");
+      updatePrimaryStatus("Κύριος: Δεν είναι API — χρησιμοποίησε το Web.", "warn");
       setStationMsg("Μη-API σύνδεσμος.");
     }
     return { ok:false, url, name: label, rr: null, tsText: '—', latest: null, latestLine: null, error: "Μη υποστηριζόμενος σύνδεσμος (όχι API)." };
@@ -2402,7 +2416,7 @@ setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
   }catch(e){
     console.error(e);
     if(updatePrimary){
-      updateMeteoStatus("Σφάλμα λήψης δεδομένων.", "warn");
+      updatePrimaryStatus("Κύριος: Σφάλμα λήψης δεδομένων.", "warn");
       setStationMsg("Σφάλμα: " + e.message);
     }
     return { ok:false, url, name: label, rr: null, tsText: '—', latest: null, latestLine: null, error: (e && e.message) ? e.message : String(e) };
@@ -2569,7 +2583,7 @@ async function fetchLiveMeteo(){
 
   }catch(e){
     console.error(e);
-    updateMeteoStatus("Προειδοποίηση: Σφάλμα Open‑Meteo", "warn");
+    updatePrimaryStatus("Κύριος: Προειδοποίηση: Σφάλμα Open‑Meteo", "warn");
     setStationMsg("Σφάλμα Open‑Meteo: " + e.message);
   }
 }
