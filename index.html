@@ -254,15 +254,27 @@
       padding:7px 10px;
       border-bottom:1px solid #dfe7ee;
     }
-    .type-cell{color:#9aa6b2;font-size:10px}
+    .type-cell{
+      color:var(--muted);
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.06em;
+      font-family:var(--mono);
+      white-space:nowrap;
+      opacity:.95;
+    }
 
     /* Keep each file row on a single line (Name | Type | Actions) */
     #filesBody{ overflow-x:auto; }  /* fallback on very narrow screens */
     #filesBody table{ table-layout:fixed; }
-    #filesBody th:nth-child(1), #filesBody td:nth-child(1){ width:56%; text-align:left; }
-    #filesBody th:nth-child(2), #filesBody td:nth-child(2){ width:14%; }
-    #filesBody th:nth-child(3), #filesBody td:nth-child(3){ width:30%; }
-    #filesBody td:nth-child(1){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #filesBody th:nth-child(1), #filesBody td:nth-child(1){ width:54%; text-align:left; }
+    #filesBody th:nth-child(2), #filesBody td:nth-child(2){ width:18%; }
+    #filesBody th:nth-child(3), #filesBody td:nth-child(3){ width:28%; }
+#filesBody td:nth-child(1){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #filesBody th:nth-child(3){ text-align:right; padding-right:10px; }
+    #filesBody td:nth-child(3){ padding-right:10px; }
+    #filesBody th, #filesBody td{ vertical-align:middle; }
+
     #filesBody .actions-row{
       display:flex;
       align-items:center;
@@ -839,13 +851,12 @@
             </thead>
             <tbody id="fileRows"></tbody>
           </table>
-        </div>
-      </div>
-
-      <div class="hint">
+        <div class="hint" id="filesHint">
         <b>Load</b> = φορτώνει δεδομένα στο κύριο εργαλείο (π.χ. λεκάνη).<br/>
         <b>Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
         <b>On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
+      </div>
+        </div>
       </div>
     </div>
   </aside>
