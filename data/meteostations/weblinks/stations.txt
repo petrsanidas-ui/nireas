@@ -7,7 +7,7 @@
 ΒΡΙΛΗΗΣΙΑ (Εκπαιδευτήρια Καντά) | https://penteli.meteo.gr/stations/vrilissia/ | 38.03832607240359 | 23.825859324751814 | 245
 ΒΡΙΛΗΣΙΑ (1ο Γυμνάσιο) | https://penteli.meteo.gr/stations/vrilissia2/ | 38.033644938959135 | 23.83721222883564 | 231
 ΜΑΡΟΥΣΙ | https://penteli.meteo.gr/stations/maroussi/ | 38.05079935527162 | 23.806019069263016 | 235
-Ελληνογαλλικής Σχολής Ουρσουλινών - ΜΑΡΟΥΣΙ | https://penteli.meteo.gr/stations/ursulines/ | 38.05657372236617 | 23.82126292489844 | 251
+Ελληνογαλλικής Σχολής Ουρσουλινών ΜΑΡΟΥΣΙ | https://penteli.meteo.gr/stations/ursulines/ | 38.05657372236617 | 23.82126292489844 | 251
 ΠΕΝΤΕΛΗ | https://penteli.meteo.gr/stations/penteli/ | 38.04886152930608 | 23.864113346590308 | 495
 ΠΕΝΤΕΛΗ ΚΟΡΥΦΗ | https://penteli.meteo.gr/stations/penteli-top/ | 38.063496 | 23.881890 | 1089
 2ο Γυμνάσιο Γέρακα - ΓΕΡΑΚΑΣ | https://penteli.meteo.gr/stations/gerakas/ | 38.02334565880964 | 23.853663922901664 | 236
@@ -21,6 +21,7 @@ neaionia | https://neaionia.meteoclub.gr/ | LAT | LON | ELEV
 chalandri-davis | https://chalandri-davis.meteoclub.gr/ | LAT | LON | ELEV
 
 ΟΝΟΜΑ | URL | LAT | LON | ELEV
+
 
 
 
