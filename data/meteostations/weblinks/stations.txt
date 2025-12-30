@@ -17,6 +17,7 @@
 ΒΑΜΒΑΚΟΥ ΦΑΡΣΑΛΩΝ | https://penteli.meteo.gr/stations/vamvakou/ | 39.300000 | 22.400000 | 148
 ΚΑΡΔΙΤΣΑ | https://penteli.meteo.gr/stations/karditsa/ | 39.400000 | 21.900000 | 91
 ΖΑΡΑΚΕΣ | https://penteli.meteo.gr/stations/zarakes/ | 38.300000 | 24.200000 | 163
+https://neaionia.meteoclub.gr/
 
 
 
