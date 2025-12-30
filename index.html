@@ -197,9 +197,15 @@
       background-size:5px 5px, 5px 5px;
       background-repeat:no-repeat;
     }
-    .btn-scenario{background:var(--btn-gray); color:#fff}
+    
+    /* Keep dropdown list neutral (not green) even when the select itself becomes active */
+    select.mini-btn option{
+      background: var(--btn-gray);
+      color:#fff;
+    }
+.btn-scenario{background:var(--btn-gray); color:#fff}
     .btn-scenario.scenario-active{background:var(--btn-green); color:#fff; border-color:rgba(0,0,0,.12)}
-    .btn-local-off{background:var(--danger)}
+.btn-local-off{background:var(--danger)}
     .btn-local-on{background:var(--btn-green)}
 
 
@@ -567,6 +573,15 @@
       align-items:stretch;
       gap:2px;
     }
+
+    .latest-head{
+      display:flex;
+      align-items:baseline;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .latest-head .latest-ts{ margin-left:0; }
+
     .latest-row > b{
       display:block;
       white-space:nowrap;
@@ -779,7 +794,7 @@
           <div class="monitor-head">
             <h3 style="margin:0">ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)</h3>
             <div class="monitor-controls no-print">
-              <select id="modelScenario" class="mini-btn hdr-btn btn-scenario" onchange="setModelScenario(this.value)" title="Επιλογή σεναρίου μοντέλου">
+              <select id="modelScenario" class="mini-btn hdr-btn btn-scenario" onchange="onScenarioChange(this)" title="Επιλογή σεναρίου μοντέλου">
                 <option value="rain">Βροχή</option>
                 <option value="wind">Άνεμος</option>
                 <option value="heatwave">Καύσωνας</option>
@@ -798,7 +813,10 @@
             <div style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></div></div>
 
           <div id="stationLatestRow" class="latest-row">
-            <b class="monitor-section-title">Τελευταίες τιμές:</b> <span class="latest-ts"><span class="monitor-section-title">Timestamp:</span> <span id="stationTimestampInline">—</span></span>
+            <div class="latest-head">
+              <span class="monitor-section-title">Τελευταίες τιμές:</span>
+              <span class="latest-ts"><span class="monitor-section-title">Timestamp:</span> <span id="stationTimestampInline">—</span></span>
+            </div>
             <div id="stationLatestChips" class="latest-chips">—</div>
             <span id="stationLatestValues" class="latest-text">—</span>
           </div>
@@ -1030,11 +1048,7 @@ let MODEL_SCENARIO = 'rain'; // rain | wind | heatwave | frost_snow | storm | du
 
 function setModelScenario(val){
   MODEL_SCENARIO = String(val || 'rain');
-  // visual: mark dropdown as active (green)
-  const _sel = document.getElementById('modelScenario');
-  if(_sel){ _sel.classList.add('scenario-active'); }
-
-  // reflect on UI (title only — calculations remain the same for now)
+// reflect on UI (title only — calculations remain the same for now)
   const mapName = {
     rain:'Βροχή',
     wind:'Άνεμος',
@@ -1050,6 +1064,47 @@ function setModelScenario(val){
   document.body.dataset.modelScenario = MODEL_SCENARIO;
   try{ scheduleSaveUiState(); }catch(_){}
 }
+// ====== Scenario dropdown: becomes green only after user selection ======
+const LS_MODEL_SCENARIO = 'NIREAS_MODEL_SCENARIO';
+const LS_MODEL_SCENARIO_TOUCHED = 'NIREAS_MODEL_SCENARIO_TOUCHED';
+
+function loadScenarioState(){
+  const sel = document.getElementById('modelScenario');
+  if(!sel) return;
+
+  let saved = null;
+  let touched = false;
+  try{
+    saved = localStorage.getItem(LS_MODEL_SCENARIO);
+    touched = localStorage.getItem(LS_MODEL_SCENARIO_TOUCHED) === '1';
+  }catch(e){}
+
+  if(saved && sel.querySelector(`option[value="${saved}"]`)){
+    sel.value = saved;
+  }
+
+  // Apply the scenario to UI (title etc.) but keep dropdown grey unless user has "touched" it before
+  setModelScenario(sel.value);
+
+  if(touched){
+    sel.classList.add('scenario-active');
+  }else{
+    sel.classList.remove('scenario-active');
+  }
+}
+
+function onScenarioChange(sel){
+  if(!sel) return;
+  setModelScenario(sel.value);
+
+  // Turn green only after the user actively makes a choice
+  sel.classList.add('scenario-active');
+  try{
+    localStorage.setItem(LS_MODEL_SCENARIO, sel.value);
+    localStorage.setItem(LS_MODEL_SCENARIO_TOUCHED, '1');
+  }catch(e){}
+}
+
 
 /* ===== Local Scenario toggle (for future local parameters) ===== */
 let LOCAL_SCENARIO_ON = false;
@@ -1651,7 +1706,7 @@ if(!loaded){
     bindInputs();
     runMasterCalculation();
     updateStationButtons();
-    setModelScenario(document.getElementById('modelScenario')?.value);
+    loadScenarioState();
     updateLocalScenarioBtn();
     startStationFreshnessTimer();
 
