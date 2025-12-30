@@ -158,6 +158,25 @@
     }
     .monitor-head h3{white-space:nowrap}
     .monitor-head .monitor-controls{margin-left:4px; flex:0 0 auto}
+
+    /* ===== Monitor section titles & freshness indicator ===== */
+    .monitor-section-title{
+      font-size:11px;
+      font-weight:800;
+      color:var(--ink);
+      letter-spacing:0.2px;
+    }
+    .latest-ts{
+      margin-left:10px;
+      font-size:11px;
+      color:var(--muted);
+      font-weight:700;
+      white-space:nowrap;
+    }
+    #stationName.age-fresh{ color:#1b8f3a; font-weight:800; }
+    #stationName.age-warn{  color:#b58900; font-weight:800; }
+    #stationName.age-stale{ color:#b00020; font-weight:800; }
+    #stationName.age-unknown{ color:var(--ink); font-weight:700; }
     .monitor-controls{
       display:flex;
       align-items:center;
@@ -776,11 +795,10 @@
           </div>
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;">
             <div><b>Σταθμός:</b> <span id="stationName">—</span></div>
-            <div><b>Timestamp:</b> <span id="stationTimestamp">—</span></div>
-          </div>
+            <div style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></div></div>
 
           <div id="stationLatestRow" class="latest-row">
-            <b>Τελευταίες τιμές:</b>
+            <b class="monitor-section-title">Τελευταίες τιμές:</b> <span class="latest-ts"><span class="monitor-section-title">Timestamp:</span> <span id="stationTimestampInline">—</span></span>
             <div id="stationLatestChips" class="latest-chips">—</div>
             <span id="stationLatestValues" class="latest-text">—</span>
           </div>
@@ -807,7 +825,10 @@
           <div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
           <details id="seriesDetails" open style="margin-top:10px;">
-            <summary style="cursor:pointer;font-size:11px;color:var(--ink);"><span id="seriesSummaryMain">Ιστορικό Κύριου Σταθμού (12 τελευταίες)</span> <span id="seriesSummaryName" style="color:#6b7a86;margin-left:6px"></span></summary>
+            <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
+              <span id="seriesSummaryMain">Ιστορικό Κύριου Σταθμού (12 τελευταίες)</span>
+              <span id="seriesSummaryName" style="color:#6b7a86;margin-left:6px"></span>
+            </summary>
             <div id="stationSeriesList" class="series-list">—</div>
           </details>
 
@@ -1376,14 +1397,19 @@ function addCustomStation(){
 
 
 let stationLiveTimer = null;
+let stationFreshnessTimer = null;
 let lastStationPayload = null;
 
 // Hardening: clean up timers + catch unhandled async errors
 window.addEventListener('pagehide', () => {
-  try{ if(stationLiveTimer){ clearInterval(stationLiveTimer); stationLiveTimer = null; } }catch(_){}
+  try{ if(stationLiveTimer){ clearInterval(stationLiveTimer); stationLiveTimer = null; }
+       if(stationFreshnessTimer){ clearInterval(stationFreshnessTimer); stationFreshnessTimer = null; }
+  }catch(_){}
 });
 window.addEventListener('beforeunload', () => {
-  try{ if(stationLiveTimer){ clearInterval(stationLiveTimer); stationLiveTimer = null; } }catch(_){}
+  try{ if(stationLiveTimer){ clearInterval(stationLiveTimer); stationLiveTimer = null; }
+       if(stationFreshnessTimer){ clearInterval(stationFreshnessTimer); stationFreshnessTimer = null; }
+  }catch(_){}
 });
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
@@ -1446,6 +1472,52 @@ function setStationMsg(msg){
   if(el) el.innerText = msg;
 }
 function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; if(id==='stationName') updateSeriesSummaryName(); }
+
+/* ===== Station freshness (timestamp age) ===== */
+function parseGreekDateTime(ts){
+  if(!ts) return null;
+  const s = String(ts).trim();
+  if(!s || s==='—') return null;
+  const parts = s.split(',');
+  const dpart = (parts[0]||'').trim();
+  const tpart = (parts[1]||'').trim();
+  const d = dpart.split('/').map(n=>parseInt(n,10));
+  const t = tpart.split(':').map(n=>parseInt(n,10));
+  if(d.length<3 || isNaN(d[0]) || isNaN(d[1]) || isNaN(d[2])) return null;
+  const dd=d[0], mm=d[1], yy=d[2];
+  const HH=t[0]||0, MM=t[1]||0, SS=t[2]||0;
+  const dt = new Date(yy, mm-1, dd, HH, MM, SS);
+  if(isNaN(dt.getTime())) return null;
+  return dt;
+}
+
+function updateStationFreshnessUI(){
+  const nameEl = document.getElementById('stationName');
+  if(!nameEl) return;
+
+  nameEl.classList.remove('age-fresh','age-warn','age-stale','age-unknown');
+
+  const tsStr = (document.getElementById('stationTimestamp')?.textContent || '').trim();
+  const dt = parseGreekDateTime(tsStr);
+  if(!dt){
+    nameEl.classList.add('age-unknown');
+    return;
+  }
+  let diffMin = (Date.now() - dt.getTime()) / 60000;
+  if(diffMin < 0) diffMin = 0;
+
+  if(diffMin < 5) nameEl.classList.add('age-fresh');
+  else if(diffMin < 10) nameEl.classList.add('age-warn');
+  else nameEl.classList.add('age-stale');
+}
+
+function startStationFreshnessTimer(){
+  try{
+    if(stationFreshnessTimer){ clearInterval(stationFreshnessTimer); }
+    updateStationFreshnessUI();
+    stationFreshnessTimer = setInterval(updateStationFreshnessUI, 30*1000);
+  }catch(_){}
+}
 function updateSeriesSummaryName(){
   const el = document.getElementById('seriesSummaryName');
   if(!el) return;
@@ -1581,6 +1653,7 @@ if(!loaded){
     updateStationButtons();
     setModelScenario(document.getElementById('modelScenario')?.value);
     updateLocalScenarioBtn();
+    startStationFreshnessTimer();
 
     // If dropdown has a pending selection (but no ACTIVE yet), show "αναμονή"
     const sel = document.getElementById('meteoStationSelect');
@@ -2074,7 +2147,9 @@ function clearPrimaryStation(){
 
   // Clear main station display on the right
   setTxt('stationName','—');
-  setTxt('stationTimestamp','—');
+  setTxt('stationTimestamp', '—');
+  setTxt('stationTimestampInline', '—');
+  updateStationFreshnessUI();
   setTxt('stationRainRate','—');
   setTxt('stationDP','—');
   setTxt('stationR60','—');
@@ -2131,8 +2206,10 @@ function clearWatchlist(){
   // also reset main station display if there is NO active primary
   if(!getPrimaryStationUrl()){
     setTxt('stationName','—');
-    setTxt('stationTimestamp','—');
-    setTxt('stationRainRate','—');
+    setTxt('stationTimestamp', '—');
+  setTxt('stationTimestampInline', '—');
+  updateStationFreshnessUI();
+  setTxt('stationRainRate','—');
     setTxt('stationDP','—');
     setTxt('stationR60','—');
     setLatestValuesDisplay(null,'—');
@@ -2192,7 +2269,7 @@ const rows = rest.map(r=>{
   const openAttr = MULTI_DETAILS_OPEN ? 'open' : '';
   box.innerHTML = `
     <details id="multiDetails" ${openAttr} style="margin-top:0;">
-      <summary style="cursor:pointer;font-size:11px;color:var(--muted);margin-bottom:6px;">
+      <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
         Επιπλέον σταθμοί
       </summary>
       <div class="multi-table">${rows}</div>
@@ -2534,7 +2611,9 @@ setStationMsg("Λήψη από Open‑Meteo endpoint.");
 
       if(updatePrimary){
         setTxt('stationTimestamp', ts);
-        setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
+  setTxt('stationTimestampInline', ts);
+  updateStationFreshnessUI();
+  setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
         setTxt('stationTotalSrc', totals.totalSrc === 'storm' ? '(storm)' : totals.totalSrc === 'today' ? '(today)' : '');
         // compact Latest line for JSON endpoints (usually only rain metrics are available)
         {
@@ -2574,7 +2653,9 @@ setStationMsg("Λήψη από endpoint.");
 
       if(updatePrimary){
         setTxt('stationTimestamp', ts);
-        setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
+  setTxt('stationTimestampInline', ts);
+  updateStationFreshnessUI();
+  setTxt('stationRainRate', (rr!=null && isFiniteNumber(rr)) ? rr.toFixed(1) : '—');
         setTxt('stationTotalSrc', totals && totals.totalSrc === 'storm' ? '(storm)' : totals && totals.totalSrc === 'today' ? '(today)' : '');
         setLatestValuesDisplay((parsed && parsed.latest) ? parsed.latest : null, (parsed && parsed.latestLine) ? parsed.latestLine : '—');
 setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
