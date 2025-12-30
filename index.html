@@ -429,7 +429,9 @@
   .status-pill.status-neutral{ background:#f8fafc; border-color:#dfe7ee; color:#475569; }
 
   
-  .meteo-msg{ font-size:10px; color:var(--muted); margin-top:6px; font-style:italic; }
+  .meteo-msg{ font-size:10px; color:var(--muted); margin-top:4px; font-style:italic; }
+
+  #primaryStatusWrap .status-pill, #meteoStatusWrap .status-pill{ margin-top:0; padding:6px 10px; }
 
   .multi-table{ width:100%; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; background:#fff; }
   .multi-row{
@@ -630,7 +632,7 @@
             <button class="mini-btn btn-map" onclick="openPrimaryWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
           </div>
 
-          <div id="primaryStatusWrap" class="status-stack" style="margin-top:6px;">
+          <div id="primaryStatusWrap" class="status-stack" style="margin-top:2px;">
             <div id="primaryStatus" class="status-pill status-neutral">Κύριος: Αναμονή…</div>
           </div>
 
@@ -644,7 +646,7 @@
             <button class="mini-btn btn-map" onclick="openMonitorWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
           </div>
 
-          <div id="meteoStatusWrap" class="status-stack" style="margin-top:6px;">
+          <div id="meteoStatusWrap" class="status-stack" style="margin-top:2px;">
             <div id="extrasStatus" class="status-pill status-neutral">Επιπλέον: Αναμονή…</div>
           </div>
           <div id="meteoMsg" class="meteo-msg">—</div>
@@ -655,17 +657,18 @@
               <input id="customStationName" placeholder="Όνομα (π.χ. ΧΑΛΑΝΔΡΙ)" style="flex:1; min-width:220px; padding:8px; border:1px solid #dfe7ee; border-radius:10px; font-size:12px;">
               <input id="customStationUrl" placeholder="URL (Open‑Meteo API ή penteli link)" style="flex:2; min-width:320px; padding:8px; border:1px solid #dfe7ee; border-radius:10px; font-size:12px;">
               <button class="mini-btn btn-on" onclick="addCustomStation()" title="Προσθήκη custom σταθμού">➕</button>
-              <button class="mini-btn btn-gray" onclick="clearCustomStations()" title="Διαγραφή custom λίστας (τοπικά)">🧹</button>
-            </div>
+</div>
             <div id="customStationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">Αποθηκεύεται τοπικά στον browser.</div>
           </details>
 
-          <div id="watchlistWrap" style="margin-top:8px;" class="no-print">
+          <div id="watchlistWrap" style="margin-top:6px;" class="no-print">
             <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
           </div>
 
 
-        </div>
+        
+
+          </div>
       </div>
 
       <div class="section">
@@ -1251,17 +1254,10 @@ function addCustomStation(){
 
   setCustomMsg('✅ Προστέθηκε (τοπικά).');
 
-  // immediately fetch to show data
-  fetchStationData();
+  // immediately fetch to show data (extras only)
+  fetchStationData('extras');
 }
 
-function clearCustomStations(){
-  const ok = confirm('Να διαγραφούν οι custom σταθμοί που έχεις αποθηκεύσει τοπικά στον browser;');
-  if(!ok) return;
-  saveCustomStations([]);
-  setCustomMsg('🧹 Καθαρίστηκε η custom λίστα.');
-  // Note: options will disappear on next reload of station list.
-}
 
 let stationLiveTimer = null;
 let lastStationPayload = null;
@@ -1466,7 +1462,7 @@ if(!loaded){
 
     // If no ACTIVE primary but watchlist exists, fetch extras immediately to show values
     if(!getPrimaryStationUrl() && watchlist.size){
-      fetchStationData();
+      fetchStationData('extras');
     }
 
   }catch(e){
@@ -1900,7 +1896,7 @@ function renderWatchlist(){
       watchlist.delete(url); 
       renderWatchlist(); 
       saveWatchlist();
-      fetchStationData();
+      fetchStationData('extras');
     });
     chip.addEventListener('click', ()=>{
       const sel = document.getElementById('monitorStationSelect');
@@ -1932,7 +1928,7 @@ function setPrimaryStation(){
 
   // Immediate fetch for active primary + any extras
   updatePrimaryStatus('Κύριος: Λήψη…', 'neutral');
-  fetchStationData();
+  fetchStationData('primary');
 }
 
 function clearPrimaryStation(){
@@ -1961,7 +1957,6 @@ function clearPrimaryStation(){
   // Update statuses
   if(watchlist.size){
     updatePrimaryStatus('Κύριος: (καθαρίστηκε)', 'neutral');
-    fetchStationData(); // refresh extras only
   } else {
     updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
   }
@@ -1979,7 +1974,7 @@ function addToWatchlistFromMonitor(){
   watchlist.set(url, name);
   renderWatchlist();
   saveWatchlist();
-  fetchStationData();
+  fetchStationData('extras');
 }
 // backward compat (older UI)
 function addToWatchlist(){
@@ -2029,8 +2024,8 @@ function getFetchTargets(){
 function renderStationMultiList(results){
   const box = document.getElementById('stationMultiList');
   if(!box) return;
-  const hasPrimary = !!getPrimaryStationUrl();
-  const rest = hasPrimary ? (results||[]).slice(1) : (results||[]);
+  const primaryUrl = getPrimaryStationUrl();
+  const rest = (results||[]).filter(r => !primaryUrl || r.url !== primaryUrl);
   if(!rest.length){ box.style.display='none'; box.innerHTML=''; return; }
 
 const rows = rest.map(r=>{
@@ -2109,6 +2104,26 @@ function bindStationSelect(){
   STATION_SELECT_BOUND = true;
 }
 
+
+let MONITOR_SELECT_BOUND = false;
+function bindMonitorSelect(){
+  if(MONITOR_SELECT_BOUND) return;
+  const sel = document.getElementById('monitorStationSelect');
+  if(!sel) return;
+
+  sel.addEventListener('change', ()=>{
+    const url = sel.value || '';
+    if(!url){
+      updateExtrasStatus('Επιπλέον: (δεν έχει επιλεγεί)', 'warn');
+      return;
+    }
+    // A new selection is pending until the user presses ➕
+    updateExtrasStatus('Επιπλέον: Αναμονή…', 'neutral');
+  });
+
+  MONITOR_SELECT_BOUND = true;
+}
+
 // New loader: populate dropdown from folder structure
 async function fetchStationsFromFolders(files){
   try{
@@ -2181,6 +2196,7 @@ async function fetchStationsFromFolders(files){
     fill(document.getElementById('monitorStationSelect'), 'Επιλογή σταθμού παρακολούθησης...');
 
     bindStationSelect();
+    bindMonitorSelect();
     updateMeteoStatus(`Σταθμοί: API ${apiItems.length}, Web ${webItems.length}`, 'neutral');
     return true;
   }catch(err){
@@ -2256,6 +2272,7 @@ async function fetchStations(path){
     fill(document.getElementById('monitorStationSelect'), 'Επιλογή σταθμού παρακολούθησης...');
 
     bindStationSelect();
+    bindMonitorSelect();
   }catch(e){
     console.error(e);
   }
@@ -2463,22 +2480,47 @@ setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
   }
 }
 
-async function fetchStationData(){
-  const targets = getFetchTargets();
-  const hasPrimary = targets.some(t => t.primary);
-  const extrasTargets = targets.filter(t => !t.primary);
+async function fetchStationData(mode='both'){
+  const allTargets = getFetchTargets();
+  const primaryTarget = allTargets.find(t => t.primary);
+  const extrasTargetsAll = allTargets.filter(t => !t.primary);
 
-  if(!targets.length){
-    updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
-    updateExtrasStatus('Επιπλέον: Πρόσθεσε επιπλέον σταθμούς.', 'neutral');
-    return;
+  // Select targets based on mode
+  let targets = allTargets;
+  if(mode === 'primary'){
+    targets = primaryTarget ? [primaryTarget] : [];
+  } else if(mode === 'extras'){
+    targets = extrasTargetsAll;
   }
 
-  if(hasPrimary) updatePrimaryStatus('Κύριος: Λήψη…', 'neutral');
-  else updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
+  // Handle empty based on mode (do NOT touch the other status pill)
+  if(mode === 'primary'){
+    if(!primaryTarget){
+      updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
+      return;
+    }
+    updatePrimaryStatus('Κύριος: Λήψη…', 'neutral');
+  } else if(mode === 'extras'){
+    if(!extrasTargetsAll.length){
+      updateExtrasStatus('Επιπλέον: Πρόσθεσε επιπλέον σταθμούς.', 'neutral');
+      const multi = document.getElementById('stationMultiList');
+      if(multi){ multi.style.display='none'; multi.innerHTML=''; }
+      return;
+    }
+    updateExtrasStatus('Επιπλέον: Λήψη…', 'neutral');
+  } else {
+    if(!allTargets.length){
+      updatePrimaryStatus('Κύριος: Επέλεξε κύριο σταθμό.', 'warn');
+      updateExtrasStatus('Επιπλέον: Πρόσθεσε επιπλέον σταθμούς.', 'neutral');
+      return;
+    }
 
-  if(extrasTargets.length) updateExtrasStatus('Επιπλέον: Λήψη…', 'neutral');
-  else updateExtrasStatus('Επιπλέον: (κανένας)', 'neutral');
+    if(primaryTarget) updatePrimaryStatus('Κύριος: Λήψη…', 'neutral');
+    else updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
+
+    if(extrasTargetsAll.length) updateExtrasStatus('Επιπλέον: Λήψη…', 'neutral');
+    else updateExtrasStatus('Επιπλέον: (κανένας)', 'neutral');
+  }
 
   const settled = await Promise.allSettled(
     targets.map(t => fetchStationDataSingle(t.url, t.name, t.primary))
@@ -2488,7 +2530,6 @@ async function fetchStationData(){
   let primaryErr = null;
   let primaryOk = false;
   const extrasErrors = [];
-  let extrasOkCount = 0;
 
   settled.forEach((s, i)=>{
     const t = targets[i];
@@ -2503,9 +2544,7 @@ async function fetchStationData(){
           primaryErr = `${t.name || t.url}: ${er}`;
         }
       } else {
-        if(s.value && s.value.ok === true){
-          extrasOkCount += 1;
-        } else {
+        if(!(s.value && s.value.ok === true)){
           const nm = (s.value?.name || t.name || t.url);
           const er = (s.value?.error || 'δεν φορτώθηκαν δεδομένα');
           extrasErrors.push(`${nm}: ${er}`);
@@ -2521,10 +2560,13 @@ async function fetchStationData(){
     }
   });
 
-  renderStationMultiList(results);
+  // Update multi list only when we fetched extras (or both)
+  if(mode !== 'primary'){
+    renderStationMultiList(results);
+  }
 
-  // Primary status
-  if(hasPrimary){
+  // Primary status (only when we fetched primary, or both)
+  if(mode !== 'extras' && primaryTarget){
     if(primaryOk && !primaryErr){
       updatePrimaryStatus('Κύριος: Λήψη OK', 'ok');
     } else {
@@ -2532,8 +2574,8 @@ async function fetchStationData(){
     }
   }
 
-  // Extras status
-  if(extrasTargets.length){
+  // Extras status (only when we fetched extras, or both)
+  if(mode !== 'primary' && extrasTargetsAll.length){
     if(extrasErrors.length){
       const short = extrasErrors.length <= 2
         ? extrasErrors.join(' • ')
@@ -2544,6 +2586,8 @@ async function fetchStationData(){
     }
   }
 }
+
+
 
 function getOpenMeteoCoords(){
   // default coords near Chalandri
