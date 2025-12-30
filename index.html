@@ -113,11 +113,27 @@
       display:flex;
       align-items:center;
       justify-content:space-between;
+      gap:10px;
+      flex-wrap:nowrap;
       padding:10px 12px;
       border-top:1px solid var(--line);
       background:#f7f9fb;
       font-weight:800;
       color:var(--ink);
+    }
+    .section-hdr .hdr-left{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .section-hdr .hdr-right{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:nowrap;
+      flex:0 0 auto;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
     }
     .section-body{
       padding:10px 12px;
@@ -757,8 +773,13 @@
     <div id="sideBody">
       <div class="section">
         <div class="section-hdr">
-          <div>📡 ΜΕΤΕΩΡΟΛΟΓΙΚΟΙ ΣΤΑΘΜΟΙ</div>
-          <button class="icon-btn" style="width:28px;height:24px" onclick="toggleCollapse('meteoBody', this)">−</button>
+          <div class="hdr-left">📡 ΜΕΤΕΩΡΟΛΟΓΙΚΟΙ ΣΤΑΘΜΟΙ</div>
+          <div class="hdr-right">
+            <button class="mini-btn btn-load" onclick="meteoStationsLoad()" title="Φόρτωση markers επιλεγμένων σταθμών (cache)">Load</button>
+            <button class="mini-btn btn-map" onclick="meteoStationsMap()" title="Προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off">Map</button>
+            <button id="btn-onoff-meteoStations" class="mini-btn btn-off" onclick="toggleMeteoStationsLayer()" title="On/Off markers επιλεγμένων σταθμών">Off</button>
+            <button class="icon-btn" style="width:28px;height:24px" onclick="toggleCollapse('meteoBody', this)">−</button>
+          </div>
         </div>
         <div class="section-body" id="meteoBody">
                     <div style="font-size:11px;color:#6b7a86;margin-bottom:4px;">Κύριος Σταθμός</div>
@@ -1521,6 +1542,7 @@ async function restoreUiStateLate(){
 
   // 3) Re-render file list so On/Off buttons match (in case state loaded after first render)
   try{ renderFileList(); }catch(_){}
+  try{ updateMeteoStationsRowButton(); }catch(_){}
 
   // 4) Ensure calculations reflect restored values
   try{ runMasterCalculation(); }catch(_){}
@@ -1894,6 +1916,7 @@ async function init(){
     DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/')     && f.path.endsWith('.geojson'));
 
     restoreUiStateEarly();
+    updateMeteoStationsRowButton();
     renderFileList();
 
     // Auto-populate stations dropdown from folder structure:
@@ -1956,24 +1979,6 @@ if(!loaded){
 function renderFileList(){
   const tbody = document.getElementById('fileRows');
   tbody.innerHTML = '';
-
-
-  // 📡 Selected Meteo Stations (acts like a layer with Load/Map/On-Off)
-  const trMeteo = document.createElement('tr');
-  const onMeteo = !!METEO_STATIONS_VISIBLE;
-  trMeteo.innerHTML = `
-    <td style="text-align:left;padding-left:10px;font-weight:700;">📡 ΜΕΤΕΩΡΟΛΟΓΙΚΟΙ ΣΤΑΘΜΟΙ</td>
-    <td class="type-cell">LEXICON</td>
-    <td><div class="actions-row">
-      <button class="mini-btn btn-load" onclick="meteoStationsLoad()">Load</button>
-      <button class="mini-btn btn-map" onclick="meteoStationsMap()">Map</button>
-      <button class="mini-btn ${onMeteo ? 'btn-on' : 'btn-off'}" id="btn-onoff-meteoStations"
-              onclick="toggleMeteoStationsLayer()">${onMeteo ? 'On' : 'Off'}</button>
-    </div></td>
-  `;
-  tbody.appendChild(trMeteo);
-
-
   const addCategory = (title, list, icon, color) => {
     const trHead = document.createElement('tr');
     trHead.className = 'cat-row';
