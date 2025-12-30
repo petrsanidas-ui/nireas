@@ -1278,6 +1278,27 @@ let ACTIVE_PRIMARY_NAME = '';
 const LS_WATCHLIST_KEY = 'nireas_watchlist_v1';
 const LS_CUSTOM_KEY   = 'nireas_customstations_v1';
 const OPEN_METEO_TOKEN = '__OPEN_METEO__';
+const ALL_API_TOKEN   = '__ALL_API__';
+const ALL_WEB_TOKEN   = '__ALL_WEB__';
+const ALL_ALL_TOKEN   = '__ALL_ALL__';
+
+function getSelectGroupPairs(selectEl, groupLabel){
+  const out = [];
+  if(!selectEl) return out;
+  const kids = Array.from(selectEl.children || []);
+  for(const node of kids){
+    if(node && node.tagName === 'OPTGROUP' && node.label === groupLabel){
+      for(const opt of Array.from(node.children || [])){
+        if(!opt || opt.tagName !== 'OPTION') continue;
+        const url = String(opt.value || '').trim();
+        if(!url) continue;
+        if(url === ALL_API_TOKEN || url === ALL_WEB_TOKEN || url === ALL_ALL_TOKEN) continue;
+        out.push({ url, name: String(opt.textContent || url).trim() });
+      }
+    }
+  }
+  return out;
+}
 
 /* ===== Model Scenario (for future model switching) ===== */
 let MODEL_SCENARIO = 'rain'; // rain | wind | heatwave | frost_snow | storm | dust_smoke | fog
@@ -2487,18 +2508,61 @@ function clearPrimaryStation(){
 function addToWatchlistFromMonitor(){
   const sel = document.getElementById('monitorStationSelect');
   if(!sel) return;
-  const url = sel.value;
-  if(!url){
+  const v = String(sel.value || '').trim();
+
+  if(!v){
     updateExtrasStatus('Επιπλέον: Επέλεξε σταθμό παρακολούθησης.', 'warn');
     return;
   }
+
+  // ALL επιλογές
+  if(v === ALL_API_TOKEN || v === ALL_WEB_TOKEN || v === ALL_ALL_TOKEN){
+    let label = '';
+    let pairs = [];
+
+    if(v === ALL_API_TOKEN){
+      label = 'API / JSON';
+      pairs = getSelectGroupPairs(sel, label);
+    }else if(v === ALL_WEB_TOKEN){
+      label = 'Web / Links';
+      pairs = getSelectGroupPairs(sel, label);
+    }else{
+      label = 'API + Web';
+      pairs = [
+        ...getSelectGroupPairs(sel, 'API / JSON'),
+        ...getSelectGroupPairs(sel, 'Web / Links')
+      ];
+    }
+
+    if(!pairs.length){
+      updateExtrasStatus(`Επιπλέον: Δεν βρέθηκαν σταθμοί για ${label}.`, 'warn');
+      return;
+    }
+
+    let added = 0;
+    for(const {url, name} of pairs){
+      if(!watchlist.has(url)) added++;
+      watchlist.set(url, name || url);
+    }
+
+    renderWatchlist();
+    saveWatchlist();
+    try{ refreshSelectedMeteoMarkers(); }catch(_){ }
+    fetchStationData('extras');
+    updateExtrasStatus(`Επιπλέον: Προστέθηκαν ${added} σταθμοί (${label}).`, 'ok');
+    return;
+  }
+
+  const url = v;
   const name = (sel.options[sel.selectedIndex]?.textContent || url).trim();
   watchlist.set(url, name);
+
   renderWatchlist();
   saveWatchlist();
   try{ refreshSelectedMeteoMarkers(); }catch(_){ }
   fetchStationData('extras');
 }
+
 // backward compat (older UI)
 function addToWatchlist(){
   return addToWatchlistFromMonitor();
@@ -2691,6 +2755,29 @@ async function fetchStationsFromFolders(files){
       const grpApi  = document.createElement('optgroup'); grpApi.label  = 'API / JSON';
       const grpLink = document.createElement('optgroup'); grpLink.label = 'Web / Links';
 
+
+      // Global/Quick ALL (μόνο για Παρακολούθηση)
+      let grpAll = null;
+      if(sel.id === 'monitorStationSelect'){
+        grpAll = document.createElement('optgroup');
+        grpAll.label = 'ALL';
+
+        const optAll = document.createElement('option');
+        optAll.value = ALL_ALL_TOKEN;
+        optAll.textContent = 'ALL (API + Web)';
+        grpAll.appendChild(optAll);
+
+        const optAllApi = document.createElement('option');
+        optAllApi.value = ALL_API_TOKEN;
+        optAllApi.textContent = 'ALL (API / JSON)';
+        grpApi.appendChild(optAllApi);
+
+        const optAllWeb = document.createElement('option');
+        optAllWeb.value = ALL_WEB_TOKEN;
+        optAllWeb.textContent = 'ALL (Web / Links)';
+        grpLink.appendChild(optAllWeb);
+      }
+
       // Built-in Open-Meteo (no external file required)
       {
         const opt = document.createElement('option');
@@ -2714,6 +2801,7 @@ async function fetchStationsFromFolders(files){
         grpLink.appendChild(opt);
       }
 
+      if(grpAll) sel.appendChild(grpAll);
       sel.appendChild(grpApi);
       sel.appendChild(grpLink);
     };
@@ -2796,6 +2884,29 @@ async function fetchStations(path){
       const grpApi  = document.createElement('optgroup'); grpApi.label  = 'API / JSON';
       const grpLink = document.createElement('optgroup'); grpLink.label = 'Web / Links';
 
+
+      // Global/Quick ALL (μόνο για Παρακολούθηση)
+      let grpAll = null;
+      if(sel.id === 'monitorStationSelect'){
+        grpAll = document.createElement('optgroup');
+        grpAll.label = 'ALL';
+
+        const optAll = document.createElement('option');
+        optAll.value = ALL_ALL_TOKEN;
+        optAll.textContent = 'ALL (API + Web)';
+        grpAll.appendChild(optAll);
+
+        const optAllApi = document.createElement('option');
+        optAllApi.value = ALL_API_TOKEN;
+        optAllApi.textContent = 'ALL (API / JSON)';
+        grpApi.appendChild(optAllApi);
+
+        const optAllWeb = document.createElement('option');
+        optAllWeb.value = ALL_WEB_TOKEN;
+        optAllWeb.textContent = 'ALL (Web / Links)';
+        grpLink.appendChild(optAllWeb);
+      }
+
       // Built-in Open-Meteo (no external file required)
       {
         const opt = document.createElement('option');
@@ -2818,6 +2929,7 @@ async function fetchStations(path){
         opt.dataset.from = it.from;
         grpLink.appendChild(opt);
       }
+      if(grpAll) sel.appendChild(grpAll);
       sel.appendChild(grpApi);
       sel.appendChild(grpLink);
     };
@@ -2860,14 +2972,50 @@ function openMonitorWeb(){
   }
 
   // Fallback: open currently selected option (if any)
-  const url = document.getElementById('monitorStationSelect')?.value || '';
+  const sel = document.getElementById('monitorStationSelect');
+  const url = String(sel?.value || '').trim();
+
   if(!url){
     updateExtrasStatus('Επιπλέον: Δεν έχουν επιλεγεί σταθμοί παρακολούθησης.', 'warn');
     return;
   }
+
+  // ALL επιλογές: άνοιγμα όλων των links της ομάδας (χωρίς να απαιτείται watchlist)
+  if(url === ALL_API_TOKEN || url === ALL_WEB_TOKEN || url === ALL_ALL_TOKEN){
+    let label = '';
+    let pairs = [];
+
+    if(url === ALL_API_TOKEN){
+      label = 'API / JSON';
+      pairs = getSelectGroupPairs(sel, label);
+    }else if(url === ALL_WEB_TOKEN){
+      label = 'Web / Links';
+      pairs = getSelectGroupPairs(sel, label);
+    }else{
+      label = 'API + Web';
+      pairs = [
+        ...getSelectGroupPairs(sel, 'API / JSON'),
+        ...getSelectGroupPairs(sel, 'Web / Links')
+      ];
+    }
+
+    let opened = 0;
+    for(const {url:u} of pairs){
+      if(!u) continue;
+      if(u === OPEN_METEO_TOKEN) { window.open('https://open-meteo.com/', '_blank'); opened++; continue; }
+      window.open(normalizeStationUrl(u), '_blank');
+      opened++;
+    }
+
+    if(opened) updateExtrasStatus(`Επιπλέον: Άνοιξαν ${opened} links (${label}).`, 'ok');
+    else updateExtrasStatus(`Επιπλέον: Δεν υπάρχουν έγκυρα URLs για ${label}.`, 'warn');
+    return;
+  }
+
   if(url === OPEN_METEO_TOKEN) { window.open('https://open-meteo.com/', '_blank'); return; }
   window.open(normalizeStationUrl(url), '_blank');
 }
+
 // backward compat
 function openStationWeb(){ return openPrimaryWeb(); }
 
@@ -3597,8 +3745,8 @@ function parseMeteoPageMinimal(text){
     latest.dew  = pickNumFromText(text, /(?:Dew\s*Point|Σημείο\s*Δρόσου)[\s\S]{0,80}?(-?\d+(?:\.\d+)?)\s*°\s*C/i);
 
     // Wind: "4.8 Km/h at W"
-    const windSpeed = pickNumFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,80}?(\d+(?:\.\d+)?)\s*(?:Km\/h|km\/h)/i);
-    const windDir   = pickMatchFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,80}?\d+(?:\.\d+)?\s*(?:Km\/h|km\/h)\s*(?:at\s*)?([A-Za-z]{1,3})/i);
+    const windSpeed = pickNumFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,120}?(\d+(?:\.\d+)?)\s*(?:Km\/h|km\/h)/i);
+    const windDir   = pickMatchFromText(text, /(?:Wind|Άνεμος)[\s\S]{0,140}?\d+(?:\.\d+)?\s*(?:Km\/h|km\/h)\s*(?:at\s*)?([A-Za-z]{1,3})/i);
     if(windSpeed!=null){
       latest.wind = `${Number(windSpeed).toFixed(1)} km/h${windDir ? (' ' + windDir.toUpperCase()) : ''}`;
     }
