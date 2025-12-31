@@ -786,12 +786,12 @@
           </div>
         </div>
         <div class="section-body" id="meteoBody">
-                    <div style="font-size:11px;color:#6b7a86;margin-bottom:4px;">Κύριος Σταθμός</div>
+                    <div style="font-size:11px;color:#6b7a86;margin-bottom:4px;">🏠 Τοπικός Σταθμός</div>
           <div style="display:flex; gap:8px; align-items:center;">
             <select id="meteoStationSelect" style="flex:1">
               <option value="">Επιλογή κύριου σταθμού...</option>
             </select>
-            <button class="mini-btn btn-on" onclick="setPrimaryStation()" title="Ορισμός ως Κύριος Σταθμός & άμεση λήψη">➕</button>
+            <button class="mini-btn btn-on" onclick="setPrimaryStation()" title="Ορισμός ως 🏠 Τοπικός Σταθμός & άμεση λήψη">➕</button>
             <button class="mini-btn btn-gray" onclick="clearPrimaryStation()" title="Διαγραφή κύριου σταθμού">🧹</button>
             <button class="mini-btn btn-map" onclick="openPrimaryWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
           </div>
@@ -876,9 +876,9 @@
             <h3 style="margin:0">ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)</h3>
             <div class="monitor-controls no-print">
               <select id="modelScenario" class="mini-btn hdr-btn btn-scenario" onchange="onScenarioChange(this)" title="Επιλογή σεναρίου μοντέλου">
-                <option value="wind">Άνεμος</option>
-                <option value="rain">Βροχή</option>
-                <option value="heatwave">Καύσωνας</option>
+                <option value="wind">💨 Άνεμος</option>
+                <option value="rain">🌧️ 🌧️ Βροχή</option>
+                <option value="heatwave">🌡️ Κύμα Καύσωνα</option>
                 <option value="frost_snow">Παγετός / Χιόνια</option>
               </select>
               <button id="btnLiveStation" class="mini-btn hdr-btn btn-live-off" onclick="toggleLive()" title="Αυτόματη ανανέωση ανά 90s">Live OFF</button>
@@ -887,7 +887,7 @@
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;">
-            <div><b>Σταθμός:</b> <span id="stationName">—</span></div>
+            <div><b>📡 🏠 Τοπικός Σταθμόςς:</b> <span id="stationName">—</span></div>
             <div style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></div></div>
 
           <div id="stationLatestRow" class="latest-row">
@@ -901,7 +901,7 @@
 
           <div class="station-mini">
             <div class="station-card">
-              <div class="t">Βροχή (mm/h)</div>
+              <div class="t">🌧️ Βροχή (mm/h)</div>
               <div class="v"><span id="stationRainRate">—</span></div>
             </div>
             <div class="station-card">
@@ -934,7 +934,7 @@
 
       <div class="grid-2">
         <div class="box" style="background:#fff3cd;border-color:#f1d27a">
-          <h3 id="scenarioTitle">ΣΕΝΑΡΙΟ: Βροχή</h3>
+          <h3 id="scenarioTitle">ΣΕΝΑΡΙΟ: 🌧️ Βροχή</h3>
           <div class="row">
             <label>Ένταση i (mm/h):</label>
             <input type="number" id="rainI" value="0" step="0.1">
@@ -953,7 +953,7 @@
       <div class="panels-row">
 
         <div class="box" style="background:#eaf7ff;border-color:#bfe4ff">
-          <h3>1. ΓΕΩΜΕΤΡΙΑ</h3>
+          <h3>1. ΓΕΩΜΕΤΡΙΑ ΛΕΚΑΝΗΣ</h3>
           <div class="row"><label>Εμβαδόν A (m²):</label><input type="number" id="area" value="0" step="1"></div>
           <div class="row"><label>Μήκος ροής L (m):</label><input type="number" id="length" value="0" step="1"></div>
           <div class="row"><label>Υψομ. διαφορά H (m):</label><input type="number" id="height" value="0" step="0.1"></div>
@@ -1086,7 +1086,7 @@ let DATA_GROUPS = { boundaries: [], streams: [], basins: [] }; // NOTE ORDER
 let SELECTED_GEO = null;
 let SELECTED_BASIN_KEY = null;
 let STATION_SELECT_BOUND = false; // bind dropdown change listener once
-let MULTI_DETAILS_OPEN = true; // remember collapse state for "Επιπλέον σταθμοί"
+let MULTI_DETAILS_OPEN = true; // remember collapse state for "📊 Παρακολούθηση Σταθμών"
 
 
 /* ===== Map state (multi-layer) ===== */
@@ -1307,15 +1307,15 @@ function setModelScenario(val){
   MODEL_SCENARIO = String(val || 'rain');
 // reflect on UI (title only — calculations remain the same for now)
   const mapName = {
-    rain:'Βροχή',
+    rain:'🌧️ Βροχή',
     wind:'Άνεμος',
-    heatwave:'Καύσωνας',
+    heatwave:'🌡️ Κύμα Καύσωνα',
     frost_snow:'Παγετός / Χιόνια',
     storm:'Καταιγίδα / Κεραυνοί',
     dust_smoke:'Σκόνη / Καπνός',
     fog:'Ομίχλη'
   };
-  const nice = mapName[MODEL_SCENARIO] || 'Βροχή';
+  const nice = mapName[MODEL_SCENARIO] || '🌧️ Βροχή';
   const t = document.getElementById('scenarioTitle');
   if(t) t.textContent = `ΣΕΝΑΡΙΟ: ${nice}`;
   document.body.dataset.modelScenario = MODEL_SCENARIO;
@@ -2653,7 +2653,7 @@ const rows = rest.map(r=>{
   box.innerHTML = `
     <details id="multiDetails" ${openAttr} style="margin-top:0;">
       <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
-        Επιπλέον σταθμοί
+        📊 Παρακολούθηση Σταθμών
       </summary>
       <div class="multi-table">${rows}</div>
     </details>
@@ -2806,8 +2806,8 @@ async function fetchStationsFromFolders(files){
       sel.appendChild(grpLink);
     };
 
-    fill(document.getElementById('meteoStationSelect'), 'Επιλογή κύριου σταθμού...');
-    fill(document.getElementById('monitorStationSelect'), 'Επιλογή σταθμού παρακολούθησης...');
+    fill(document.getElementById('meteoStationSelect'), 'Επιλογή 🏠 Τοπικού Σταθμού');
+    fill(document.getElementById('monitorStationSelect'), 'Επιλογή 📊 Παρακολούθησης Σταθμών');
 
     bindStationSelect();
     bindMonitorSelect();
@@ -3067,7 +3067,7 @@ setStationMsg("Λήψη από endpoint.");
       }
 
       if(!updatePrimary && rr!=null){
-        // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
+        // keep separate history for this station even when it is in "📊 Παρακολούθηση Σταθμών"
         storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false);
       }
 
@@ -3102,7 +3102,7 @@ setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
       }
 
       if(!updatePrimary && rr!=null){
-        // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
+        // keep separate history for this station even when it is in "📊 Παρακολούθηση Σταθμών"
         storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false);
       }
 
@@ -3871,10 +3871,10 @@ function applyAutoI(){
       flashTempGreen('btnAutoStation', 3000);
       runMasterCalculation();
     } else {
-      setStationMsg("Load: δεν υπάρχει τιμή βροχής.");
+      setStationMsg("Load: δεν υπάρχει τιμή 🌧️ Βροχής.");
     }
   } else {
-    setStationMsg("Load: δεν υπάρχει τιμή βροχής.");
+    setStationMsg("Load: δεν υπάρχει τιμή 🌧️ Βροχής.");
   }
 }
 
