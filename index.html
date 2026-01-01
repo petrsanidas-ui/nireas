@@ -185,6 +185,63 @@
       color:var(--ink);
       letter-spacing:0.2px;
     }
+
+    /* ===== DB History (Firestore) ===== */
+    .db-controls{
+      display:flex;
+      gap:6px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin:8px 0 6px;
+    }
+    .db-limit{
+      width:78px;
+      height:28px;
+      border:1px solid #d6dde4;
+      border-radius:10px;
+      padding:0 8px;
+      font-weight:900;
+      background:#fff;
+    }
+    .db-status{
+      font-size:11px;
+      color:#6b7a86;
+      font-weight:900;
+      margin-left:auto;
+    }
+    .db-table-wrap{
+      border:1px solid #dfe7ee;
+      border-radius:12px;
+      overflow:auto;
+      max-height:240px;
+      background:#fff;
+    }
+    .db-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+    }
+    .db-table th,.db-table td{
+      padding:6px 8px;
+      border-bottom:1px solid #eef2f6;
+      text-align:right;
+      white-space:nowrap;
+    }
+    .db-table th{
+      background:#f7f9fb;
+      color:#2c3e50;
+      font-weight:900;
+      position:sticky;
+      top:0;
+      z-index:1;
+    }
+    .db-table td:first-child,.db-table th:first-child{ text-align:left; }
+    .db-table td:nth-child(7),.db-table th:nth-child(7){
+      text-align:left;
+      white-space:normal;
+      min-width:140px;
+    }
+
     .latest-ts{
       margin-left:10px;
       font-size:11px;
@@ -1035,6 +1092,41 @@
               <span id="seriesSummaryName" style="color:#6b7a86;margin-left:6px"></span>
             </summary>
             <div id="stationSeriesList" class="series-list">—</div>
+          </details>
+
+
+          <details id="dbSeriesDetails" style="margin-top:10px;">
+            <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
+              <span>Ιστορικό από Βάση (DB)</span>
+              <span id="dbSeriesSummaryName" style="color:#6b7a86;margin-left:6px"></span>
+            </summary>
+
+            <div class="db-controls no-print">
+              <label style="font-size:11px;color:#6b7a86;font-weight:800">Τελευταίες:</label>
+              <input id="dbLimit" type="number" min="1" max="500" value="50" class="db-limit" />
+              <button id="btnDbLoad" class="mini-btn btn-on" title="Φόρτωση από Firestore">Load DB</button>
+              <button id="btnDbImport" class="mini-btn btn-gray" title="Γέμισε το Ιστορικό (buffer) από τη βάση">Import → Ιστορικό</button>
+              <button id="btnDbExport" class="mini-btn btn-gray" title="Εξαγωγή CSV">Export CSV</button>
+              <span id="dbStatus" class="db-status">—</span>
+            </div>
+
+            <div class="db-table-wrap">
+              <table class="db-table">
+                <thead>
+                  <tr>
+                    <th style="text-align:left">Timestamp</th>
+                    <th>Rain</th>
+                    <th>ΔP</th>
+                    <th>Total</th>
+                    <th>Temp</th>
+                    <th>Hum</th>
+                    <th style="text-align:left">Wind</th>
+                    <th>Baro</th>
+                  </tr>
+                </thead>
+                <tbody id="dbRows"><tr><td colspan="8" style="color:#6b7a86;font-style:italic">—</td></tr></tbody>
+              </table>
+            </div>
           </details>
 
         </div>
@@ -4417,6 +4509,24 @@ function runAIAnalysis(ev){
   // Station series (last 12)
   const seriesText = __aiNormalizeText(__aiGetTxt('stationSeriesList'));
 
+  // DB history (loaded from Firestore, if available)
+  let dbHistText = '';
+  try{
+    const rows = (window.__dbLastSamples || []).slice(0, 120);
+    if(rows.length){
+      dbHistText = rows.map(r => {
+        const ts = r.tsText || (typeof r.tsMs==='number' ? new Date(r.tsMs).toLocaleString() : (r.id||''));
+        const rain = (typeof r.rainRate==='number') ? r.rainRate.toFixed(1) : '—';
+        const dp = (typeof r.dp==='number') ? r.dp.toFixed(1) : '—';
+        const total = (typeof r.total==='number') ? r.total.toFixed(1) : '—';
+        const temp = (typeof r.temp==='number') ? r.temp.toFixed(1) : '—';
+        const hum = (typeof r.hum==='number') ? String(Math.round(r.hum)) : '—';
+        return `${ts} | rain=${rain} | dp=${dp} | total=${total} | T=${temp} | RH=${hum}`;
+      }).join('\n');
+    }
+  }catch(_){ dbHistText = ''; }
+
+
   // Collect form values (id-based, compact)
   const formLines = [];
   document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
@@ -4510,7 +4620,16 @@ R60: ${context.station.r60_mm}
 === STATION SERIES (12 latest, UI buffer) ===
 ${seriesText}
 
-${multiText ? `=== STATIONS (EXTRA LIST) ===\n${multiText}\n\n` : ''}${watchlistText ? `=== WATCHLIST (chips) ===\n${watchlistText}\n\n` : ''}=== KEY INPUTS ===
+${dbHistText ? `=== DB HISTORY (loaded) ===
+${dbHistText}
+
+` : ''}${multiText ? `=== STATIONS (EXTRA LIST) ===
+${multiText}
+
+` : ''}${watchlistText ? `=== WATCHLIST (chips) ===
+${watchlistText}
+
+` : ''}=== KEY INPUTS ===
 i (mm/h): ${context.inputs.i_mm_h}
 D (min): ${context.inputs.D_min}
 A (m²): ${context.inputs.A_m2}
@@ -4571,6 +4690,212 @@ ${pageText}
   });
 }
 /* ===================== /AI ANALYSIS ===================== */
+
+
+/* ===================== DB READER (Firestore) ===================== */
+window.__dbLastSamples = window.__dbLastSamples || [];
+
+function __dbSetStatus(msg, isErr){
+  const el = document.getElementById('dbStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = isErr ? '#b00020' : '#6b7a86';
+}
+
+function __dbFmt(x, digits=1){
+  if(x==null || x==='' || Number.isNaN(Number(x))) return '—';
+  const n = Number(x);
+  return Number.isFinite(n) ? n.toFixed(digits) : String(x);
+}
+
+function __dbSafeText(x){
+  const s = (x==null) ? '' : String(x);
+  return s.replace(/\s+/g,' ').trim();
+}
+
+function renderDbRows(rows){
+  const tb = document.getElementById('dbRows');
+  if(!tb) return;
+
+  if(!rows || !rows.length){
+    tb.innerHTML = '<tr><td colspan="8" style="color:#6b7a86;font-style:italic">—</td></tr>';
+    return;
+  }
+
+  // show newest first (as fetched)
+  tb.innerHTML = '';
+  for(const r of rows){
+    const tr = document.createElement('tr');
+
+    const ts = __dbSafeText(r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString() : r.id));
+    const rain = (typeof r.rainRate === 'number') ? __dbFmt(r.rainRate,1) : '—';
+    const dp = (typeof r.dp === 'number') ? __dbFmt(r.dp,1) : '—';
+    const total = (typeof r.total === 'number') ? __dbFmt(r.total,1) : '—';
+    const temp = (typeof r.temp === 'number') ? __dbFmt(r.temp,1) : '—';
+    const hum = (typeof r.hum === 'number') ? __dbFmt(r.hum,0) : '—';
+    const wind = __dbSafeText(r.wind || '—');
+    const baro = (typeof r.baro === 'number') ? __dbFmt(r.baro,1) : '—';
+
+    const cells = [ts, rain, dp, total, temp, hum, wind, baro];
+    cells.forEach((c, i)=>{
+      const td = document.createElement('td');
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+
+    tb.appendChild(tr);
+  }
+}
+
+async function loadDbHistory(){
+  const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+  const name = document.getElementById('stationName')?.innerText?.trim() || '';
+  const limEl = document.getElementById('dbLimit');
+  const lim = Math.max(1, Math.min(500, Number(limEl?.value || 50)));
+
+  __dbSetStatus('DB: φόρτωση…', false);
+
+  try{
+    if(!window.fbFetchRecentSamples){
+      __dbSetStatus('DB: δεν είναι έτοιμο (fbFetchRecentSamples missing)', true);
+      return;
+    }
+    const rows = await window.fbFetchRecentSamples(key, lim);
+    window.__dbLastSamples = rows || [];
+    renderDbRows(window.__dbLastSamples);
+
+    const sname = name ? `(${name})` : '';
+    const sumEl = document.getElementById('dbSeriesSummaryName');
+    if(sumEl) sumEl.textContent = sname;
+
+    __dbSetStatus(`DB: OK • ${window.__dbLastSamples.length} δείγματα`, false);
+  }catch(e){
+    const msg = (e && e.message) ? e.message : String(e);
+    // Common case: permission-denied
+    if(/permission|denied/i.test(msg)){
+      __dbSetStatus('DB: permission-denied • χρειάζονται Firestore rules για READ', true);
+    }else{
+      __dbSetStatus('DB: ERROR • ' + msg, true);
+    }
+    renderDbRows([]);
+  }
+}
+
+function importDbToHistory(){
+  const rows = window.__dbLastSamples || [];
+  if(!rows.length){
+    __dbSetStatus('DB: δεν υπάρχουν δεδομένα (Load DB πρώτα)', true);
+    return;
+  }
+
+  const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+
+  // Convert DB rows -> UI buffer entries (oldest -> newest)
+  const ordered = rows.slice().sort((a,b)=> (a.tsMs||0) - (b.tsMs||0));
+  const series = ordered.map(r => ({
+    key: r.sampleKey || r.id || ('t_' + (r.tsMs||Date.now())),
+    tsText: r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString() : (r.id||'')),
+    val: (typeof r.rainRate === 'number') ? r.rainRate : null,
+    label: r.label || null,
+    total: (typeof r.total === 'number') ? r.total : null,
+    totalSrc: r.totalSrc || null,
+    dp: (typeof r.dp === 'number') ? r.dp : null,
+    dateMs: (typeof r.tsMs === 'number') ? r.tsMs : Date.now()
+  }));
+
+  try{
+    if(typeof stationSeriesByKey !== 'undefined'){
+      stationSeriesByKey[key] = series;
+    }
+    if(typeof stationLastKeyByKey !== 'undefined'){
+      stationLastKeyByKey[key] = series.length ? series[series.length-1].key : null;
+    }
+    if(typeof currentStationKey !== 'undefined' && key === currentStationKey){
+      stationSeries = series;
+      stationLastKey = series.length ? series[series.length-1].key : null;
+      updateStationReadouts();
+    }
+    // Render list
+    if(typeof renderStationSeries === 'function'){
+      renderStationSeries();
+    }else{
+      // fallback: trigger updateStationReadouts already updates seriesList in current code
+      updateStationReadouts();
+    }
+    __dbSetStatus(`DB → Ιστορικό: OK • ${series.length} εγγραφές`, false);
+  }catch(e){
+    __dbSetStatus('Import ERROR • ' + ((e&&e.message)?e.message:String(e)), true);
+  }
+}
+
+function exportDbCsv(){
+  const rows = window.__dbLastSamples || [];
+  if(!rows.length){
+    __dbSetStatus('CSV: δεν υπάρχουν δεδομένα (Load DB πρώτα)', true);
+    return;
+  }
+
+  const cols = [
+    'tsMs','tsText','rainRate','dp','total','totalSrc',
+    'temp','hum','dewPoint','wind','baro',
+    'today','storm','month','year','chill','heat','sunrise','sunset',
+    'stationKey','label','sampleKey','id'
+  ];
+
+  const escapeCsv = (v)=>{
+    if(v==null) return '';
+    const s = String(v);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  };
+
+  const lines = [];
+  lines.push(cols.join(','));
+  rows
+    .slice()
+    .sort((a,b)=> (a.tsMs||0) - (b.tsMs||0))
+    .forEach(r=>{
+      lines.push(cols.map(c=>escapeCsv(r[c])).join(','));
+    });
+
+  const csv = lines.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  const name = (document.getElementById('stationName')?.innerText || 'station').replace(/[^\w\-]+/g,'_');
+  a.href = URL.createObjectURL(blob);
+  a.download = `nireas_db_${name}_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 1500);
+
+  __dbSetStatus('CSV: OK (download)', false);
+}
+
+function initDbReaderUI(){
+  const btnLoad = document.getElementById('btnDbLoad');
+  const btnImp  = document.getElementById('btnDbImport');
+  const btnExp  = document.getElementById('btnDbExport');
+
+  if(btnLoad && !btnLoad.dataset.bound){
+    btnLoad.dataset.bound = '1';
+    btnLoad.addEventListener('click', (e)=>{ e.preventDefault(); loadDbHistory(); });
+  }
+  if(btnImp && !btnImp.dataset.bound){
+    btnImp.dataset.bound = '1';
+    btnImp.addEventListener('click', (e)=>{ e.preventDefault(); importDbToHistory(); });
+  }
+  if(btnExp && !btnExp.dataset.bound){
+    btnExp.dataset.bound = '1';
+    btnExp.addEventListener('click', (e)=>{ e.preventDefault(); exportDbCsv(); });
+  }
+  __dbSetStatus('DB: —', false);
+}
+/* ===================== /DB READER ===================== */
+
+
 
 
 
@@ -5085,7 +5410,12 @@ function bindInputs(){
     doc,
     setDoc,
     writeBatch,
-    serverTimestamp
+    serverTimestamp,
+    collection,
+    getDocs,
+    query,
+    orderBy,
+    limit
   } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
   // Firebase config (project: nireas-logger)
@@ -5208,6 +5538,21 @@ function bindInputs(){
     await batch.commit();
   };
 
+
+  // Reads:
+  // stations/<stationId>/samples (orderBy tsMs desc)
+  window.fbFetchRecentSamples = async (stationKey, limitN = 50) => {
+    await authReady;
+
+    const stationId = stationIdFromKey(stationKey);
+    const lim = Math.max(1, Math.min(500, Number(limitN) || 50));
+    const colRef = collection(db, "stations", stationId, "samples");
+    const q = query(colRef, orderBy("tsMs", "desc"), limit(lim));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+
   console.log("Firebase logger ready ✅");
 </script>
 <!-- ===================== /FIREBASE LOGGER ===================== -->
@@ -5216,6 +5561,7 @@ function bindInputs(){
 <script>
 /* ===================== BOOT ===================== */
 initAIAnalysisUI();
+initDbReaderUI();
 init();
 </script>
 
