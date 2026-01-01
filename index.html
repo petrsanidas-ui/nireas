@@ -3832,28 +3832,29 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
     dateMs
   });
 
-  // 🔥 Firebase log (optional, if enabled)
-  try{
-    if(window.fbLogSample){
-      window.fbLogSample(key, {
-        sampleKey,
-        tsText: tsText || sampleKey,
-        tsMs: dateMs,
-        rainRate: (val!=null && isFiniteNumber(val)) ? val : null,
-        label: label || null,
-        total: totals ? totals.total : null,
-        totalSrc: totals ? totals.totalSrc : null,
-        dp
-      });
-    }
-  }catch(e){ /* ignore */ }
-
   if(series.length > STATION_SERIES_MAX){
     series.splice(0, series.length - STATION_SERIES_MAX);
   }
 
   stationSeriesByKey[key] = series;
   stationLastKeyByKey[key] = sampleKey;
+
+  // ---- FIREBASE LOG (non-blocking) ----
+  try{
+    const payload = {
+      tsMs: dateMs,
+      tsText: (tsText || sampleKey),
+      sampleKey: sampleKey,
+      rainRate: (typeof val === 'number') ? val : null,
+      label: label || null,
+      dp: (typeof dp === 'number') ? dp : null,
+      total: (totals && typeof totals.total === 'number') ? totals.total : null,
+      totalSrc: totals ? (totals.totalSrc || null) : null
+    };
+    const out = window.fbLogSample?.(key, payload);
+    if(out && typeof out.catch === 'function') out.catch(()=>{});
+  }catch(e){}
+  // ---- /FIREBASE LOG ----
 
   // keep globals in sync if this is the active context
   if(key === currentStationKey){
@@ -4498,21 +4499,22 @@ function bindInputs(){
 }
 
 
+
 </script>
 
-<script>
-/* ===================== BOOT ===================== */
-init();
-</script>
-
-
-<!-- FIREBASE LOGGER START -->
+<!-- ===================== FIREBASE LOGGER (FINAL) ===================== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+  import {
+    getFirestore,
+    doc,
+    setDoc,
+    writeBatch,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-  // Firebase config (from your console)
+  // Firebase config (project: nireas-logger)
   const firebaseConfig = {
     apiKey: "AIzaSyCLMx9W0Zi91-m4NmMl6UocYHhYBWUh9VI",
     authDomain: "nireas-logger.firebaseapp.com",
@@ -4522,61 +4524,92 @@ init();
     appId: "1:632371274630:web:f4f50d5c3f7c9bc060c207"
   };
 
-  // Simple FNV-1a hash (sync) to make a safe stationId
-  function fnv1a(str) {
+  // Small stable id generator (FNV-1a 32-bit)
+  function fnv1a32(str){
     let h = 0x811c9dc5;
-    for (let i = 0; i < str.length; i++) {
+    for(let i=0;i<str.length;i++){
       h ^= str.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
+      h = (h * 0x01000193) >>> 0;
     }
-    return (h >>> 0).toString(16);
+    return h >>> 0;
+  }
+  function stationIdFromKey(stationKey){
+    return "s_" + fnv1a32(String(stationKey)).toString(16);
   }
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // Expose global logger for non-module scripts
+  // Start auth immediately; fbLogSample will wait for it
+  const authReady = signInAnonymously(auth)
+    .then(()=>console.log("Firebase auth OK ✅"))
+    .catch((e)=>console.error("Firebase auth FAILED ❌", e));
+
+  // Writes:
+  // stations/<stationId>  (merge)  + lastSample
+  // stations/<stationId>/samples/t_<tsMs> (merge)  (DEDUP by timestamp)
   window.fbLogSample = async (stationKey, sample) => {
-    if(!stationKey) stationKey = "unknown";
-    const stationId = "s_" + fnv1a(String(stationKey));
+    await authReady;
+
+    const stationId = stationIdFromKey(stationKey);
+    const tsMs = (typeof sample?.tsMs === "number") ? sample.tsMs : Date.now();
+    const sampleDocId = "t_" + String(tsMs);
+
+    const stationRef = doc(db, "stations", stationId);
+    const sampleRef  = doc(db, "stations", stationId, "samples", sampleDocId);
 
     const payload = {
       stationId,
       stationKey: String(stationKey),
+      label: sample?.label ?? null,
+
       sampleKey: sample?.sampleKey ?? null,
+      tsMs,
       tsText: sample?.tsText ?? null,
-      tsMs: (typeof sample?.tsMs === "number") ? sample.tsMs : null,
+
       rainRate: (typeof sample?.rainRate === "number") ? sample.rainRate : null,
       dp: (typeof sample?.dp === "number") ? sample.dp : null,
       total: (typeof sample?.total === "number") ? sample.total : null,
       totalSrc: sample?.totalSrc ?? null,
-      label: sample?.label ?? null,
+
       fetchedAt: serverTimestamp(),
       clientTsMs: Date.now()
     };
 
-        // Ensure station document exists (so it appears in queries)
-    await setDoc(
-      doc(db, "stations", stationId),
-      { stationId, stationKey: String(stationKey), lastSeen: serverTimestamp() },
-      { merge: true }
-    );
+    const batch = writeBatch(db);
 
-// Write to: stations/<stationId>/samples/<autoId>
-    await addDoc(collection(db, "stations", stationId, "samples"), payload);
+    // ensure station doc exists + keep lastSample for dashboard
+    batch.set(stationRef, {
+      stationId,
+      stationKey: String(stationKey),
+      label: sample?.label ?? null,
+      lastSeen: serverTimestamp(),
+      lastSample: {
+        tsMs,
+        tsText: payload.tsText,
+        rainRate: payload.rainRate,
+        dp: payload.dp,
+        total: payload.total,
+        totalSrc: payload.totalSrc
+      }
+    }, { merge: true });
+
+    // dedup by docId (t_<tsMs>)
+    batch.set(sampleRef, payload, { merge: true });
+
+    await batch.commit();
   };
-
-  try {
-    await signInAnonymously(auth);
-    console.log("Firebase auth OK ✅");
-  } catch (err) {
-    console.error("Firebase auth FAILED ❌", err);
-  }
 
   console.log("Firebase logger ready ✅");
 </script>
-<!-- FIREBASE LOGGER END -->
+<!-- ===================== /FIREBASE LOGGER ===================== -->
+
+
+<script>
+/* ===================== BOOT ===================== */
+init();
+</script>
 
 </body>
 </html>
