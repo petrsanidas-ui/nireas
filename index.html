@@ -176,7 +176,7 @@
       -webkit-overflow-scrolling:touch;
     }
     .monitor-head h3{white-space:nowrap}
-    .monitor-head .monitor-controls{margin-left:4px; flex:0 0 auto}
+    .monitor-head .monitor-controls{margin-left:auto; flex:0 0 auto}
 
     /* ===== Monitor section titles & freshness indicator ===== */
     .monitor-section-title{
@@ -231,7 +231,76 @@
     .btn-scenario.scenario-active{background:var(--btn-green); color:#fff; border-color:rgba(0,0,0,.12)}
 .btn-local-off{background:var(--danger)}
     .btn-local-on{background:var(--btn-green)}
+.btn-ai{background:#4b57c2}
+#btnAIAnalysis{display:flex;align-items:center;gap:6px}
+#btnAIAnalysis .ai-badge{font-size:10px;font-weight:900;padding:2px 6px;border-radius:999px;background:rgba(255,255,255,.18)}
+#btnAIAnalysis[data-ai-target="chatgpt"] .ai-badge{background:#111827}
+#btnAIAnalysis[data-ai-target="gemini"] .ai-badge{background:#6d28d9}
 
+/* AI provider toggle (ChatGPT / Gemini) */
+
+/* AI provider dropdown (AI: ChatGPT/Gemini) */
+.ai-dd{
+  display:flex;
+  align-items:center;
+  flex:0 0 auto;
+}
+.ai-select{
+  flex:0 0 auto;
+  min-width:150px;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.35);
+  border-radius:10px;
+  background-color:#111827; /* default ChatGPT */
+}
+.ai-select.ai-gemini{
+  background-color:#6d28d9;
+}
+/* keep arrow visible on colored background */
+.ai-select{
+  background-clip: padding-box;
+}
+.ai-target{
+  display:flex;
+  align-items:center;
+  flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.35);
+  border-radius:10px;
+  overflow:hidden;
+  background:rgba(0,0,0,.10);
+}
+.ai-label{
+  flex:0 0 auto;
+  padding:6px 8px;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.4px;
+  color:#fff;
+  background:rgba(0,0,0,.22);
+  line-height:1;
+  user-select:none;
+}
+.ai-pill{
+  flex:0 0 auto;              /* prevent shrinking/truncation */
+  border:none;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  line-height:1;
+  white-space:nowrap;
+}
+.ai-pill + .ai-pill{border-left:1px solid rgba(255,255,255,.22)}
+.ai-label + .ai-pill{border-left:1px solid rgba(255,255,255,.22)}
+.ai-pill[data-ai="chatgpt"].active{background:#111827}
+.ai-pill[data-ai="gemini"].active{background:#6d28d9}
+.ai-pill.active{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35); opacity:1; border-bottom:2px solid rgba(255,255,255,.75)}
+.ai-pill:not(.active){opacity:.82}
+.ai-pill:hover{filter:brightness(.97)}
+.ai-pill:active{transform:translateY(1px)}
+.ai-pill:focus-visible{outline:2px solid rgba(255,255,255,.65); outline-offset:-2px}
 /* subtle horizontal scrollbar for monitor header (only if needed) */
 .monitor-head::-webkit-scrollbar{height:6px}
 .monitor-head::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:10px}
@@ -916,6 +985,15 @@
               </select>
               <button id="btnLiveStation" class="mini-btn hdr-btn btn-live-off" onclick="toggleLive()" title="Αυτόματη ανανέωση ανά 90s">Live OFF</button>
               <button id="btnLocalScenario" class="mini-btn hdr-btn btn-local-off" onclick="toggleLocalScenario()" title="Ενεργοποίηση τοπικού σεναρίου">Local Scenario OFF</button>
+              <div id="aiTargetGroup" class="ai-dd" title="AI προορισμός (αποθηκεύεται)">
+  <select id="aiProviderSelect" class="mini-btn hdr-btn ai-select ai-chatgpt"
+          title="AI: ChatGPT/Gemini (αποθηκεύεται)"
+          onchange="setAITarget(this.value)">
+    <option value="chatgpt">AI: ChatGPT</option>
+    <option value="gemini">AI: Gemini</option>
+  </select>
+</div>
+<button id="btnAIAnalysis" class="mini-btn hdr-btn btn-ai" onclick="runAIAnalysis(event)" title="Συλλογή δεδομένων &amp; ανάλυση με AI (Shift+Click = EXTRA FULL)">AI analysis <span id="aiBadge" class="ai-badge">GPT</span></button>
               <input type="checkbox" id="localScenarioToggle" style="display:none" />
             </div>
           </div>
@@ -1981,6 +2059,7 @@ async function init(){
     DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/')     && f.path.endsWith('.geojson'));
 
     restoreUiStateEarly();
+    initAIAnalysisUI();
     updateMeteoStationsRowButton();
     renderFileList();
 
@@ -4102,6 +4181,406 @@ function clearStationSeries(){
   flashTempGreen('btnClearStation', 3000);
 }
 
+
+
+/* ===================== AI ANALYSIS (copy + open AI tab) ===================== */
+const AI_TARGETS = {
+  chatgpt: { name: "ChatGPT", url: "https://chatgpt.com/" },
+  gemini:  { name: "Gemini",  url: "https://gemini.google.com/" }
+};
+let AI_TARGET = "chatgpt";
+
+function initAIAnalysisUI(){
+  // Restore last choice
+  try{
+    const saved = localStorage.getItem("NIREAS_AI_TARGET");
+    if(saved && AI_TARGETS[saved]) AI_TARGET = saved;
+  }catch(_){}
+  // Sync dropdown (or pills in older builds)
+  const wrap = document.getElementById("aiTargetGroup");
+  const sel = document.getElementById("aiProviderSelect");
+  if(sel){
+    try{ sel.value = AI_TARGET; }catch(_){}
+    sel.classList.remove("ai-chatgpt","ai-gemini");
+    sel.classList.add(AI_TARGET === "gemini" ? "ai-gemini" : "ai-chatgpt");
+    const t = getAITargetInfo();
+    sel.title = `AI: ${t.name} (αποθηκεύεται)`;
+  }else if(wrap){
+    // Backward compatibility if someone still has pills
+    wrap.querySelectorAll(".ai-pill").forEach(btn=>{
+      btn.classList.toggle("active", btn.dataset.ai === AI_TARGET);
+    });
+  }
+
+  // Update AI analysis button badge + tooltip
+  const btn = document.getElementById("btnAIAnalysis");
+  if(btn){
+    btn.dataset.aiTarget = AI_TARGET;
+    const badge = document.getElementById("aiBadge");
+    if(badge) badge.textContent = (AI_TARGET === "chatgpt") ? "GPT" : "GEM";
+    const t = getAITargetInfo();
+    btn.title = `Συλλογή δεδομένων & ανάλυση με AI (Shift+Click = EXTRA FULL) | Target: ${t.name}`;
+  }
+}
+
+function setAITarget(key){
+  if(!AI_TARGETS[key]) return;
+  AI_TARGET = key;
+  try{ localStorage.setItem("NIREAS_AI_TARGET", key); }catch(_){}
+  initAIAnalysisUI();
+}
+
+function getAITargetInfo(){
+  return AI_TARGETS[AI_TARGET] || AI_TARGETS.chatgpt;
+}
+
+function __aiGetTxt(id){
+  const el = document.getElementById(id);
+  return (el && (el.innerText!=null)) ? el.innerText.trim() : '—';
+}
+function __aiGetVal(id){
+  const el = document.getElementById(id);
+  if(!el) return '';
+  const tag = (el.tagName||'').toLowerCase();
+  if(tag === 'select'){
+    const opt = el.options && el.selectedIndex>=0 ? el.options[el.selectedIndex] : null;
+    return (opt && opt.text!=null) ? String(opt.text).trim() : (el.value ?? '');
+  }
+  const type = (el.type||'').toLowerCase();
+  if(type === 'checkbox' || type === 'radio') return el.checked ? 'checked' : 'not-checked';
+  return (el.value ?? '');
+}
+function __aiSafeSlice(s, limit){
+  const t = String(s ?? '');
+  if(t.length <= limit) return t;
+  return t.slice(0, limit) + `\n… [TRUNCATED ${t.length-limit} chars]`;
+}
+function __aiNormalizeText(s){
+  return String(s ?? '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function __aiCopySync(text){
+  // Works in many contexts, keeps user-gesture so popups are allowed.
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly","");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return !!ok;
+  }catch(_){
+    return false;
+  }
+}
+
+function __aiCopyAsync(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).then(()=>true).catch(()=>false);
+  }
+  return Promise.resolve(false);
+}
+
+function __aiShowCopyFallback(text, targetName, targetUrl){
+  // Minimal in-page modal for manual copy if Clipboard API fails (e.g. file:// restrictions)
+  const prev = document.getElementById('aiCopyOverlay');
+  if(prev) prev.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'aiCopyOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:980px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#2c3e50;color:#fff;font-weight:900">
+        <div>AI analysis – Αντιγραφή prompt</div>
+        <button id="aiCopyClose" style="border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:8px;width:34px;height:28px;cursor:pointer;font-weight:900">✕</button>
+      </div>
+      <div style="padding:10px 12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:12px;color:#4b4b4b">
+            Πατήστε <b>Ctrl+C</b> (ή ⌘C) για αντιγραφή. Μετά ανοίξτε <b>${targetName}</b> και κάντε Paste.
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="aiOpenTarget" class="mini-btn btn-on" style="height:28px;line-height:1" title="Άνοιγμα σε νέο tab">${targetName}</button>
+            <button id="aiSelectAll" class="mini-btn btn-gray" style="height:28px;line-height:1" title="Επιλογή όλων">Select</button>
+          </div>
+        </div>
+        <textarea id="aiCopyText" style="width:100%;height:360px;border:1px solid #d6dde4;border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre;resize:vertical;"></textarea>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const ta = overlay.querySelector('#aiCopyText');
+  ta.value = text;
+  ta.focus();
+  ta.select();
+  overlay.querySelector('#aiCopyClose').onclick = ()=> overlay.remove();
+  overlay.onclick = (e)=>{ if(e.target === overlay) overlay.remove(); };
+  overlay.querySelector('#aiSelectAll').onclick = ()=>{ ta.focus(); ta.select(); };
+  overlay.querySelector('#aiOpenTarget').onclick = ()=>{ window.open(targetUrl, "_blank"); };
+}
+
+function __aiShowOpenFallback(targetName, targetUrl){
+  // Popup blocked after copy: offer a clear clickable open
+  const prev = document.getElementById('aiOpenOverlay');
+  if(prev) prev.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'aiOpenOverlay';
+  overlay.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:99999;background:#fff;border:1px solid #dfe7ee;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:10px 12px;max-width:420px;';
+  overlay.innerHTML = `
+    <div style="font-weight:900;margin-bottom:6px">Popup blocker</div>
+    <div style="font-size:12px;color:#4b4b4b;margin-bottom:8px">Αντιγράφηκε το prompt, αλλά δεν άνοιξε νέο tab. Πάτησε εδώ:</div>
+    <button class="mini-btn btn-on" id="aiOpenNow" style="height:28px;line-height:1">${targetName}</button>
+    <button class="mini-btn btn-gray" id="aiOpenClose" style="height:28px;line-height:1;margin-left:6px">Κλείσιμο</button>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#aiOpenNow').onclick = ()=> window.open(targetUrl, "_blank");
+  overlay.querySelector('#aiOpenClose').onclick = ()=> overlay.remove();
+}
+
+function __aiToast(msg){
+  try{
+    const id = 'aiToast';
+    let el = document.getElementById(id);
+    if(!el){
+      el = document.createElement('div');
+      el.id = id;
+      el.style.cssText = 'position:fixed;left:12px;top:12px;z-index:99999;background:rgba(0,0,0,.78);color:#fff;padding:8px 10px;border-radius:12px;font-size:12px;font-weight:900;max-width:520px;box-shadow:0 10px 30px rgba(0,0,0,.25);';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.display = 'block';
+    if(el._t) clearTimeout(el._t);
+    el._t = setTimeout(()=>{ el.style.display = 'none'; }, 5200);
+  }catch(_){}
+}
+
+
+function runAIAnalysis(ev){
+  // Shift+Click => EXTRA FULL (more raw page text). Default already includes the full structured data.
+  const extraFull = !!(ev && ev.shiftKey);
+  const now = new Date();
+  const target = getAITargetInfo();
+
+  const scenarioSel = document.getElementById('modelScenario');
+  const scenarioValue = scenarioSel ? scenarioSel.value : '';
+  const scenarioLabel = scenarioSel ? (scenarioSel.options[scenarioSel.selectedIndex]?.text || scenarioValue) : scenarioValue;
+
+  // Station flags (try globals, fallback to button text)
+  const liveOn = (typeof stationLiveOn !== 'undefined') ? !!stationLiveOn : /ON/i.test(document.getElementById('btnLiveStation')?.innerText || '');
+  const localOn = (typeof LOCAL_SCENARIO_ON !== 'undefined') ? !!LOCAL_SCENARIO_ON : (document.getElementById('localScenarioToggle')?.checked || false);
+
+  // Layer flags (if exist)
+  let meteoLayer = '—';
+  try{
+    if(typeof METEO_STATIONS_VISIBLE !== 'undefined') meteoLayer = METEO_STATIONS_VISIBLE ? 'ON' : 'OFF';
+  }catch(_){}
+
+  // Visible GeoJSON layers (if exist)
+  let visibleLayers = [];
+  try{
+    if(typeof VISIBLE !== 'undefined' && VISIBLE && typeof VISIBLE[Symbol.iterator] === 'function'){
+      visibleLayers = Array.from(VISIBLE);
+    }
+  }catch(_){}
+
+  // Derived results (hydrology box)
+  const calc = {
+    slope_S: __aiGetTxt('res-slope'),
+    tc_kirpich_min: __aiGetTxt('res-tc'),
+    qpeak_m3s: __aiGetTxt('res-qsel'),
+    qcap_network_m3s: __aiGetTxt('res-drains'),
+    qcap_stream_m3s: __aiGetTxt('res-stream'),
+    adequacy_check: __aiGetTxt('res-adequacy')
+  };
+
+  // Table preview (first rows)
+  let tablePreview = '';
+  try{
+    const rows = Array.from(document.querySelectorAll('#tableBody tr')).slice(0, 24);
+    if(rows.length){
+      tablePreview = rows.map(tr => Array.from(tr.children).map(td => td.innerText.trim()).join(' | ')).join('\n');
+    }
+  }catch(_){}
+
+  // Optional extra station list / watchlist
+  const multiList = document.getElementById('stationMultiList');
+  let multiText = '';
+  if(multiList && multiList.innerText && multiList.innerText.trim()){
+    multiText = __aiNormalizeText(multiList.innerText);
+  }
+  const watchlistEl = document.getElementById('watchlist');
+  let watchlistText = '';
+  if(watchlistEl && watchlistEl.innerText && watchlistEl.innerText.trim()){
+    watchlistText = __aiNormalizeText(watchlistEl.innerText);
+  }
+
+  // Station series (last 12)
+  const seriesText = __aiNormalizeText(__aiGetTxt('stationSeriesList'));
+
+  // Collect form values (id-based, compact)
+  const formLines = [];
+  document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+    const id = el.id;
+    if(!id) return;
+    const tag = el.tagName.toLowerCase();
+    const type = (el.type||'').toLowerCase();
+    if(tag === 'input' && (type === 'button' || type === 'submit' || type === 'reset')) return;
+
+    let v = '';
+    if(type === 'checkbox' || type === 'radio') v = el.checked ? 'checked' : 'not-checked';
+    else if(tag === 'select'){
+      const opt = el.options && el.selectedIndex>=0 ? el.options[el.selectedIndex] : null;
+      v = (opt && opt.text!=null) ? String(opt.text).trim() : (el.value ?? '');
+    }else{
+      v = (el.value ?? '');
+    }
+    if(v === '' || v == null) return;
+    formLines.push(`${id}: ${String(v).trim()}`);
+  });
+
+  // Build compact, structured context (best results, less noise)
+  const context = {
+    url: location.href,
+    title: document.title,
+    captured_at_local: now.toLocaleString(),
+    captured_at_iso: now.toISOString(),
+    ai_target: target.name,
+    mode: extraFull ? 'EXTRA_FULL' : 'FULL',
+    active: {
+      basin: __aiGetTxt('selectedBasinName'),
+      scenario: scenarioLabel,
+      live: liveOn ? 'ON' : 'OFF',
+      local_scenario: localOn ? 'ON' : 'OFF',
+      meteo_selected_markers_layer: meteoLayer,
+      visible_geojson_layers: visibleLayers
+    },
+    station: {
+      name: __aiGetTxt('stationName'),
+      timestamp: __aiGetTxt('stationTimestampInline'),
+      lat: __aiGetTxt('stationLat'),
+      lon: __aiGetTxt('stationLon'),
+      elev_m: __aiGetTxt('stationElev'),
+      latest_chips: __aiGetTxt('stationLatestChips'),
+      rain_rate: __aiGetTxt('stationRainRate'),
+      dp_mm: __aiGetTxt('stationDP'),
+      r60_mm: __aiGetTxt('stationR60')
+    },
+    inputs: {
+      i_mm_h: __aiGetVal('rainI'),
+      D_min: __aiGetVal('rainD'),
+      A_m2: __aiGetVal('area'),
+      L_m: __aiGetVal('length'),
+      H_m: __aiGetVal('height'),
+      C: __aiGetVal('coef')
+    },
+    calculations: calc
+  };
+
+  // Page text snapshot (bounded). EXTRA_FULL adds more.
+  const rawText = __aiNormalizeText(document.body.innerText || '');
+  const pageText = __aiSafeSlice(rawText, extraFull ? 120000 : 55000);
+
+  const contextJson = __aiSafeSlice(JSON.stringify(context, null, 2), 20000);
+
+  const payloadText =
+`URL: ${context.url}
+TITLE: ${context.title}
+CAPTURED_AT: ${context.captured_at_local}
+
+=== CONTEXT (JSON) ===
+${contextJson}
+
+=== ACTIVE / SELECTED ===
+Meteo Selected Markers Layer: ${context.active.meteo_selected_markers_layer}
+Scenario: ${context.active.scenario}
+Live: ${context.active.live}
+Local Scenario: ${context.active.local_scenario}
+Basin: ${context.active.basin}
+Visible GeoJSON Layers: ${context.active.visible_geojson_layers && context.active.visible_geojson_layers.length ? context.active.visible_geojson_layers.join(', ') : '—'}
+
+=== STATION (PRIMARY) ===
+Name: ${context.station.name}
+Timestamp: ${context.station.timestamp}
+LAT: ${context.station.lat}   LON: ${context.station.lon}   ELEV: ${context.station.elev_m}
+Latest: ${context.station.latest_chips}
+Rain Rate: ${context.station.rain_rate}
+ΔP: ${context.station.dp_mm}
+R60: ${context.station.r60_mm}
+
+=== STATION SERIES (12 latest, UI buffer) ===
+${seriesText}
+
+${multiText ? `=== STATIONS (EXTRA LIST) ===\n${multiText}\n\n` : ''}${watchlistText ? `=== WATCHLIST (chips) ===\n${watchlistText}\n\n` : ''}=== KEY INPUTS ===
+i (mm/h): ${context.inputs.i_mm_h}
+D (min): ${context.inputs.D_min}
+A (m²): ${context.inputs.A_m2}
+L (m): ${context.inputs.L_m}
+H (m): ${context.inputs.H_m}
+C: ${context.inputs.C}
+
+=== CALC RESULTS (current) ===
+S: ${calc.slope_S}
+Tc: ${calc.tc_kirpich_min}
+Qpeak: ${calc.qpeak_m3s}
+Qcap Δικτύου: ${calc.qcap_network_m3s}
+Qcap Ρέματος: ${calc.qcap_stream_m3s}
+Έλεγχος: ${calc.adequacy_check}
+
+${tablePreview ? `=== TABLE PREVIEW (top rows) ===\n(i | D | P | Qpeak | V | Risk | Network | Stream)\n${tablePreview}\n\n` : ''}=== FORM VALUES (ID: value) ===
+${formLines.slice(0, 220).join('\n')}${formLines.length>220 ? `\n… [TRUNCATED ${formLines.length-220} lines]` : ''}
+
+=== PAGE TEXT SNAPSHOT (${context.mode}) ===
+${pageText}
+`;
+
+  const prompt =
+`Δράσε ως μετεωρολόγος/αναλυτής επιχειρησιακού κινδύνου. Ανάλυσε ΑΠΟΚΛΕΙΣΤΙΚΑ τα δεδομένα που ακολουθούν από το σύστημα NIREAS και δώσε μου:
+
+1) Σύντομη πρόγνωση καιρού (επόμενες 6/24/48 ώρες) για Χαλάνδρι,
+2) Εκτίμηση κινδύνου (βροχή/καταιγίδες/πλημμύρα/παγετός/χιόνι – ανάλογα με το ενεργό σενάριο) με 3 σενάρια: ΧΑΜΗΛΟ – ΜΕΤΡΙΟ – ΥΨΗΛΟ,
+3) 3 άμεσες επιχειρησιακές συστάσεις για τον Δήμο.
+
+Κανόνες:
+- Αν κάτι λείπει/είναι άγνωστο, γράψε «—» και ΜΗΝ το εικάσεις.
+- Να είσαι σύντομος, με bullets, και να πατάς στα δεδομένα (timestamps/τιμές) που σου δίνονται.
+
+` + payloadText;
+
+  const n = prompt.length;
+  const modeTxt = extraFull ? "EXTRA_FULL" : "FULL";
+
+  // 1) Copy FIRST (sync if possible)
+  const copiedSync = __aiCopySync(prompt);
+  if(copiedSync){
+    const win = window.open(target.url, "_blank");
+    if(!win) __aiShowOpenFallback(target.name, target.url);
+    __aiToast(`✅ Prompt αντιγράφηκε (${n.toLocaleString()} chars) [${modeTxt}] → Άνοιγμα: ${target.name}. Κάνε Paste.`);
+    return;
+  }
+
+  // 2) Async clipboard fallback
+  __aiCopyAsync(prompt).then(ok=>{
+    if(ok){
+      const win = window.open(target.url, "_blank");
+      if(!win) __aiShowOpenFallback(target.name, target.url);
+      __aiToast(`✅ Prompt αντιγράφηκε (${n.toLocaleString()} chars) [${modeTxt}] → Άνοιγμα: ${target.name}. Κάνε Paste.`);
+    }else{
+      __aiShowCopyFallback(prompt, target.name, target.url);
+      __aiToast(`⚠️ Αυτόματη αντιγραφή απέτυχε. Άνοιξε το παράθυρο και κάνε χειροκίνητα αντιγραφή. Target: ${target.name} [${modeTxt}]`);
+    }
+  });
+}
+/* ===================== /AI ANALYSIS ===================== */
+
+
+
 /* ===================== CALCULATIONS (ver14-style) ===================== */
 function calculateTc(L, H){
   return (!L || !H) ? 10 : 0.0195 * Math.pow(L, 0.77) * Math.pow((H/L), -0.385);
@@ -4743,6 +5222,7 @@ function bindInputs(){
 
 <script>
 /* ===================== BOOT ===================== */
+initAIAnalysisUI();
 init();
 </script>
 
