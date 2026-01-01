@@ -232,10 +232,7 @@
 .btn-local-off{background:var(--danger)}
     .btn-local-on{background:var(--btn-green)}
 .btn-ai{background:#4b57c2}
-#btnAIAnalysis{display:flex;align-items:center;gap:6px}
-#btnAIAnalysis .ai-badge{font-size:10px;font-weight:900;padding:2px 6px;border-radius:999px;background:rgba(255,255,255,.18)}
-#btnAIAnalysis[data-ai-target="chatgpt"] .ai-badge{background:#111827}
-#btnAIAnalysis[data-ai-target="gemini"] .ai-badge{background:#6d28d9}
+#btnAIAnalysis{display:inline-flex;align-items:center}
 
 /* AI provider toggle (ChatGPT / Gemini) */
 
@@ -993,7 +990,7 @@
     <option value="gemini">AI: Gemini</option>
   </select>
 </div>
-<button id="btnAIAnalysis" class="mini-btn hdr-btn btn-ai" onclick="runAIAnalysis(event)" title="Συλλογή δεδομένων &amp; ανάλυση με AI (Shift+Click = EXTRA FULL)">AI analysis <span id="aiBadge" class="ai-badge">GPT</span></button>
+<button id="btnAIAnalysis" class="mini-btn hdr-btn btn-ai" onclick="runAIAnalysis(event)" title="Συλλογή δεδομένων &amp; ανάλυση με AI (Shift+Click = EXTRA FULL)">AI analysis</button>
               <input type="checkbox" id="localScenarioToggle" style="display:none" />
             </div>
           </div>
@@ -4211,13 +4208,9 @@ function initAIAnalysisUI(){
       btn.classList.toggle("active", btn.dataset.ai === AI_TARGET);
     });
   }
-
-  // Update AI analysis button badge + tooltip
+  // Update AI analysis button tooltip (target shown via dropdown)
   const btn = document.getElementById("btnAIAnalysis");
   if(btn){
-    btn.dataset.aiTarget = AI_TARGET;
-    const badge = document.getElementById("aiBadge");
-    if(badge) badge.textContent = (AI_TARGET === "chatgpt") ? "GPT" : "GEM";
     const t = getAITargetInfo();
     btn.title = `Συλλογή δεδομένων & ανάλυση με AI (Shift+Click = EXTRA FULL) | Target: ${t.name}`;
   }
