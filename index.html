@@ -264,15 +264,13 @@
       opacity:.95;
     }
 
-    /* Keep each file row on a single line (Name | Type | Actions) */
+    /* Keep each file row on a single line (Name | Actions) */
+    #filesBody{ overflow-x:auto; }  /* fallback on very narrow screens */
     #filesBody{ overflow-x:auto; }  /* fallback on very narrow screens */
     #filesBody table{ table-layout:fixed; }
-    #filesBody th:nth-child(1), #filesBody td:nth-child(1){ width:54%; text-align:left; }
-    #filesBody th:nth-child(2), #filesBody td:nth-child(2){ width:18%; }
-    #filesBody th:nth-child(3), #filesBody td:nth-child(3){ width:28%; }
-#filesBody td:nth-child(1){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #filesBody th:nth-child(3){ text-align:right; padding-right:10px; }
-    #filesBody td:nth-child(3){ padding-right:10px; }
+    #filesBody th:nth-child(1), #filesBody td:nth-child(1){ width:68%; text-align:left; }
+    #filesBody th:nth-child(2), #filesBody td:nth-child(2){ width:32%; text-align:right; padding-right:10px; }
+    #filesBody td:nth-child(1){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #filesBody th, #filesBody td{ vertical-align:middle; }
 
     #filesBody .actions-row{
@@ -845,8 +843,7 @@
             <thead>
               <tr>
                 <th style="text-align:left;padding-left:10px;">Όνομα</th>
-                <th>Τύπος</th>
-                <th>Ενέργεια</th>
+                <th style="text-align:right;padding-right:10px;">Ενέργεια</th>
               </tr>
             </thead>
             <tbody id="fileRows"></tbody>
@@ -2004,7 +2001,7 @@ function renderFileList(){
   const addCategory = (title, list, icon, color) => {
     const trHead = document.createElement('tr');
     trHead.className = 'cat-row';
-    trHead.innerHTML = `<td colspan="3" style="color:${color}">${icon} ${title}</td>`;
+    trHead.innerHTML = `<td colspan="2" style="color:${color}">${icon} ${title}</td>`;
     tbody.appendChild(trHead);
 
     list.forEach(f=>{
@@ -2014,7 +2011,6 @@ function renderFileList(){
       const on = VISIBLE.has(f.path);
       tr.innerHTML = `
         <td style="text-align:left;padding-left:10px;">${name}</td>
-        <td class="type-cell">GEOJSON</td>
         <td><div class="actions-row">
           <button class="mini-btn btn-load" onclick="loadToTool('${f.path}','${name}')">Load</button>
           <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')">Map</button>
