@@ -196,6 +196,11 @@
     #stationName.age-warn{  color:#b58900; font-weight:800; }
     #stationName.age-stale{ color:#b00020; font-weight:800; }
     #stationName.age-unknown{ color:var(--ink); font-weight:700; }
+    .multi-name.age-fresh{ color:#1b8f3a; font-weight:800; }
+    .multi-name.age-warn{  color:#b58900; font-weight:800; }
+    .multi-name.age-stale{ color:#b00020; font-weight:800; }
+    .multi-name.age-unknown{ color:var(--ink); font-weight:700; }
+
     .monitor-controls{
       display:flex;
       align-items:center;
@@ -555,16 +560,12 @@
 
   .multi-table{ width:100%; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; background:#fff; }
   .multi-row{
-    display:grid;
-    grid-template-columns: 1fr auto 1fr; /* name | timestamp | spacer -> timestamp stays centered */
-    gap:8px;
     padding:6px 8px;
     border-top:1px solid #e2e8f0;
-    align-items:center;
     font-size:11px;
   }
   .multi-row:first-child{ border-top:0; }
-  .multi-name{ min-width:0; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .multi-name{ min-width:0; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;  display:inline-block; max-width:260px; vertical-align:baseline;}
   .multi-ts{ justify-self:center; text-align:center; color:#64748b; font-variant-numeric: tabular-nums; white-space:nowrap; }
   .multi-spacer{ }
 
@@ -610,6 +611,40 @@
     }
 
         /* Latest values chips (station monitor) */
+
+    /* Station meta line (one-line header) */
+    .station-meta-line{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:baseline;
+      font-size:12px;
+      margin:4px 0 6px 0;
+    }
+    .station-meta-line .meta-item{ white-space:nowrap; }
+    .station-meta-line #stationName{ font-weight:800; }
+
+    /* Extra stations: meta line */
+    .multi-meta-line{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;           /* visual alignment with main station line */
+      font-size:11px;
+      line-height:1.2;
+    }
+    .multi-meta-line .meta-item{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+    }
+    .multi-meta-line .meta-label{
+      font-weight:800;
+    }
+    .multi-meta-line .multi-name{ font-weight:700; }
+    .multi-meta-line .multi-ts{ color:#64748b; font-variant-numeric: tabular-nums; }
+    .multi-meta-line .meta-val{ font-variant-numeric: tabular-nums; }
     .latest-row{
       margin-top:6px;
       font-size:11px;
@@ -884,15 +919,16 @@
               <input type="checkbox" id="localScenarioToggle" style="display:none" />
             </div>
           </div>
-          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;">
-            <div><b>Σταθμός:</b> <span id="stationName">—</span></div>
-            <div style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></div></div>
+          <div class="station-meta-line" id="stationMetaLine">
+            <span class="meta-item"><b>Σταθμός:</b> <span id="stationName">—</span></span>
+            <span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
+            <span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
+            <span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
+            <span class="meta-item"><b>ELEV:</b> <span id="stationElev">—</span></span>
+            <span style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></span>
+          </div>
 
           <div id="stationLatestRow" class="latest-row">
-            <div class="latest-head">
-              <span class="monitor-section-title">Τελευταίες τιμές:</span>
-              <span class="latest-ts"><span class="monitor-section-title">Timestamp:</span> <span id="stationTimestampInline">—</span></span>
-            </div>
             <div id="stationLatestChips" class="latest-chips">—</div>
             <span id="stationLatestValues" class="latest-text">—</span>
           </div>
@@ -1809,6 +1845,16 @@ function parseGreekDateTime(ts){
   return dt;
 }
 
+function ageClassFromTimestamp(tsStr){
+  const dt = parseGreekDateTime(tsStr);
+  if(!dt) return 'age-unknown';
+  let diffMin = (Date.now() - dt.getTime()) / 60000;
+  if(diffMin < 0) diffMin = 0;
+  if(diffMin < 5) return 'age-fresh';
+  if(diffMin < 10) return 'age-warn';
+  return 'age-stale';
+}
+
 function updateStationFreshnessUI(){
   const nameEl = document.getElementById('stationName');
   if(!nameEl) return;
@@ -2411,6 +2457,34 @@ function nowTs24(){
 }
 
 
+
+function fmtCoord(v, digits=4){
+  if(v == null) return '—';
+  const n = Number(v);
+  if(!isFinite(n)) return '—';
+  return n.toFixed(digits);
+}
+function fmtElev(v){
+  if(v == null) return '—';
+  const n = Number(v);
+  if(!isFinite(n)) return '—';
+  return `${Math.round(n)} m`;
+}
+function getStationMeta(url){
+  if(!url) return null;
+  if(url === OPEN_METEO_TOKEN){
+    return { lat:38.0237, lon:23.8007, elev:null };
+  }
+  return STATIONS_META.get(url) || null;
+}
+function updatePrimaryMetaCoords(){
+  const url = getPrimaryStationUrl();
+  const meta = getStationMeta(url);
+  setTxt('stationLat', (meta && meta.lat != null) ? fmtCoord(meta.lat, 4) : '—');
+  setTxt('stationLon', (meta && meta.lon != null) ? fmtCoord(meta.lon, 4) : '—');
+  setTxt('stationElev', (meta && meta.elev != null) ? fmtElev(meta.elev) : '—');
+}
+
 function renderWatchlist(){
   const box = document.getElementById('watchlist');
   if(!box) return;
@@ -2456,6 +2530,9 @@ function setPrimaryStation(){
   ACTIVE_PRIMARY_URL = url;
   ACTIVE_PRIMARY_NAME = name;
 
+
+  // Update meta line coords
+  updatePrimaryMetaCoords();
   // update selected stations markers (if layer is On or map preview is used)
   try{ refreshSelectedMeteoMarkers(); }catch(_){ }
 
@@ -2485,6 +2562,7 @@ function clearPrimaryStation(){
   setTxt('stationTimestamp', '—');
   setTxt('stationTimestampInline', '—');
   updateStationFreshnessUI();
+  updatePrimaryMetaCoords();
   setTxt('stationRainRate','—');
   setTxt('stationDP','—');
   setTxt('stationR60','—');
@@ -2617,6 +2695,12 @@ function renderStationMultiList(results){
 
 const rows = rest.map(r=>{
     const ts = ts24(r.tsText || '—');
+    const meta = getStationMeta(r.url);
+    const latTxt = (meta && meta.lat != null) ? fmtCoord(meta.lat, 4) : '—';
+    const lonTxt = (meta && meta.lon != null) ? fmtCoord(meta.lon, 4) : '—';
+    const elevTxt = (meta && meta.elev != null) ? fmtElev(meta.elev) : '—';
+
+    const ageCls = ageClassFromTimestamp(ts);
 
     const items = makeLatestChipItems(r.latest);
     const chips = items.length
@@ -2632,9 +2716,13 @@ const rows = rest.map(r=>{
 
     return `<div class="multi-block">
       <div class="multi-row">
-        <div class="multi-name">${escapeHtml(r.name || '—')}</div>
-        <div class="multi-ts">${escapeHtml(ts)}</div>
-        <div class="multi-spacer"></div>
+        <div class="multi-meta-line">
+          <span class="meta-item"><span class="meta-label">Σταθμός:</span><span class="multi-name ${ageCls}">${escapeHtml(r.name || '—')}</span></span>
+          <span class="meta-item"><span class="meta-label">Timestamp:</span><span class="multi-ts">${escapeHtml(ts)}</span></span>
+          <span class="meta-item"><span class="meta-label">LAT:</span><span class="meta-val">${escapeHtml(latTxt)}</span></span>
+          <span class="meta-item"><span class="meta-label">LON:</span><span class="meta-val">${escapeHtml(lonTxt)}</span></span>
+          <span class="meta-item"><span class="meta-label">ELEV:</span><span class="meta-val">${escapeHtml(elevTxt)}</span></span>
+        </div>
       </div>
       <div class="multi-latest">
         <div class="latest-chips multi" style="--chip-count:${chipCount}">
