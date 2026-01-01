@@ -4510,7 +4510,7 @@ init();
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
   // Firebase config (from your console)
   const firebaseConfig = {
@@ -4556,7 +4556,14 @@ init();
       clientTsMs: Date.now()
     };
 
-    // Write to: stations/<stationId>/samples/<autoId>
+        // Ensure station document exists (so it appears in queries)
+    await setDoc(
+      doc(db, "stations", stationId),
+      { stationId, stationKey: String(stationKey), lastSeen: serverTimestamp() },
+      { merge: true }
+    );
+
+// Write to: stations/<stationId>/samples/<autoId>
     await addDoc(collection(db, "stations", stationId, "samples"), payload);
   };
 
