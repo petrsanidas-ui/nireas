@@ -1077,168 +1077,6 @@
 
 <script>
 /* ===================== CONFIG ===================== */
-/* ===================== GOOGLE SHEETS "DATA TANK" ===================== */
-/*
-  1) Φτιάχνεις Google Sheet (π.χ. NIREAS_DB)
-  2) Extensions → Apps Script → επικολλάς το Code.gs (που σου δίνω)
-  3) Deploy → New deployment → Web app
-     - Execute as: Me
-     - Who has access: Anyone
-  4) Βάζεις εδώ το Web App URL (/exec) και το TOKEN (ίδιο με Code.gs)
-*/
-const SHEET_SYNC_ENABLED = true;
-const SHEET_WEBAPP_URL   = "https://script.google.com/macros/s/AKfycbyMIu4Ejifp-fVM3HRojTFKtOSQlt2CVe5E2dniBppkR3CkTQndrrksPBvwBk9xunEdgA/exec";
-const SHEET_TOKEN        = "123456789";
-
-const SHEET_QUEUE_MAX    = 200;     // προστασία μνήμης
-const SHEET_BATCH_SIZE   = 20;      // records per flush
-const SHEET_FLUSH_MS     = 1200;    // debounce flush
-let sheetQueue = [];
-let sheetFlushTimer = null;
-
-function sheetNowMsFromTs(tsRaw){
-  // Προσπαθεί να κάνει parse σε ms από διάφορες μορφές timestamp
-  if(!tsRaw) return Date.now();
-  const s = String(tsRaw).trim();
-  let ms = Date.parse(s);
-  if(isFinite(ms)) return ms;
-
-  // common "YYYY-MM-DD HH:MM[:SS]"
-  ms = Date.parse(s.replace(' ', 'T'));
-  if(isFinite(ms)) return ms;
-
-  // common "DD/MM/YYYY HH:MM"
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
-  if(m){
-    const dd = Number(m[1]), mo = Number(m[2]) - 1, yy = Number(m[3]);
-    const hh = Number(m[4] || 0), mi = Number(m[5] || 0), ss = Number(m[6] || 0);
-    const d = new Date(Date.UTC(yy, mo, dd, hh, mi, ss));
-    return d.getTime();
-  }
-
-  return Date.now();
-}
-
-function sheetIsFiniteNumber(x){
-  const n = (typeof x === 'number') ? x : parseFloat(String(x).replace(',','.'));
-  return Number.isFinite(n) ? n : null;
-}
-
-// flatten numeric fields from payload (χωρίς arrays) ώστε να μην χρειάζεται αλλαγή script όταν προσθέτεις αισθητήρες
-function sheetFlattenNumeric(obj, prefix='', depth=0, out=null){
-  out = out || {};
-  if(!obj || typeof obj !== 'object') return out;
-  if(depth > 2) return out;
-
-  const keys = Object.keys(obj);
-  for(const k of keys){
-    if(k === 'time' || k === 'timestamp' || k === 'datetime' || k === 'dateTime') continue;
-    const v = obj[k];
-    const key = prefix ? (prefix + '.' + k) : k;
-
-    if(Array.isArray(v)){
-      // skip arrays (hourly series etc.)
-      continue;
-    }
-    if(v && typeof v === 'object'){
-      sheetFlattenNumeric(v, key, depth+1, out);
-      if(Object.keys(out).length > 80) break;
-      continue;
-    }
-    const n = sheetIsFiniteNumber(v);
-    if(n != null){
-      out[key] = n;
-      if(Object.keys(out).length > 80) break;
-    }
-  }
-  return out;
-}
-
-function sheetEnqueueRecord(stationKey, dateMs, metrics, meta){
-  if(!SHEET_SYNC_ENABLED) return;
-  if(!SHEET_WEBAPP_URL || !/^https:\/\//i.test(SHEET_WEBAPP_URL)) return;
-  if(!stationKey) return;
-
-  const m = (metrics && typeof metrics === 'object') ? metrics : {};
-  if(!Object.keys(m).length) return;
-
-  sheetQueue.push({
-    stationKey: String(stationKey),
-    dateMs: Number(dateMs || Date.now()),
-    metrics: m,
-    meta: meta || {}
-  });
-
-  if(sheetQueue.length > SHEET_QUEUE_MAX){
-    sheetQueue.splice(0, sheetQueue.length - SHEET_QUEUE_MAX);
-  }
-
-  if(sheetFlushTimer) return;
-  sheetFlushTimer = setTimeout(sheetFlush, SHEET_FLUSH_MS);
-}
-
-async function sheetFlush(){
-  if(sheetFlushTimer){ clearTimeout(sheetFlushTimer); sheetFlushTimer = null; }
-  if(!sheetQueue.length) return;
-
-  const batch = sheetQueue.splice(0, SHEET_BATCH_SIZE);
-  const payload = { token: SHEET_TOKEN, records: batch };
-
-  try{
-    // IMPORTANT: text/plain => no preflight (Apps Script WebApp δεν απαντά OPTIONS)
-    const res = await fetch(SHEET_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-
-    // προσπάθησε να διαβάσεις JSON (αν επιτρέπεται από CORS)
-    let r = null;
-    try { r = await res.json(); } catch(_){}
-    if(r && r.ok === false){
-      console.warn('Sheets write failed:', r);
-    }
-  }catch(err){
-    console.warn('Sheets flush error:', err);
-    // βάλε το batch πίσω για retry στο επόμενο flush
-    sheetQueue = batch.concat(sheetQueue);
-  }
-
-  // αν έμειναν, κάνε άλλο ένα flush
-  if(sheetQueue.length){
-    sheetFlushTimer = setTimeout(sheetFlush, 500);
-  }
-}
-
-// helper: build metrics from Open‑Meteo "latest" object
-function sheetMetricsFromOpenMeteoLatest(latest){
-  const m = {};
-  if(!latest || typeof latest !== 'object') return m;
-
-  if(latest.rr != null)    m['rainRate_mmh']  = latest.rr;
-  if(latest.today != null) m['rainToday_mm']  = latest.today;
-  if(latest.storm != null) m['stormTotal_mm'] = latest.storm;
-
-  if(latest.temp != null)  m['temp_C'] = latest.temp;
-  if(latest.hum != null)   m['rh_pct'] = latest.hum;
-  if(latest.dew != null)   m['dew_C']  = latest.dew;
-  if(latest.baro != null)  m['baro_hpa'] = latest.baro;
-
-  if(latest.heat != null)  m['heatIndex_C'] = latest.heat;
-  if(latest.chill != null) m['windChill_C'] = latest.chill;
-
-  // (optional) δεν είναι αριθμός => το κρατάμε στο meta
-  return m;
-}
-
-// readback (προαιρετικό): πάρε recent samples από το Sheet
-async function sheetGetRecent(stationKey, metric='rainRate_mmh', limit=12){
-  const u = `${SHEET_WEBAPP_URL}?token=${encodeURIComponent(SHEET_TOKEN)}&action=recent&stationKey=${encodeURIComponent(stationKey)}&metric=${encodeURIComponent(metric)}&limit=${encodeURIComponent(limit)}`;
-  const r = await fetch(u, {cache:'no-store'}).then(x=>x.json());
-  return r;
-}
-/* ===================== /GOOGLE SHEETS "DATA TANK" ===================== */
-
 const GH_USER   = 'petrsanidas-ui';
 const GH_REPO   = 'nireas';
 const GH_BRANCH = 'main';
@@ -3209,14 +3047,6 @@ async function fetchStationDataSingle(url, label, updatePrimary){
       const seriesKey = updatePrimary ? currentStationKey : (`url:${url}`);
       const totalsSeries = deriveCumulativeTotalsForKey(seriesKey, latest?.__openMeteo?.amount);
 
-      // ⬇️ LOG to Google Sheet (Open‑Meteo)
-      try{
-        const dateMs = sheetNowMsFromTs(tsRaw);
-        const metrics = sheetMetricsFromOpenMeteoLatest(latest);
-        const meta = { name: (label || 'Open‑Meteo'), url: String(url), source:'open-meteo', updatePrimary: !!updatePrimary };
-        sheetEnqueueRecord(seriesKey, dateMs, metrics, meta);
-      }catch(_){ /* ignore */ }
-
       if(updatePrimary){
         updateStationMonitor(rr!=null ? rr : null, ts, totalsSeries);
         setLatestValuesDisplay(latest, buildLatestLine(latest));
@@ -3251,14 +3081,6 @@ async function fetchStationDataSingle(url, label, updatePrimary){
         const seriesKey = updatePrimary ? currentStationKey : (`url:${url}`);
         const totalsSeries = deriveCumulativeTotalsForKey(seriesKey, latest?.__openMeteo?.amount);
 
-      // ⬇️ LOG to Google Sheet (Open‑Meteo)
-      try{
-        const dateMs = sheetNowMsFromTs(tsRaw);
-        const metrics = sheetMetricsFromOpenMeteoLatest(latest);
-        const meta = { name: (label || 'Open‑Meteo'), url: String(url), source:'open-meteo', updatePrimary: !!updatePrimary };
-        sheetEnqueueRecord(seriesKey, dateMs, metrics, meta);
-      }catch(_){ /* ignore */ }
-
         if(updatePrimary){
           updateStationMonitor(rr!=null ? rr : null, ts, totalsSeries);
           setLatestValuesDisplay(latest, buildLatestLine(latest));
@@ -3282,19 +3104,6 @@ setStationMsg("Λήψη από Open‑Meteo endpoint.");
       const tsRaw = extractTimestamp(r) || new Date().toISOString();
       const ts = ts24(tsRaw);
       const totals = extractTotals(r);
-
-      // ⬇️ LOG to Google Sheet (generic JSON endpoint)
-      try{
-        const dateMs = sheetNowMsFromTs(tsRaw);
-        const metrics = sheetFlattenNumeric(r);
-        if(rr!=null) metrics['rainRate_mmh'] = rr;
-        if(totals && totals.today!=null) metrics['rainToday_mm'] = totals.today;
-        if(totals && totals.storm!=null) metrics['stormTotal_mm'] = totals.storm;
-
-        const stationKey = updatePrimary ? currentStationKey : (`url:${url}`);
-        const meta = { name: (label || 'Station'), url: String(url), source:'json', updatePrimary: !!updatePrimary };
-        sheetEnqueueRecord(stationKey, dateMs, metrics, meta);
-      }catch(_){ /* ignore */ }
 
       if(updatePrimary){
         setTxt('stationTimestamp', ts);
@@ -3550,14 +3359,6 @@ async function fetchLiveMeteo(){
 
     // Build derived cumulative totals so ΔP/R60 work
     const totalsSeries = deriveCumulativeTotalsForKey(currentStationKey, latest?.__openMeteo?.amount);
-
-    // ⬇️ LOG to Google Sheet (Open‑Meteo button)
-    try{
-      const dateMs = sheetNowMsFromTs(tsRaw);
-      const metrics = sheetMetricsFromOpenMeteoLatest(latest);
-      const meta = { name:'Open‑Meteo', url:'open-meteo', source:'open-meteo', updatePrimary:true };
-      sheetEnqueueRecord(currentStationKey, dateMs, metrics, meta);
-    }catch(_){ /* ignore */ }
 
     updateStationMonitor(rr!=null ? rr : null, ts, totalsSeries);
     setLatestValuesDisplay(latest, buildLatestLine(latest));
@@ -4030,6 +3831,22 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
     dp,
     dateMs
   });
+
+  // 🔥 Firebase log (optional, if enabled)
+  try{
+    if(window.fbLogSample){
+      window.fbLogSample(key, {
+        sampleKey,
+        tsText: tsText || sampleKey,
+        tsMs: dateMs,
+        rainRate: (val!=null && isFiniteNumber(val)) ? val : null,
+        label: label || null,
+        total: totals ? totals.total : null,
+        totalSrc: totals ? totals.totalSrc : null,
+        dp
+      });
+    }
+  }catch(e){ /* ignore */ }
 
   if(series.length > STATION_SERIES_MAX){
     series.splice(0, series.length - STATION_SERIES_MAX);
@@ -4687,6 +4504,72 @@ function bindInputs(){
 /* ===================== BOOT ===================== */
 init();
 </script>
+
+
+<!-- FIREBASE LOGGER START -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+  // Firebase config (from your console)
+  const firebaseConfig = {
+    apiKey: "AIzaSyCLMx9W0Zi91-m4NmMl6UocYHhYBWUh9VI",
+    authDomain: "nireas-logger.firebaseapp.com",
+    projectId: "nireas-logger",
+    storageBucket: "nireas-logger.firebasestorage.app",
+    messagingSenderId: "632371274630",
+    appId: "1:632371274630:web:f4f50d5c3f7c9bc060c207"
+  };
+
+  // Simple FNV-1a hash (sync) to make a safe stationId
+  function fnv1a(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16);
+  }
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Expose global logger for non-module scripts
+  window.fbLogSample = async (stationKey, sample) => {
+    if(!stationKey) stationKey = "unknown";
+    const stationId = "s_" + fnv1a(String(stationKey));
+
+    const payload = {
+      stationId,
+      stationKey: String(stationKey),
+      sampleKey: sample?.sampleKey ?? null,
+      tsText: sample?.tsText ?? null,
+      tsMs: (typeof sample?.tsMs === "number") ? sample.tsMs : null,
+      rainRate: (typeof sample?.rainRate === "number") ? sample.rainRate : null,
+      dp: (typeof sample?.dp === "number") ? sample.dp : null,
+      total: (typeof sample?.total === "number") ? sample.total : null,
+      totalSrc: sample?.totalSrc ?? null,
+      label: sample?.label ?? null,
+      fetchedAt: serverTimestamp(),
+      clientTsMs: Date.now()
+    };
+
+    // Write to: stations/<stationId>/samples/<autoId>
+    await addDoc(collection(db, "stations", stationId, "samples"), payload);
+  };
+
+  try {
+    await signInAnonymously(auth);
+    console.log("Firebase auth OK ✅");
+  } catch (err) {
+    console.error("Firebase auth FAILED ❌", err);
+  }
+
+  console.log("Firebase logger ready ✅");
+</script>
+<!-- FIREBASE LOGGER END -->
 
 </body>
 </html>
