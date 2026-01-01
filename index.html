@@ -759,6 +759,33 @@
     .station-pin{width:14px;height:14px;border-radius:50%;background:#1e88e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);}
     .station-pin.primary{width:16px;height:16px;border-radius:2px;background:#e53935;transform:rotate(45deg);}
     .station-pin-wrap{display:flex;align-items:center;justify-content:center;}
+
+/* ===== Sheet Sync (Google Sheets) ===== */
+#sheetSyncPanel{
+  position:fixed; right:12px; bottom:12px; z-index:9999;
+  background: var(--panel, #fff);
+  border:1px solid rgba(0,0,0,.12);
+  border-radius:14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  padding:10px 10px 8px;
+  width: 320px;
+  font-family: inherit;
+}
+#sheetSyncTop{display:flex; align-items:center; justify-content:space-between; gap:8px}
+#sheetSyncTop .left{display:flex; align-items:center; gap:8px; font-weight:800}
+#sheetSyncBody{display:none; margin-top:10px; border-top:1px solid rgba(0,0,0,.08); padding-top:10px}
+#sheetSyncBody label{display:block; font-size:12px; opacity:.8; margin:8px 0 4px}
+#sheetSyncBody input{
+  width:100%; box-sizing:border-box;
+  padding:9px 10px; border-radius:10px;
+  border:1px solid rgba(0,0,0,.18);
+  outline:none;
+  font-size:12.5px;
+}
+#sheetSyncBtns{display:flex; gap:8px; margin-top:10px}
+#sheetSyncBtns button{flex:1}
+#sheetSyncHint{margin-top:8px; font-size:11.5px; opacity:.75; line-height:1.25}
+#sheetSyncMinBtn{min-width:34px}
 </style>
 </head>
 
@@ -1257,6 +1284,202 @@ async function meteoStationsMap(){
 /* ===== End Meteo Stations layer ===== */
 
 /* ===== Station monitor ===== */
+
+/* ===== Sheet Sync (Google Sheets / Apps Script) ===== */
+const GAS_URL_DEFAULT = "https://script.google.com/macros/s/AKfycbxJZEqWWTETD4IrY5X2ybTHwsKPuOI_MZ8hhbL9pyhzhMgVhQjBq5ZwPRp0Omq4uOj86Q/exec";
+const LS_GAS_URL   = "nireas_gas_url";
+const LS_GAS_TOKEN = "nireas_gas_token";
+
+function getGasUrl(){ return (localStorage.getItem(LS_GAS_URL) || GAS_URL_DEFAULT).trim(); }
+function getGasToken(){ return (localStorage.getItem(LS_GAS_TOKEN) || "").trim(); }
+function gasEnabled(){ return !!getGasToken(); }
+
+let gasQueue = [];
+let gasFlushTimer = null;
+
+function initSheetSyncUI(){
+  const panel = document.getElementById("sheetSyncPanel");
+  if(!panel) return;
+
+  const body = document.getElementById("sheetSyncBody");
+  const status = document.getElementById("sheetSyncStatus");
+  const urlEl = document.getElementById("sheetSyncUrl");
+  const tokEl = document.getElementById("sheetSyncToken");
+
+  urlEl.value = getGasUrl();
+  tokEl.value = getGasToken();
+
+  function setStatus(kind, text){
+    status.classList.remove("ok","warn","neutral");
+    status.classList.add(kind || "neutral");
+    status.textContent = text;
+  }
+  function refreshStatus(){
+    if(gasEnabled()) setStatus("ok","ON");
+    else setStatus("neutral","OFF");
+  }
+  refreshStatus();
+
+  document.getElementById("sheetSyncMinBtn").addEventListener("click", ()=>{
+    body.style.display = (body.style.display === "none" || !body.style.display) ? "block" : "none";
+  });
+
+  document.getElementById("sheetSyncSave").addEventListener("click", ()=>{
+    localStorage.setItem(LS_GAS_URL, (urlEl.value||"").trim());
+    localStorage.setItem(LS_GAS_TOKEN, (tokEl.value||"").trim());
+    refreshStatus();
+    toast("✅ Sheet Sync saved", "ok");
+  });
+
+  document.getElementById("sheetSyncDisable").addEventListener("click", ()=>{
+    localStorage.removeItem(LS_GAS_TOKEN);
+    tokEl.value = "";
+    refreshStatus();
+    toast("⛔ Sheet Sync OFF", "warn");
+  });
+
+  document.getElementById("sheetSyncTest").addEventListener("click", ()=>{
+    if(!gasEnabled()){ toast("⚠️ Βάλε Token πρώτα", "warn"); return; }
+    gasPing((ok, msg)=>{
+      toast(ok ? "✅ GAS Ping OK" : ("❌ GAS Ping: " + msg), ok ? "ok":"warn");
+    });
+  });
+}
+
+/* JSONP ping to avoid CORS */
+function gasPing(cb){
+  const url = getGasUrl();
+  const token = getGasToken();
+  const cbName = "__gas_cb_" + Math.random().toString(36).slice(2);
+  const script = document.createElement("script");
+  const cleanup = (ok, msg)=>{
+    try{ delete window[cbName]; }catch(_){}
+    if(script && script.parentNode) script.parentNode.removeChild(script);
+    cb && cb(ok, msg);
+  };
+
+  window[cbName] = (data)=>{
+    if(data && data.ok) cleanup(true, "ok");
+    else cleanup(false, (data && data.error) ? data.error : "unknown");
+  };
+
+  const sep = url.includes("?") ? "&" : "?";
+  script.src = url + sep + "action=ping&token=" + encodeURIComponent(token) + "&callback=" + cbName;
+  script.onerror = ()=>cleanup(false, "network");
+  document.head.appendChild(script);
+}
+
+/* Flatten JSON to metrics (scalars only; arrays become <key>_len) */
+function flattenToMetrics(obj, maxKeys=180){
+  const out = {};
+  const seen = new WeakSet();
+
+  function add(k, v){
+    if(Object.keys(out).length >= maxKeys) return;
+    out[k] = v;
+  }
+  function walk(v, path, depth){
+    if(Object.keys(out).length >= maxKeys) return;
+    if(v === null || v === undefined) return;
+
+    const t = typeof v;
+    if(t === "number" || t === "boolean" || t === "string"){
+      // keep small strings only
+      if(t === "string" && v.length > 120) add(path, v.slice(0,120));
+      else add(path, v);
+      return;
+    }
+    if(Array.isArray(v)){
+      add(path + "_len", v.length);
+      return;
+    }
+    if(t === "object"){
+      if(seen.has(v)) return;
+      seen.add(v);
+      if(depth <= 0) return;
+      for(const kk of Object.keys(v)){
+        walk(v[kk], path ? (path + "." + kk) : kk, depth-1);
+        if(Object.keys(out).length >= maxKeys) break;
+      }
+    }
+  }
+
+  walk(obj, "", 4);
+  return out;
+}
+
+function isOpenMeteoPayloadQuick(x){
+  return !!(x && x.current && (typeof x.current === "object") && ("temperature_2m" in x.current || "precipitation" in x.current));
+}
+
+/* For Open‑Meteo: store ONLY current scalars (so we don't store huge hourly arrays) */
+function extractOpenMeteoCurrentMetrics(payload){
+  const cur = payload?.current || {};
+  const metrics = {};
+  for(const k of Object.keys(cur)){
+    const v = cur[k];
+    if(typeof v === "number" || typeof v === "boolean" || typeof v === "string"){
+      metrics[k] = v;
+    }
+  }
+  return metrics;
+}
+
+/* Enqueue to GAS (tall/long model) */
+function gasEnqueuePacket(stationKey, dateMs, metrics, meta){
+  if(!gasEnabled()) return;
+  if(!metrics || typeof metrics !== "object") return;
+
+  gasQueue.push({
+    stationKey: String(stationKey || ""),
+    dateMs: Number(dateMs || Date.now()),
+    metrics: metrics,
+    meta: meta || {}
+  });
+
+  // auto flush
+  if(gasQueue.length >= 8) gasFlush();
+  if(!gasFlushTimer){
+    gasFlushTimer = setInterval(gasFlush, 15000);
+  }
+}
+
+function gasFlush(){
+  if(!gasEnabled()) return;
+  if(!gasQueue.length) return;
+
+  const url = getGasUrl();
+  const token = getGasToken();
+  const payload = { token, records: gasQueue.splice(0, gasQueue.length) };
+
+  // fire-and-forget (no CORS issues on GitHub Pages)
+  fetch(url, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  }).catch(()=>{});
+}
+
+/* Capture helpers used from fetch flows */
+function gasCaptureFromJson(stationKey, tsRaw, payload, meta){
+  const dateMs = Date.parse(tsRaw) || Date.now();
+  const metrics = isOpenMeteoPayloadQuick(payload)
+    ? extractOpenMeteoCurrentMetrics(payload)
+    : flattenToMetrics(payload);
+
+  // always include these
+  metrics.__tsRaw = String(tsRaw || "");
+  gasEnqueuePacket(stationKey, dateMs, metrics, meta);
+}
+
+function gasCaptureDerived(stationKey, tsRaw, derivedMetrics, meta){
+  const dateMs = Date.parse(tsRaw) || Date.now();
+  const metrics = Object.assign({}, derivedMetrics || {});
+  metrics.__tsRaw = String(tsRaw || "");
+  gasEnqueuePacket(stationKey, dateMs, metrics, meta);
+}
+
 const STATION_SERIES_MAX = 12;
 
 // Per-station series contexts (do not mix histories across different primary stations)
@@ -1282,143 +1505,6 @@ const OPEN_METEO_TOKEN = '__OPEN_METEO__';
 const ALL_API_TOKEN   = '__ALL_API__';
 const ALL_WEB_TOKEN   = '__ALL_WEB__';
 const ALL_ALL_TOKEN   = '__ALL_ALL__';
-
-// ===================== Google Sheet DataTank (Apps Script) =====================
-// IMPORTANT: GAS_TOKEN MUST match the TOKEN constant inside your Apps Script Code.gs.
-// If you change TOKEN in Apps Script, you MUST "Deploy" a NEW VERSION of the Web App.
-const GAS_URL   = "https://script.google.com/macros/s/AKfycbxJZEqWWTETD4IrY5X2ybTHwsKPuOI_MZ8hhbL9pyhzhMgVhQjBq5ZwPRp0Omq4uOj86Q/exec";
-const GAS_TOKEN = "123456789"; // <-- βάλε ΕΔΩ ακριβώς το ίδιο με το TOKEN του Apps Script
-
-const GAS_PUSH_BATCH    = 10;
-const GAS_PUSH_EVERY_MS = 15000;
-
-let __gasQueue = [];
-let __gasFlushTimer = null;
-
-function gasEnabled(){
-  return !!(GAS_URL && GAS_TOKEN && GAS_TOKEN !== "CHANGE_ME_TOKEN");
-}
-
-function gasEnqueueMetrics(stationKey, dateMs, metricsObj, metaObj){
-  if(!gasEnabled()) return;
-  if(!stationKey || !dateMs || !metricsObj) return;
-
-  __gasQueue.push({
-    stationKey: String(stationKey),
-    dateMs: Number(dateMs),
-    metrics: metricsObj,
-    meta: metaObj || {}
-  });
-
-  if(__gasQueue.length >= GAS_PUSH_BATCH){
-    gasFlushNow();
-  } else if(!__gasFlushTimer){
-    __gasFlushTimer = setTimeout(()=>{ __gasFlushTimer=null; gasFlushNow(); }, GAS_PUSH_EVERY_MS);
-  }
-}
-
-function gasFlushNow(){
-  if(!gasEnabled()) { __gasQueue.length = 0; return; }
-  if(!__gasQueue.length) return;
-
-  const payload = { token: GAS_TOKEN, records: __gasQueue.splice(0, __gasQueue.length) };
-
-  // CORS-safe "fire & forget" (no response read)
-  try{
-    fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    }).catch(()=>{});
-  }catch(_){}
-}
-
-// JSONP GET helper (avoids CORS). Requires Apps Script to support callback=...
-function gasGetJsonp(params){
-  return new Promise((resolve) => {
-    if(!gasEnabled()) return resolve(null);
-
-    const cb = "__gas_cb_" + Math.random().toString(36).slice(2);
-    const url = GAS_URL
-      + "?action=" + encodeURIComponent(params.action || "ping")
-      + "&token=" + encodeURIComponent(GAS_TOKEN)
-      + (params.stationKey ? "&stationKey=" + encodeURIComponent(params.stationKey) : "")
-      + (params.metric ? "&metric=" + encodeURIComponent(params.metric) : "")
-      + (params.limit ? "&limit=" + encodeURIComponent(params.limit) : "")
-      + "&callback=" + encodeURIComponent(cb);
-
-    const s = document.createElement("script");
-    window[cb] = (data) => {
-      try { delete window[cb]; } catch(_) { window[cb] = null; }
-      try { s.remove(); } catch(_) {}
-      resolve(data);
-    };
-    s.onerror = () => {
-      try { delete window[cb]; } catch(_) { window[cb] = null; }
-      try { s.remove(); } catch(_) {}
-      resolve(null);
-    };
-    s.src = url;
-    document.head.appendChild(s);
-  });
-}
-
-async function gasLoadSeriesForStation(stationKey, limit){
-  // We reconstruct stationSeries from "long" metrics in the Sheet
-  const lim = limit || STATION_SERIES_MAX || 12;
-
-  const [rr, tot, dp] = await Promise.all([
-    gasGetJsonp({action:'recent', stationKey, metric:'rain_rate', limit: lim}),
-    gasGetJsonp({action:'recent', stationKey, metric:'rain_total', limit: lim}),
-    gasGetJsonp({action:'recent', stationKey, metric:'rain_dp', limit: lim})
-  ]);
-
-  const map = new Map();
-
-  const ingest = (pack, field) => {
-    const arr = (pack && pack.ok && Array.isArray(pack.samples)) ? pack.samples : [];
-    for(const r of arr){
-      const t = Number(r.dateMs || 0);
-      if(!t) continue;
-
-      if(!map.has(t)){
-        map.set(t, {
-          key: String(t),
-          tsText: formatDateTime24(new Date(t)),
-          val: null,
-          label: 'Sheet',
-          total: null,
-          totalSrc: null,
-          dp: null,
-          dateMs: t
-        });
-      }
-      const o = map.get(t);
-      const v = Number(r.value);
-      if(field === 'val' && isFiniteNumber(v)) o.val = v;
-      if(field === 'total' && isFiniteNumber(v)) o.total = v;
-      if(field === 'dp' && isFiniteNumber(v)) o.dp = v;
-
-      if(r.metaJson){
-        try{
-          const meta = JSON.parse(r.metaJson);
-          if(meta && meta.tsText) o.tsText = meta.tsText;
-          if(meta && meta.label) o.label = meta.label;
-          if(meta && meta.totalSrc) o.totalSrc = meta.totalSrc;
-        }catch(_){}
-      }
-    }
-  };
-
-  ingest(rr, 'val');
-  ingest(tot, 'total');
-  ingest(dp, 'dp');
-
-  const out = Array.from(map.values()).sort((a,b)=>a.dateMs-b.dateMs);
-  return out.slice(-lim);
-}
-
 
 function getSelectGroupPairs(selectEl, groupLabel){
   const out = [];
@@ -2021,19 +2107,6 @@ function switchSeriesContext(newKey){
   // load new context
   currentStationKey = key;
   stationSeries = stationSeriesByKey[currentStationKey] || [];
-
-  // If no local history, try loading recent history from Google Sheet (JSONP, no CORS)
-  if(!stationSeries.length && gasEnabled()){
-    gasLoadSeriesForStation(currentStationKey, STATION_SERIES_MAX).then(arr=>{
-      if(Array.isArray(arr) && arr.length){
-        stationSeriesByKey[currentStationKey] = arr;
-        stationSeries = arr;
-        stationLastKey = arr[arr.length-1].key;
-        stationLastKeyByKey[currentStationKey] = stationLastKey;
-        updateStationReadouts();
-      }
-    }).catch(()=>{});
-  }
   stationLastKey = stationLastKeyByKey[currentStationKey]
     || (stationSeries.length ? stationSeries[stationSeries.length-1].key : null);
 
@@ -3188,6 +3261,14 @@ async function fetchStationDataSingle(url, label, updatePrimary){
       const r = await fetchOpenMeteoPayload();
       lastStationPayload = r;
 
+      // Sheet Sync capture (any JSON endpoint)
+      try{
+        const sk = updatePrimary ? currentStationKey : (`url:${url}`);
+        const tsGuess = (r?.current?.time) || (r?.time) || (r?.timestamp) || new Date().toISOString();
+        gasCaptureFromJson(sk, tsGuess, r, {source:'json-endpoint', url, label: (label||'') , primary: !!updatePrimary});
+      }catch(_){ }
+
+
       const latest = parseOpenMeteoLatest(r);
       const rr = (latest && latest.rr!=null) ? latest.rr : null;
 
@@ -3219,6 +3300,14 @@ async function fetchStationDataSingle(url, label, updatePrimary){
     if(/json|api|exec|\?/i.test(url) && !/penteli\.meteo\.gr\/stations/i.test(url)){
       const r = await fetch(url, {cache:'no-store'}).then(res=>res.json());
       lastStationPayload = r;
+
+      // Sheet Sync capture (any JSON endpoint)
+      try{
+        const sk = updatePrimary ? currentStationKey : (`url:${url}`);
+        const tsGuess = (r?.current?.time) || (r?.time) || (r?.timestamp) || new Date().toISOString();
+        gasCaptureFromJson(sk, tsGuess, r, {source:'json-endpoint', url, label: (label||'') , primary: !!updatePrimary});
+      }catch(_){ }
+
 
       // Open‑Meteo payload: fill ALL latest chips from the API
       if(isOpenMeteoPayload(r)){
@@ -3296,6 +3385,13 @@ setStationMsg("Λήψη από endpoint.");
       const tsRaw = parsed?.timestamp ?? new Date().toISOString();
       const ts = ts24(tsRaw, {assumeUTC: !!parsed?.timestampIsUTC});
       const totals = parsed?.totals ?? null;
+
+      // Sheet Sync capture (parsed HTML endpoint)
+      try{
+        const sk = updatePrimary ? currentStationKey : (`url:${url}`);
+        gasCaptureDerived(sk, tsRaw, { rr: rr, today: totals?.today ?? null, storm: totals?.storm ?? null }, {source:'html-parse', url, label:(label||''), primary: !!updatePrimary});
+      }catch(_){ }
+
 
       if(updatePrimary){
         setTxt('stationTimestamp', ts);
@@ -3488,6 +3584,9 @@ async function fetchOpenMeteoPayload(){
 
   const r = await fetch(u, {cache:'no-store'}).then(res=>res.json());
   if(r && r.error) throw new Error(r.reason || 'Open‑Meteo error');
+  
+  // Sheet Sync capture (Open‑Meteo built-in)
+  try{ gasCaptureFromJson('open-meteo', r?.current?.time || new Date().toISOString(), r, {source:'open-meteo-built-in'}); }catch(_){ }
   return r;
 }
 
@@ -3982,19 +4081,6 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
     dateMs
   });
 
-  // Push to Google Sheet DataTank (no changes needed in Apps Script when you add new metrics later)
-  gasEnqueueMetrics(key, dateMs, {
-    rain_rate: (val!=null && isFiniteNumber(val)) ? Number(val) : null,
-    rain_total: (totals && totals.total!=null && isFiniteNumber(totals.total)) ? Number(totals.total) : null,
-    rain_dp: (dp!=null && isFiniteNumber(dp)) ? Number(dp) : null
-  }, {
-    tsText: tsText || sampleKey,
-    label: label || '',
-    totalSrc: totals ? totals.totalSrc : null,
-    sampleKey: sampleKey
-  });
-
-
   if(series.length > STATION_SERIES_MAX){
     series.splice(0, series.length - STATION_SERIES_MAX);
   }
@@ -4281,4 +4367,399 @@ function runMasterCalculation(){
     const Peq = P*coef;
 
     let cls="risk-safe", txt="Χαμηλή";
-    if(Peq>=60){cls="risk-extreme";txt=
+    if(Peq>=60){cls="risk-extreme";txt="Ακραία";}
+    else if(Peq>=40){cls="risk-red";txt="Πολύ Υψηλή";}
+    else if(Peq>=25){cls="risk-orange";txt="Υψηλή";}
+    else if(Peq>=10){cls="risk-warn";txt="Μέτρια";}
+
+    const tr = document.createElement('tr');
+    tr.className = cls;
+    tr.innerHTML = `
+      <td><b>${i}</b></td>
+      <td>${Dused.toFixed(1)}</td>
+      <td>${P.toFixed(1)}</td>
+      <td>${Q.toFixed(2)}</td>
+      <td>${Math.round(V).toLocaleString('el-GR')}</td>
+      <td>${txt}<br><span style="font-size:11px;color:#6b7a86">Peq=${Peq.toFixed(1)}</span></td>
+      <td>${status(Q, CapNet)}</td>
+      <td>${status(Q, CapStr)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  drawChannel(finalY);
+  drawBasinPlan();
+
+  if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+}
+
+
+function resetStrY(){
+  const el = document.getElementById('strY');
+  if(!el) return;
+  el.value = "";
+  delete el.dataset.manual;
+  runMasterCalculation();
+}
+
+/* ===================== VISUALIZERS ===================== */
+function drawBasinPlan(){
+  const canvas = document.getElementById('basinCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  // background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,w,h);
+
+  // If we have GeoJSON rings, draw them; else schematic
+  const gj = SELECTED_GEO;
+  const rings = gj ? geojsonToRings(gj) : [];
+  const style = basinStyleFromInputs();
+
+  if(rings && rings.length && drawGeoRings(ctx, rings, w, h, style)){
+    // label
+    ctx.fillStyle = "#2c3e50";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("Περίγραμμα (GeoJSON)", 8, 14);
+    drawBasinLegend(ctx, style);
+    return;
+  }
+
+  // schematic fallback based on A & L
+  const A = getVal('area'), L = getVal('length');
+  if(!(A>0) || !(L>0)){
+    ctx.fillStyle="#9aa6b2";
+    ctx.font="12px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("Ορίστε A & L ή φορτώστε λεκάνη", w/2, h/2);
+    drawBasinLegend(ctx, style);
+    return;
+  }
+  const W = A / L;
+  const pad=14;
+  const maxW=w-2*pad, maxH=h-2*pad;
+  const scale = Math.min(maxW/(L||1), maxH/((W||1)));
+  const Ls=L*scale, Ws=(W||1)*scale;
+  const x=(w-Ls)/2, y=(h-Ws)/2;
+
+  roundRect(ctx, x,y,Ls,Ws, Math.min(12, Ws/2, Ls/8));
+  ctx.fillStyle = style.fill;
+  ctx.fill();
+  ctx.strokeStyle = style.stroke;
+  ctx.lineWidth = style.lineWidth;
+  ctx.stroke();
+
+  ctx.fillStyle="#2c3e50";
+  ctx.font="bold 10px Arial";
+  ctx.textAlign="center";
+  ctx.fillText(`L≈${Math.round(L)} m`, w/2, h-6);
+
+  ctx.save();
+  ctx.translate(10, h/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.textAlign="center";
+  ctx.fillText(`W≈${Math.round(W)} m`, 0, 0);
+  ctx.restore();
+
+  drawBasinLegend(ctx, style);
+}
+
+function basinStyleFromInputs(){
+  const Qpeak = 0.278 * getVal('coef') * getVal('rainI') * (getVal('area')/1e6);
+  const CapNet = getVal('drains') * getVal('drainCap');
+  const CapStr = estimateStreamCap();
+  // simple coloring: fill by Peq class, stroke by capacity stress
+  const Dused = (getVal('rainD')>0) ? getVal('rainD') : Math.max(5, calculateTc(getVal('length'), getVal('height')));
+  const P = getVal('rainI')*(Dused/60);
+  const Peq = P*getVal('coef');
+
+  let fill="#eafaf1";
+  if(Peq>=60) fill="#ffd1d1";
+  else if(Peq>=40) fill="#ffe0e0";
+  else if(Peq>=25) fill="#ffe9d6";
+  else if(Peq>=10) fill="#fff7e6";
+
+  let stroke="#2c3e50";
+  let lw=2;
+  const netBad = (CapNet>0 && Qpeak>CapNet);
+  const strBad = (CapStr>0 && Qpeak>CapStr);
+  if(netBad || strBad){ stroke="#c0392b"; lw=3; }
+  else if((CapNet>0 && Qpeak>CapNet*0.85) || (CapStr>0 && Qpeak>CapStr*0.85)){ stroke="#d35400"; lw=3; }
+
+  return { fill, stroke, lineWidth: lw };
+}
+
+function estimateStreamCap(){
+  const strWidth = getVal('strWidth');
+  const strZ = getVal('strZ');
+  const strDepth = getVal('strDepth');
+  const strDrop = getVal('strDrop');
+  const strLen = getVal('strLen');
+  const strType = getVal('strType');
+  const length = getVal('length');
+  const height = getVal('height');
+
+  const sLen = (strLen>0)? strLen : length;
+  const sDrop = (strDrop>0)? strDrop : height;
+  const sSlope = (sLen>0)? (sDrop/sLen) : 0;
+  if(!(strWidth>0) || !(strDepth>0) || !(sSlope>0) || !(strType>0)) return 0;
+  const A = (strWidth + strZ*strDepth)*strDepth;
+  const P = strWidth + 2*strDepth*Math.sqrt(1+strZ*strZ);
+  return (1/strType) * Math.pow(A, 5/3) * Math.pow(P, -2/3) * Math.sqrt(sSlope);
+}
+
+function drawBasinLegend(ctx, style){
+  const x=8, y=ctx.canvas.height-16;
+  ctx.fillStyle="#2c3e50";
+  ctx.font="bold 10px Arial";
+  ctx.textAlign="left";
+  ctx.fillText("Fill=Peq, Stroke=Qcap stress", x, y);
+  // swatches
+  ctx.fillStyle = style.fill;
+  ctx.fillRect(ctx.canvas.width-58, ctx.canvas.height-22, 18, 12);
+  ctx.strokeStyle = style.stroke;
+  ctx.lineWidth = style.lineWidth;
+  ctx.strokeRect(ctx.canvas.width-30, ctx.canvas.height-22, 18, 12);
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x, y+h, rr);
+  ctx.arcTo(x, y+h, x, y, rr);
+  ctx.arcTo(x, y, x+w, y, rr);
+  ctx.closePath();
+}
+
+function geojsonToRings(gj){
+  const rings = [];
+  try{
+    const feat = gj.features ? gj.features[0] : gj;
+    const g = feat.geometry || feat;
+    if(!g) return rings;
+
+    const pushPoly = (poly) => {
+      // poly: [ [ [lon,lat], ... ] , holes... ]
+      if(Array.isArray(poly) && poly.length){
+        rings.push(poly[0]);
+      }
+    };
+
+    if(g.type === 'Polygon') pushPoly(g.coordinates);
+    if(g.type === 'MultiPolygon'){
+      for(const poly of g.coordinates) pushPoly(poly);
+    }
+  }catch(_){}
+  return rings;
+}
+
+function drawGeoRings(ctx, rings, w, h, style){
+  try{
+    // safety limits (avoid UI freeze on huge/corrupted GeoJSON)
+    const MAX_RINGS = 120;
+    const MAX_POINTS = 15000;
+
+    if(!Array.isArray(rings)) return false;
+    if(rings.length > MAX_RINGS) rings = rings.slice(0, MAX_RINGS);
+
+    let totalPoints = 0;
+    rings = rings.map(r=>{
+      if(!Array.isArray(r)) return null;
+      const remain = MAX_POINTS - totalPoints;
+      if(remain <= 0) return null;
+      const take = Math.min(r.length, remain);
+      totalPoints += take;
+      return r.slice(0, take);
+    }).filter(r=>r && r.length >= 3);
+
+    if(!rings.length) return false;
+
+    // find bounds
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    for(const r of rings){
+      for(const [x,y] of r){
+        if(x<minX) minX=x;
+        if(y<minY) minY=y;
+        if(x>maxX) maxX=x;
+        if(y>maxY) maxY=y;
+      }
+    }
+    if(!isFinite(minX) || !isFinite(maxX)) return false;
+
+    const pad=14;
+    const sx=(w-2*pad)/((maxX-minX)||1);
+    const sy=(h-2*pad)/((maxY-minY)||1);
+    const s=Math.min(sx,sy);
+
+    const tx = (x)=> pad + (x-minX)*s;
+    const ty = (y)=> h-pad - (y-minY)*s; // flip
+
+    ctx.beginPath();
+    for(const r of rings){
+      for(let i=0;i<r.length;i++){
+        const p = r[i];
+        const X = tx(p[0]);
+        const Y = ty(p[1]);
+        if(i===0) ctx.moveTo(X,Y);
+        else ctx.lineTo(X,Y);
+      }
+      ctx.closePath();
+    }
+    ctx.fillStyle = style.fill;
+    ctx.fill();
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = style.lineWidth;
+    ctx.stroke();
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function drawChannel(y_real){
+  const canvas = document.getElementById('channelCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const b = getVal('strWidth');
+  const z = getVal('strZ');
+  const H = getVal('strDepth');
+  const y = y_real;
+
+  if(b<=0 && H<=0){
+    ctx.fillStyle="#9aa6b2";
+    ctx.font="12px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("Ορίστε b & h", w/2, h/2);
+    return;
+  }
+
+  const maxH = Math.max(H, y);
+  const topW = b + 2*(z*maxH);
+  const pad=20;
+  const scale = Math.min((w-pad)/(topW||1),(h-pad)/(maxH||1));
+  const cx=w/2, cy=h-16;
+
+  const gx = (wd)=>(wd*scale)/2;
+  const gy = (d)=> cy - (d*scale);
+
+  const drawPoly = (tw, d, fill, stroke, dash=[])=>{
+    ctx.beginPath();
+    ctx.moveTo(cx-gx(tw), gy(d));
+    ctx.lineTo(cx-gx(b), cy);
+    ctx.lineTo(cx+gx(b), cy);
+    ctx.lineTo(cx+gx(tw), gy(d));
+    ctx.closePath();
+    if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+    if(stroke){
+      ctx.strokeStyle=stroke;
+      ctx.setLineDash(dash);
+      ctx.lineWidth=2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  };
+
+  // banks outline
+  if(H>0){
+    drawPoly(b+2*z*H, H, null, "#5D4037");
+  }
+  // water
+  if(y>0){
+    const isOver = (H>0 && y>H);
+    drawPoly(b+2*z*Math.min(y, H*1.5||y), Math.min(y, H*1.5||y),
+      isOver ? "rgba(231,76,60,0.55)" : "rgba(52,152,219,0.55)",
+      isOver ? "#c0392b" : "#2980b9",
+      []
+    );
+    // waterline
+    ctx.beginPath();
+    ctx.moveTo(cx-gx(b+2*z*y), gy(y));
+    ctx.lineTo(cx+gx(b+2*z*y), gy(y));
+    ctx.strokeStyle="#2c3e50";
+    ctx.lineWidth=1;
+    ctx.stroke();
+
+    ctx.fillStyle="#2c3e50";
+    ctx.font="bold 10px Arial";
+    ctx.textAlign="center";
+    ctx.fillText(`y=${y.toFixed(2)}m`, cx, gy(y)-6);
+  }
+
+  ctx.fillStyle="#2c3e50";
+  ctx.font="bold 10px Arial";
+  ctx.textAlign="center";
+  if(b>0) ctx.fillText(`b=${b}m`, cx, cy+12);
+}
+
+/* ===================== Inputs binding ===================== */
+function bindInputs(){
+  const ids = [
+    'rainI','rainD','area','length','height','coef',
+    'drains','drainCap',
+    'strWidth','strZ','strDepth','strDrop','strLen','strType','strY'
+  ];
+
+  // avoid heavy recalcs while typing
+  const debouncedCalc = debounce(()=>{ runMasterCalculation(); scheduleSaveUiState(); }, 140);
+
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+
+    // bind once
+    if(el.dataset.boundCalc === '1') return;
+    el.dataset.boundCalc = '1';
+
+    el.addEventListener('input', debouncedCalc);
+    el.addEventListener('change', ()=>{ runMasterCalculation(); scheduleSaveUiState(); });
+  });
+
+  // Make strY manual once user edits it (bind once)
+  const strYEl = document.getElementById('strY');
+  if(strYEl && strYEl.dataset.boundManual !== '1'){
+    strYEl.dataset.boundManual = '1';
+    strYEl.addEventListener('input', ()=>{ strYEl.dataset.manual='true'; scheduleSaveUiState(); });
+  }
+}
+
+
+</script>
+
+<script>
+/* ===================== BOOT ===================== */
+init();
+  try{ initSheetSyncUI(); }catch(_){ }
+
+</script>
+
+
+  <!-- ===== Sheet Sync Panel (local settings) ===== -->
+  <div id="sheetSyncPanel">
+    <div id="sheetSyncTop">
+      <div class="left">📄 Sheet Sync <span id="sheetSyncStatus" class="status-pill neutral">OFF</span></div>
+      <button id="sheetSyncMinBtn" class="icon-btn" title="Ρυθμίσεις Sheet Sync">⚙</button>
+    </div>
+    <div id="sheetSyncBody">
+      <label>Apps Script Web App URL</label>
+      <input id="sheetSyncUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+      <label>Token</label>
+      <input id="sheetSyncToken" type="password" placeholder="ίδιο με const TOKEN στο Apps Script" />
+      <div id="sheetSyncBtns">
+        <button id="sheetSyncSave" class="btn btn-blue">Save</button>
+        <button id="sheetSyncTest" class="btn btn-gray">Ping</button>
+        <button id="sheetSyncDisable" class="btn btn-red">Off</button>
+      </div>
+      <div id="sheetSyncHint">Αποθήκευση τοπικά (localStorage). Για να δουλέψει πρέπει το <b>TOKEN</b> να είναι ίδιο στο Apps Script και εδώ, και να έχεις κάνει <b>Deploy → New version</b>.</div>
+    </div>
+  </div>
+
+</body>
+</html>
