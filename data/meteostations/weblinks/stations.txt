@@ -13,15 +13,3 @@
 2ο Γυμνάσιο Γέρακα - ΓΕΡΑΚΑΣ | https://penteli.meteo.gr/stations/gerakas/ | 38.02334565880964 | 23.853663922901664 | 236
 Αλώνια - ΚΗΦΗΣΙΑ | https://penteli.meteo.gr/stations/kifissia/ | 38.073047461654035 | 23.819384003862535 | 315
 Καστρίου - ΕΚΑΛΗ | https://penteli.meteo.gr/stations/ekali/ | 38.096677330588975 | 23.82422034386565 | 345
-
-ΟΝΟΜΑ | URL | LAT | LON | ELEV
-
-
-
-
-
-
-
-
-
-
