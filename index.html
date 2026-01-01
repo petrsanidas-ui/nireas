@@ -3123,14 +3123,14 @@ setStationMsg("Λήψη από endpoint.");
 
         if(rr!=null){
           // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, ((typeof parsed !== 'undefined' && parsed && parsed.latest) ? parsed.latest : { rr: rr, today: (totals && totals.today!=null) ? totals.today : null, storm: (totals && totals.storm!=null) ? totals.storm : null }));
+          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
         }
         runMasterCalculation();
       }
 
       if(!updatePrimary && rr!=null){
         // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
-        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false, ((typeof parsed !== 'undefined' && parsed && parsed.latest) ? parsed.latest : { rr: rr, today: (totals && totals.today!=null) ? totals.today : null, storm: (totals && totals.storm!=null) ? totals.storm : null }));
+        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false, (parsed && parsed.latest) ? parsed.latest : null);
       }
 
       return { ok:true, url, name: label, rr, tsText: ts, latest: { rr: rr, today: (totals && totals.today!=null) ? totals.today : null, storm: (totals && totals.storm!=null) ? totals.storm : null }, latestLine: null };
@@ -3158,14 +3158,14 @@ setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
 
         if(rr!=null){
           // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, ((typeof parsed !== 'undefined' && parsed && parsed.latest) ? parsed.latest : { rr: rr, today: (totals && totals.today!=null) ? totals.today : null, storm: (totals && totals.storm!=null) ? totals.storm : null }));
+          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
         }
         runMasterCalculation();
       }
 
       if(!updatePrimary && rr!=null){
         // keep separate history for this station even when it is in "Επιπλέον σταθμοί"
-        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false, ((typeof parsed !== 'undefined' && parsed && parsed.latest) ? parsed.latest : { rr: rr, today: (totals && totals.today!=null) ? totals.today : null, storm: (totals && totals.storm!=null) ? totals.storm : null }));
+        storeSampleForKey(`url:${url}`, String(ts), ts, rr, label || 'Station', totals, false, (parsed && parsed.latest) ? parsed.latest : null);
       }
 
       return { ok:true, url, name: label, rr, tsText: ts, latest: (parsed && parsed.latest) ? parsed.latest : null, latestLine: (parsed && parsed.latestLine) ? parsed.latestLine : null };
@@ -3802,7 +3802,7 @@ function updateStationMonitor(rainRate, tsText, totals){
   updateStationReadouts();
 }
 
-function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, updateUI, latest){
+function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, updateUI, latest) {
   const key = seriesKey || 'open-meteo';
   if(!sampleKey) return;
 
@@ -3843,39 +3843,31 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   try{
     const l = (latest && typeof latest === 'object') ? latest : {};
     const payload = {
-      stationId,
-      stationKey: String(stationKey),
-      label: sample?.label ?? null,
+      tsMs: dateMs,
+      tsText: (tsText || sampleKey),
+      sampleKey: sampleKey,
+      rainRate: (typeof val === 'number') ? val : null,
+      label: label || null,
+      dp: (typeof dp === 'number') ? dp : null,
+      total: (totals && typeof totals.total === 'number') ? totals.total : null,
+      totalSrc: totals ? (totals.totalSrc || null) : null,
 
-      sampleKey: sample?.sampleKey ?? null,
-      tsMs,
-      tsText: sample?.tsText ?? null,
+      // extra metrics (match the "cards" UI)
+      temp: isFiniteNumber(l.temp) ? l.temp : null,
+      hum: isFiniteNumber(l.hum) ? l.hum : null,
+      dewPoint: isFiniteNumber(l.dewPoint) ? l.dewPoint : null,
+      wind: (typeof l.wind === 'string' && l.wind.trim()) ? l.wind : null,
+      baro: isFiniteNumber(l.baro) ? l.baro : null,
 
-      rainRate: (typeof sample?.rainRate === "number") ? sample.rainRate : null,
-      dp: (typeof sample?.dp === "number") ? sample.dp : null,
-      total: (typeof sample?.total === "number") ? sample.total : null,
-      totalSrc: sample?.totalSrc ?? null,
+      today: isFiniteNumber(l.today) ? l.today : (totals && isFiniteNumber(totals.today) ? totals.today : null),
+      storm: isFiniteNumber(l.storm) ? l.storm : (totals && isFiniteNumber(totals.storm) ? totals.storm : null),
+      month: isFiniteNumber(l.month) ? l.month : (totals && isFiniteNumber(totals.month) ? totals.month : null),
+      year: isFiniteNumber(l.year) ? l.year : (totals && isFiniteNumber(totals.year) ? totals.year : null),
 
-      // Extra meteorological metrics (same naming as in UI)
-      temp: (typeof sample?.temp === "number") ? sample.temp : null,
-      hum: (typeof sample?.hum === "number") ? sample.hum : null,
-      dewPoint: (typeof sample?.dewPoint === "number") ? sample.dewPoint : null,
-      wind: (typeof sample?.wind === "string") ? sample.wind : null,
-      baro: (typeof sample?.baro === "number") ? sample.baro : null,
-
-      today: (typeof sample?.today === "number") ? sample.today : null,
-      storm: (typeof sample?.storm === "number") ? sample.storm : null,
-      month: (typeof sample?.month === "number") ? sample.month : null,
-      year: (typeof sample?.year === "number") ? sample.year : null,
-
-      chill: (typeof sample?.chill === "number") ? sample.chill : null,
-      heat: (typeof sample?.heat === "number") ? sample.heat : null,
-
-      sunrise: (typeof sample?.sunrise === "string") ? sample.sunrise : null,
-      sunset: (typeof sample?.sunset === "string") ? sample.sunset : null,
-
-      fetchedAt: serverTimestamp(),
-      clientTsMs: Date.now()
+      chill: isFiniteNumber(l.chill) ? l.chill : null,
+      heat: isFiniteNumber(l.heat) ? l.heat : null,
+      sunrise: (typeof l.sunrise === 'string' && l.sunrise.trim()) ? l.sunrise : null,
+      sunset: (typeof l.sunset === 'string' && l.sunset.trim()) ? l.sunset : null
     };
     const out = window.fbLogSample?.(key, payload);
     if(out && typeof out.catch === 'function') out.catch(()=>{});
@@ -3890,7 +3882,7 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   }
 }
 
-function onNewStationSample(sampleKey, tsText, val, label, totals, latest){
+function onNewStationSample(sampleKey, tsText, val, label, totals, latest) {
   storeSampleForKey(currentStationKey, sampleKey, tsText, val, label, totals, true, latest);
 }
 
@@ -4599,6 +4591,23 @@ function bindInputs(){
       total: (typeof sample?.total === "number") ? sample.total : null,
       totalSrc: sample?.totalSrc ?? null,
 
+      // extra metrics
+      temp: (typeof sample?.temp === "number") ? sample.temp : null,
+      hum: (typeof sample?.hum === "number") ? sample.hum : null,
+      dewPoint: (typeof sample?.dewPoint === "number") ? sample.dewPoint : null,
+      wind: (typeof sample?.wind === "string") ? sample.wind : null,
+      baro: (typeof sample?.baro === "number") ? sample.baro : null,
+
+      today: (typeof sample?.today === "number") ? sample.today : null,
+      storm: (typeof sample?.storm === "number") ? sample.storm : null,
+      month: (typeof sample?.month === "number") ? sample.month : null,
+      year: (typeof sample?.year === "number") ? sample.year : null,
+
+      chill: (typeof sample?.chill === "number") ? sample.chill : null,
+      heat: (typeof sample?.heat === "number") ? sample.heat : null,
+      sunrise: (typeof sample?.sunrise === "string") ? sample.sunrise : null,
+      sunset: (typeof sample?.sunset === "string") ? sample.sunset : null,
+
       fetchedAt: serverTimestamp(),
       clientTsMs: Date.now()
     };
@@ -4632,7 +4641,6 @@ function bindInputs(){
 
         chill: payload.chill,
         heat: payload.heat,
-
         sunrise: payload.sunrise,
         sunset: payload.sunset
       }
