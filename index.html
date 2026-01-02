@@ -803,6 +803,10 @@
       height:22px;
       border-radius:8px;
       cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      vertical-align:middle;
       line-height:1;
       font-size:14px;
       padding:0;
@@ -1153,20 +1157,15 @@
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
           <details id="seriesDetails" open style="margin-top:10px;">
             <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
-              <div style="display:inline-flex;flex-wrap:wrap;align-items:center;gap:10px;vertical-align:middle;">
-  <span style="font-weight:800;">Ιστορικό Κύριου Σταθμού</span>
-  <div class="station-meta-line" id="seriesMetaLine" style="padding:0;background:transparent;box-shadow:none;margin:0;gap:10px;flex:1 1 auto;">
-    <span class="meta-item name-item"><span id="seriesStationName" style="font-weight:800;color:#b03030;">—</span>
-                    <button id="btnSeriesOpenPrimary" class="meta-icon-btn no-print" onclick="openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button>
-                    <button id="btnSeriesMapPrimary" class="meta-icon-btn no-print" onclick="openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button>
-                    <button id="btnSeriesRefreshPrimary" class="meta-icon-btn no-print" onclick="refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
-                  </span>
-                  <span class="meta-item"><b>Timestamp:</b> <span id="seriesTimestampInline">—</span></span>
-                  <span class="meta-item"><b>LAT:</b> <span id="seriesLat">—</span></span>
-                  <span class="meta-item"><b>LON:</b> <span id="seriesLon">—</span></span>
-                  <span class="meta-item"><b>ELEV:</b> <span id="seriesElev">—</span></span>
-                </div>
-              </div>
+              <span>Ιστορικό Κύριου Σταθμού</span>
+              <span id="seriesStationName" style="font-weight:800;color:#b03030;margin-left:6px;">—</span>
+              <button id="btnSeriesOpenPrimary" class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button>
+              <button id="btnSeriesMapPrimary" class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button>
+              <button id="btnSeriesRefreshPrimary" class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
+              <span style="margin-left:6px;"><b>Timestamp:</b> <span id="seriesTimestampInline">—</span></span>
+              <span style="margin-left:6px;"><b>LAT:</b> <span id="seriesLat">—</span></span>
+              <span style="margin-left:6px;"><b>LON:</b> <span id="seriesLon">—</span></span>
+              <span style="margin-left:6px;"><b>ELEV:</b> <span id="seriesElev">—</span></span>
             </summary>
             <div class="db-controls no-print" id="seriesControls" style="margin:8px 0 10px">
   <span style="font-weight:700">Τελευταίες:</span>
