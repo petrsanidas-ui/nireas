@@ -1175,7 +1175,7 @@
   <button id="btnSeriesExport" class="mini-btn btn-gray" title="Εξαγωγή CSV (φιλτραρισμένη προβολή)">Export CSV</button>
   <button id="btnSeriesView" class="mini-btn btn-gray" title="Εναλλαγή προβολής στηλών (κοινή με DB)">Προβολή: BASIC</button>
   <button id="btnSeriesFilters" class="mini-btn btn-gray" title="Ενεργοποίηση/Απενεργοποίηση φίλτρων">Φίλτρο: ON</button>
-  <button id="btnSeriesClearFilters" class="mini-btn btn-gray" title="Καθαρισμός φίλτρων">Clear</button>
+  <button id="btnSeriesClearFilters" type="button" class="mini-btn btn-gray" title="Καθαρισμός φίλτρων">Clear</button>
   <span id="seriesStatus" class="db-status" style="margin-left:auto">—</span>
 </div>
 
@@ -1207,7 +1207,7 @@
               <button id="btnDbExport" class="mini-btn btn-gray" title="Εξαγωγή CSV">Export CSV</button>
               <button id="btnDbView" class="mini-btn btn-gray" title="Εναλλαγή προβολής στηλών">Προβολή: BASIC</button>
               <button id="btnDbFilters" class="mini-btn btn-gray" title="Excel-style φίλτρα ανά στήλη">Φίλτρο: ON</button>
-              <button id="btnDbClearFilters" class="mini-btn btn-gray" title="Καθαρισμός όλων των φίλτρων">Clear</button>
+              <button id="btnDbClearFilters" type="button" class="mini-btn btn-gray" title="Καθαρισμός όλων των φίλτρων">Clear</button>
               <span id="dbStatus" class="db-status">—</span>
             </div>
 
@@ -5725,6 +5725,31 @@ function exportSeriesCsv(){
   __seriesSetStatus(`CSV: OK (${rows.length} rows)`, false);
 }
 
+function clearSeriesFiltersUI(){
+  window.__seriesFilters = {};
+  // clear visible inputs/selects (even if render doesn't happen for any reason)
+  const fr = document.getElementById('seriesFilterRow');
+  if(fr){
+    fr.querySelectorAll('input').forEach(i=>{ i.value = ''; });
+    fr.querySelectorAll('select').forEach(s=>{ s.value = ''; });
+  }
+  renderSeriesHead();
+  renderSeriesRows(window.__seriesLastSamples || []);
+  __seriesSetStatus('Monitoring: filters cleared', false);
+}
+
+function clearDbFiltersUI(){
+  window.__dbFilters = {};
+  const fr = document.getElementById('dbFilterRow');
+  if(fr){
+    fr.querySelectorAll('input').forEach(i=>{ i.value = ''; });
+    fr.querySelectorAll('select').forEach(s=>{ s.value = ''; });
+  }
+  renderDbHead();
+  renderDbRows(window.__dbLastSamples || []);
+  __dbSetStatus('DB: filters cleared', false);
+}
+
 function initSeriesReaderUI(){
   const saved = localStorage.getItem('nireas_series_filters');
   if(saved === 'off') window.__seriesFiltersEnabled = false;
@@ -5735,6 +5760,8 @@ function initSeriesReaderUI(){
   const btnView = document.getElementById('btnSeriesView');
   const btnFilt = document.getElementById('btnSeriesFilters');
   const btnClr  = document.getElementById('btnSeriesClearFilters');
+
+  if(btnClr){ btnClr.onclick = (e)=>{ e.preventDefault(); clearSeriesFiltersUI(); }; }
   const inpLim  = document.getElementById('seriesLimit');
 
   if(btnLoad && !btnLoad.dataset.bound){
@@ -5770,16 +5797,7 @@ function initSeriesReaderUI(){
       });
     }
   }
-  if(btnClr && !btnClr.dataset.bound){
-    btnClr.dataset.bound = '1';
-    btnClr.addEventListener('click', (e)=>{
-      e.preventDefault();
-      window.__seriesFilters = {};
-      renderSeriesHead();
-      renderSeriesRows(window.__seriesLastSamples || []);
-      __seriesSetStatus('Monitoring: filters cleared', false);
-    });
-  }
+  // Clear handled via btnClr.onclick (single handler)
 
   // initial render
   try{
@@ -6012,6 +6030,8 @@ function initDbReaderUI(){
   const btnFilt = document.getElementById('btnDbFilters');
   const btnClr  = document.getElementById('btnDbClearFilters');
 
+  if(btnClr){ btnClr.onclick = (e)=>{ e.preventDefault(); clearDbFiltersUI(); }; }
+
   if(btnView){ btnView.textContent = (__dbGetViewMode() === 'full') ? 'Προβολή: FULL' : 'Προβολή: BASIC'; }
 
   if(btnLoad && !btnLoad.dataset.bound){
@@ -6050,16 +6070,7 @@ function initDbReaderUI(){
     }
   }
 
-  if(btnClr && !btnClr.dataset.bound){
-    btnClr.dataset.bound = '1';
-    btnClr.addEventListener('click', (e)=>{
-      e.preventDefault();
-      window.__dbFilters = {};
-      renderDbHead();
-      renderDbRows(window.__dbLastSamples || []);
-      __dbSetStatus('DB: filters cleared', false);
-    });
-  }
+  // Clear handled via btnClr.onclick (single handler)
 
   // init view mode button + initial render
   __dbSetViewMode(__dbGetViewMode());
