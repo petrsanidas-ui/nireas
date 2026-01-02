@@ -5726,28 +5726,67 @@ function exportSeriesCsv(){
 }
 
 function clearSeriesFiltersUI(){
+  // Clear filters AND clear the visible table data (for space + clean slate)
   window.__seriesFilters = {};
-  // clear visible inputs/selects (even if render doesn't happen for any reason)
+
+  // Clear visible inputs/selects
   const fr = document.getElementById('seriesFilterRow');
   if(fr){
     fr.querySelectorAll('input').forEach(i=>{ i.value = ''; });
     fr.querySelectorAll('select').forEach(s=>{ s.value = ''; });
   }
+
+  // Clear in-memory series for the current primary station context
+  try{
+    if(typeof currentStationKey !== 'undefined'){
+      if(typeof stationSeriesByKey !== 'undefined'){
+        stationSeriesByKey[currentStationKey] = [];
+      }
+      if(typeof stationLastKeyByKey !== 'undefined'){
+        stationLastKeyByKey[currentStationKey] = null;
+      }
+      if(typeof stationSeries !== 'undefined'){
+        stationSeries = [];
+      }
+      if(typeof stationLastKey !== 'undefined'){
+        stationLastKey = null;
+      }
+    }
+  }catch(_){}
+
+  // Clear any cached last samples used by the renderer
+  window.__seriesLastSamples = [];
+
+  // Reset Load button visual state
+  if(typeof __setLoadBtnState === 'function') __setLoadBtnState('btnSeriesLoad', 'idle');
+
+  // Re-render as empty
   renderSeriesHead();
-  renderSeriesRows(window.__seriesLastSamples || []);
-  __seriesSetStatus('Monitoring: filters cleared', false);
+  renderSeriesRows([]);
+
+  __seriesSetStatus('Monitoring: cleared', false);
 }
 
 function clearDbFiltersUI(){
+  // Clear filters AND clear the visible table data
   window.__dbFilters = {};
+
   const fr = document.getElementById('dbFilterRow');
   if(fr){
     fr.querySelectorAll('input').forEach(i=>{ i.value = ''; });
     fr.querySelectorAll('select').forEach(s=>{ s.value = ''; });
   }
+
+  // Clear cached DB rows currently shown
+  window.__dbLastSamples = [];
+
+  // Reset Load button visual state
+  if(typeof __setLoadBtnState === 'function') __setLoadBtnState('btnDbLoad', 'idle');
+
   renderDbHead();
-  renderDbRows(window.__dbLastSamples || []);
-  __dbSetStatus('DB: filters cleared', false);
+  renderDbRows([]);
+
+  __dbSetStatus('DB: cleared', false);
 }
 
 function initSeriesReaderUI(){
