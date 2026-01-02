@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="el">
 <head>
@@ -747,6 +748,26 @@
     .station-meta-line .meta-item{ white-space:nowrap; }
     .station-meta-line #stationName{ font-weight:800; }
 
+    .station-meta-line .name-item{ display:inline-flex; align-items:center; gap:6px; }
+
+    /* Small icon buttons for station actions (open URL / refresh) */
+    .meta-icon-btn{
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(44,62,80,.08);
+      color:#1f2a33;
+      width:24px;
+      height:22px;
+      border-radius:8px;
+      cursor:pointer;
+      line-height:1;
+      font-size:14px;
+      padding:0;
+    }
+    .meta-icon-btn:hover{ background:rgba(44,62,80,.14); }
+    .meta-icon-btn:disabled{ opacity:.6; cursor:default; }
+    .meta-icon-btn.spinning{ animation: spin 0.9s linear infinite; }
+    @keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+
     /* Extra stations: meta line */
     .multi-meta-line{
       display:flex;
@@ -1052,7 +1073,7 @@
             </div>
           </div>
           <div class="station-meta-line" id="stationMetaLine">
-            <span class="meta-item"><b>Σταθμός:</b> <span id="stationName">—</span></span>
+            <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
             <span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
             <span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
             <span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
@@ -1291,6 +1312,7 @@ let STATION_SELECT_BOUND = false; // bind dropdown change listener once
 let MULTI_DETAILS_OPEN = true; // remember collapse state for "Επιπλέον σταθμοί"
 
 
+let MULTI_RESULTS_BY_URL = new Map(); // url -> last fetched result (for per-station refresh)
 /* ===== Map state (multi-layer) ===== */
 let map = null;
 let baseLayer = null;
@@ -2862,6 +2884,13 @@ function renderStationMultiList(results){
   const rest = (results||[]).filter(r => !primaryUrl || r.url !== primaryUrl);
   if(!rest.length){ box.style.display='none'; box.innerHTML=''; return; }
 
+  // cache latest fetched results so we can refresh a single station without refetching all
+  try{
+    MULTI_RESULTS_BY_URL.clear();
+    rest.forEach(r=>{ if(r && r.url) MULTI_RESULTS_BY_URL.set(r.url, r); });
+  }catch(_){}
+
+
 const rows = rest.map(r=>{
     const ts = ts24(r.tsText || '—');
     const meta = getStationMeta(r.url);
@@ -2886,7 +2915,11 @@ const rows = rest.map(r=>{
     return `<div class="multi-block">
       <div class="multi-row">
         <div class="multi-meta-line">
-          <span class="meta-item"><span class="meta-label">Σταθμός:</span><span class="multi-name ${ageCls}">${escapeHtml(r.name || '—')}</span></span>
+          <span class="meta-item">
+            <span class="multi-name ${ageCls}">${escapeHtml(r.name || '—')}</span>
+            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="openStationUrl(decodeURIComponent(this.dataset.u))" title="Άνοιγμα URL σταθμού">🔗</button>
+            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="refreshExtraStation(decodeURIComponent(this.dataset.u), this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
+          </span>
           <span class="meta-item"><span class="meta-label">Timestamp:</span><span class="multi-ts">${escapeHtml(ts)}</span></span>
           <span class="meta-item"><span class="meta-label">LAT:</span><span class="meta-val">${escapeHtml(latTxt)}</span></span>
           <span class="meta-item"><span class="meta-label">LON:</span><span class="meta-val">${escapeHtml(lonTxt)}</span></span>
@@ -3272,6 +3305,55 @@ function openMonitorWeb(){
 
 // backward compat
 function openStationWeb(){ return openPrimaryWeb(); }
+
+/* ===================== STATION ACTIONS (per station) ===================== */
+function openStationUrl(url){
+  const u = String(url || '').trim();
+  if(!u) return;
+  if(u === OPEN_METEO_TOKEN){ window.open('https://open-meteo.com/', '_blank'); return; }
+  window.open(normalizeStationUrl(u), '_blank');
+}
+
+function openPrimaryActiveUrl(){
+  const url = getPrimaryStationUrl();
+  if(!url){
+    updatePrimaryStatus('Κύριος: Δεν έχει επιλεγεί σταθμός.', 'warn');
+    return;
+  }
+  openStationUrl(url);
+}
+
+function __setBtnBusy(btn, busy){
+  if(!btn) return;
+  btn.disabled = !!busy;
+  btn.classList.toggle('spinning', !!busy);
+}
+
+function refreshPrimaryOnly(btn){
+  __setBtnBusy(btn, true);
+  Promise.resolve(fetchStationData('primary')).finally(()=> __setBtnBusy(btn, false));
+}
+
+async function refreshExtraStation(url, btn){
+  const u0 = String(url || '').trim();
+  if(!u0) return;
+  const u = normalizeStationUrl(u0) || u0;
+  const name = (watchlist && watchlist.get(u)) || (getStationMeta(u)?.name) || u;
+
+  __setBtnBusy(btn, true);
+  try{
+    const r = await fetchStationDataSingle(u, name, false);
+    if(r){
+      MULTI_RESULTS_BY_URL.set(u, r);
+      renderStationMultiList(Array.from(MULTI_RESULTS_BY_URL.values()));
+    }
+  }catch(e){
+    console.error(e);
+  }finally{
+    __setBtnBusy(btn, false);
+  }
+}
+
 
 /* ===================== METEO: Fetch (API button) ===================== */
 
