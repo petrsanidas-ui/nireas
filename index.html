@@ -23,6 +23,7 @@
       --btn-blue:#2980b9;
       --btn-green:#27ae60;
       --btn-gray:#7f8c8d;
+      --btn-yellow:#f1c40f;
 
       --danger:#c0392b;
       --warn:#d35400;
@@ -157,6 +158,7 @@
     .btn-gray{background:var(--btn-gray)}
     .btn-on{background:var(--btn-green)}
     .btn-off{background:var(--btn-gray)}
+    .btn-warn{background:var(--btn-yellow); color:#1f2a33}
 
     /* Station monitor button states */
     .btn-auto-default{background:var(--btn-blue)}
@@ -1169,10 +1171,10 @@
             <div class="db-controls no-print" id="seriesControls" style="margin:8px 0 10px">
   <span style="font-weight:700">Τελευταίες:</span>
   <input id="seriesLimit" class="db-limit" type="number" value="50" min="1" max="500">
-  <button id="btnSeriesLoad" class="mini-btn btn-green" title="Φόρτωση των τελευταίων 12 εγγραφών από DB και συγχώνευση στο monitoring">Load DB</button>
+  <button id="btnSeriesLoad" class="mini-btn btn-gray" title="Φόρτωση των τελευταίων N εγγραφών από DB και συγχώνευση στο monitoring">Load DB</button>
   <button id="btnSeriesExport" class="mini-btn btn-gray" title="Εξαγωγή CSV (φιλτραρισμένη προβολή)">Export CSV</button>
   <button id="btnSeriesView" class="mini-btn btn-gray" title="Εναλλαγή προβολής στηλών (κοινή με DB)">Προβολή: BASIC</button>
-  <button id="btnSeriesFilters" class="mini-btn btn-gray" title="Ενεργοποίηση/Απενεργοποίηση φίλτρων">Φίλτρα: ON</button>
+  <button id="btnSeriesFilters" class="mini-btn btn-gray" title="Ενεργοποίηση/Απενεργοποίηση φίλτρων">Φίλτρο: ON</button>
   <button id="btnSeriesClearFilters" class="mini-btn btn-gray" title="Καθαρισμός φίλτρων">Clear</button>
   <span id="seriesStatus" class="db-status" style="margin-left:auto">—</span>
 </div>
@@ -1200,11 +1202,11 @@
             <div class="db-controls no-print">
               <label style="font-size:11px;color:#6b7a86;font-weight:800">Τελευταίες:</label>
               <input id="dbLimit" type="number" min="1" max="500" value="50" class="db-limit" />
-              <button id="btnDbLoad" class="mini-btn btn-on" title="Φόρτωση από Firestore">Load DB</button>
+              <button id="btnDbLoad" class="mini-btn btn-gray" title="Φόρτωση από Firestore">Load DB</button>
               <button id="btnDbImport" class="mini-btn btn-gray" title="Γέμισε το Ιστορικό (buffer) από τη βάση">Import → Ιστορικό</button>
               <button id="btnDbExport" class="mini-btn btn-gray" title="Εξαγωγή CSV">Export CSV</button>
               <button id="btnDbView" class="mini-btn btn-gray" title="Εναλλαγή προβολής στηλών">Προβολή: BASIC</button>
-              <button id="btnDbFilters" class="mini-btn btn-gray" title="Excel-style φίλτρα ανά στήλη">Φίλτρα: ON</button>
+              <button id="btnDbFilters" class="mini-btn btn-gray" title="Excel-style φίλτρα ανά στήλη">Φίλτρο: ON</button>
               <button id="btnDbClearFilters" class="mini-btn btn-gray" title="Καθαρισμός όλων των φίλτρων">Clear</button>
               <span id="dbStatus" class="db-status">—</span>
             </div>
@@ -4949,6 +4951,23 @@ function __dbSetStatus(msg, isErr){
   el.style.color = isErr ? '#b00020' : '#6b7a86';
 }
 
+function __setLoadBtnState(btnOrId, state){
+  const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
+  if(!btn) return;
+  btn.classList.remove('btn-gray','btn-on','btn-warn');
+  if(state === 'ok') btn.classList.add('btn-on');
+  else if(state === 'warn') btn.classList.add('btn-warn');
+  else btn.classList.add('btn-gray'); // idle
+}
+
+function __setFilterBtnStyle(btnOrId, enabled){
+  const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
+  if(!btn) return;
+  btn.textContent = enabled ? 'Φίλτρο: ON' : 'Φίλτρο: OFF';
+  btn.classList.remove('btn-gray','btn-on','btn-live-off');
+  btn.classList.add(enabled ? 'btn-on' : 'btn-live-off');
+}
+
 function __dbFmt(x, digits=1){
   if(x==null || x==='' || Number.isNaN(Number(x))) return '—';
   const n = Number(x);
@@ -5312,6 +5331,23 @@ function __seriesSetStatus(msg, isErr){
   el.style.color = isErr ? '#b00020' : '#6b7a86';
 }
 
+function __setLoadBtnState(btnOrId, state){
+  const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
+  if(!btn) return;
+  btn.classList.remove('btn-gray','btn-on','btn-warn');
+  if(state === 'ok') btn.classList.add('btn-on');
+  else if(state === 'warn') btn.classList.add('btn-warn');
+  else btn.classList.add('btn-gray'); // idle
+}
+
+function __setFilterBtnStyle(btnOrId, enabled){
+  const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
+  if(!btn) return;
+  btn.textContent = enabled ? 'Φίλτρο: ON' : 'Φίλτρο: OFF';
+  btn.classList.remove('btn-gray','btn-on','btn-live-off');
+  btn.classList.add(enabled ? 'btn-on' : 'btn-live-off');
+}
+
 function __seriesBuildRowsFromBuffer(){
   const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
   const series = (typeof stationSeriesByKey !== 'undefined' && stationSeriesByKey[key]) ? stationSeriesByKey[key] : (window.stationSeries || []);
@@ -5573,8 +5609,10 @@ function __seriesMergeIncoming(incoming){
 }
 
 async function loadSeriesHistoryFromDb(){
+  __setLoadBtnState('btnSeriesLoad','idle');
   if(typeof window.fbFetchRecentSamples !== 'function'){
     __seriesSetStatus('Monitoring DB: δεν είναι διαθέσιμο (Firebase όχι έτοιμο)', true);
+    __setLoadBtnState('btnSeriesLoad','warn');
     return;
   }
 
@@ -5621,8 +5659,10 @@ async function loadSeriesHistoryFromDb(){
     const added = __seriesMergeIncoming(incoming);
     updateStationReadouts();
 
+    __setLoadBtnState('btnSeriesLoad', (docs && docs.length) ? 'ok' : 'warn');
     __seriesSetStatus(`Monitoring: DB OK • +${added}`, false);
   }catch(e){
+    __setLoadBtnState('btnSeriesLoad','warn');
     __seriesSetStatus('Monitoring DB: ERROR • ' + (e && e.message ? e.message : String(e)), true);
   }
 }
@@ -5717,14 +5757,14 @@ function initSeriesReaderUI(){
     }
   }
   if(btnFilt){
-    btnFilt.textContent = (window.__seriesFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+    __setFilterBtnStyle(btnFilt, (window.__seriesFiltersEnabled !== false));
     if(!btnFilt.dataset.bound){
       btnFilt.dataset.bound = '1';
       btnFilt.addEventListener('click', (e)=>{
         e.preventDefault();
         window.__seriesFiltersEnabled = !(window.__seriesFiltersEnabled !== false);
         localStorage.setItem('nireas_series_filters', (window.__seriesFiltersEnabled !== false) ? 'on' : 'off');
-        btnFilt.textContent = (window.__seriesFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+        __setFilterBtnStyle(btnFilt, (window.__seriesFiltersEnabled !== false));
         renderSeriesHead();
         renderSeriesRows(window.__seriesLastSamples || []);
       });
@@ -5765,6 +5805,7 @@ function initSeriesReaderUI(){
 }
 
 async function loadDbHistory(){
+  __setLoadBtnState('btnDbLoad','idle');
   const name = document.getElementById('stationName')?.innerText?.trim() || '';
   const limEl = document.getElementById('dbLimit');
   const lim = Math.max(1, Math.min(500, Number(limEl?.value || 50)));
@@ -5785,6 +5826,7 @@ async function loadDbHistory(){
       if(sumEl) sumEl.textContent = sname;
     }else{
       __dbSetStatus('DB: δεν είναι έτοιμο (Firestore reader missing)', true);
+      __setLoadBtnState('btnDbLoad','warn');
       renderDbRows([]);
       return;
     }
@@ -5797,8 +5839,10 @@ async function loadDbHistory(){
     renderDbHead();
     renderDbRows(window.__dbLastSamples);
 
+    __setLoadBtnState('btnDbLoad', (window.__dbLastSamples && window.__dbLastSamples.length) ? 'ok' : 'warn');
     __dbSetStatus(`DB: OK • ${window.__dbLastSamples.length} εγγραφές`, false);
   }catch(e){
+    __setLoadBtnState('btnDbLoad','warn');
     const msg = (e && e.message) ? e.message : String(e);
     if(/permission|denied/i.test(msg)){
       __dbSetStatus('DB: permission-denied • χρειάζονται Firestore rules για READ', true);
@@ -5992,14 +6036,14 @@ function initDbReaderUI(){
   }
 
   if(btnFilt){
-    btnFilt.textContent = (window.__dbFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+    __setFilterBtnStyle(btnFilt, (window.__dbFiltersEnabled !== false));
     if(!btnFilt.dataset.bound){
       btnFilt.dataset.bound = '1';
       btnFilt.addEventListener('click', (e)=>{
         e.preventDefault();
         window.__dbFiltersEnabled = !(window.__dbFiltersEnabled !== false);
         localStorage.setItem('nireas_db_filters', (window.__dbFiltersEnabled !== false) ? 'on' : 'off');
-        btnFilt.textContent = (window.__dbFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+        __setFilterBtnStyle(btnFilt, (window.__dbFiltersEnabled !== false));
         renderDbHead();
         renderDbRows(window.__dbLastSamples || []);
       });
