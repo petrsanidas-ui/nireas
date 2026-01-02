@@ -243,6 +243,48 @@
       min-width:140px;
     }
 
+    /* DB filter row (Excel-like) */
+    .db-filter-row th{
+      background:#ffffff;
+      position:sticky;
+      top:28px;
+      z-index:1;
+      padding:4px 6px;
+      border-bottom:1px solid #eef2f6;
+      text-align:right;
+      white-space:nowrap;
+    }
+    .db-filter-row th:first-child{ text-align:left; }
+    .db-filter-row th.col-wind{ text-align:left; }
+    .db-filter-row input,
+    .db-filter-row select{
+      width:100%;
+      min-width:64px;
+      height:24px;
+      border:1px solid #d6dde4;
+      border-radius:8px;
+      padding:0 6px;
+      font-size:11px;
+      font-weight:700;
+      background:#fff;
+      color:#2c3e50;
+      box-sizing:border-box;
+    }
+    .db-icon-btn{
+      border:1px solid #d6dde4;
+      background:#fff;
+      border-radius:8px;
+      width:26px;
+      height:24px;
+      cursor:pointer;
+      font-weight:900;
+      line-height:22px;
+      padding:0;
+    }
+    .db-icon-btn:hover{ background:#f7f9fb; }
+    .db-col-icon{ text-align:center !important; }
+
+
     .latest-ts{
       margin-left:10px;
       font-size:11px;
@@ -1073,7 +1115,7 @@
             </div>
           </div>
           <div class="station-meta-line" id="stationMetaLine">
-            <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
+            <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
             <span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
             <span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
             <span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
@@ -1109,10 +1151,42 @@
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
           <details id="seriesDetails" open style="margin-top:10px;">
             <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
-              <span id="seriesSummaryMain">Ιστορικό Κύριου Σταθμού (12 τελευταίες)</span>
-              <span id="seriesSummaryName" style="color:#6b7a86;margin-left:6px"></span>
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+                <span style="font-weight:700;">Ιστορικό Κύριου Σταθμού</span>
+                <div class="station-meta-line" id="seriesMetaLine" style="padding:0;background:transparent;box-shadow:none;margin:0;gap:10px;flex:1 1 auto;">
+                  <span class="meta-item name-item"><span id="seriesStationName" style="font-weight:700;color:#b03030;">—</span>
+                    <button id="btnSeriesOpenPrimary" class="meta-icon-btn no-print" onclick="openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button>
+                    <button id="btnSeriesRefreshPrimary" class="meta-icon-btn no-print" onclick="refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
+                  </span>
+                  <span class="meta-item"><b>Timestamp:</b> <span id="seriesTimestampInline">—</span></span>
+                  <span class="meta-item"><b>LAT:</b> <span id="seriesLat">—</span></span>
+                  <span class="meta-item"><b>LON:</b> <span id="seriesLon">—</span></span>
+                  <span class="meta-item"><b>ELEV:</b> <span id="seriesElev">—</span></span>
+                </div>
+              </div>
             </summary>
-            <div id="stationSeriesList" class="series-list">—</div>
+            <div class="db-controls no-print" id="seriesControls" style="margin:8px 0 10px">
+  <span style="font-weight:700">Τελευταίες:</span>
+  <input id="seriesLimit" class="db-limit" type="number" value="50" min="1" max="500">
+  <button id="btnSeriesLoad" class="mini-btn btn-green" title="Φόρτωση των τελευταίων 12 εγγραφών από DB και συγχώνευση στο monitoring">Load DB</button>
+  <button id="btnSeriesExport" class="mini-btn btn-gray" title="Εξαγωγή CSV (φιλτραρισμένη προβολή)">Export CSV</button>
+  <button id="btnSeriesView" class="mini-btn btn-gray" title="Εναλλαγή προβολής στηλών (κοινή με DB)">Προβολή: BASIC</button>
+  <button id="btnSeriesFilters" class="mini-btn btn-gray" title="Ενεργοποίηση/Απενεργοποίηση φίλτρων">Φίλτρα: ON</button>
+  <button id="btnSeriesClearFilters" class="mini-btn btn-gray" title="Καθαρισμός φίλτρων">Clear</button>
+  <span id="seriesStatus" class="db-status" style="margin-left:auto">—</span>
+</div>
+
+<div class="db-table-wrap">
+  <table class="db-table" id="seriesTable">
+    <thead>
+      <tr id="seriesHeadRow"></tr>
+      <tr id="seriesFilterRow" class="db-filter-row"></tr>
+    </thead>
+    <tbody id="seriesRows">
+      <tr><td colspan="99" style="color:#6b7a86;font-style:italic">—</td></tr>
+    </tbody>
+  </table>
+</div>
           </details>
 
 
@@ -1129,22 +1203,16 @@
               <button id="btnDbImport" class="mini-btn btn-gray" title="Γέμισε το Ιστορικό (buffer) από τη βάση">Import → Ιστορικό</button>
               <button id="btnDbExport" class="mini-btn btn-gray" title="Εξαγωγή CSV">Export CSV</button>
               <button id="btnDbView" class="mini-btn btn-gray" title="Εναλλαγή προβολής στηλών">Προβολή: BASIC</button>
+              <button id="btnDbFilters" class="mini-btn btn-gray" title="Excel-style φίλτρα ανά στήλη">Φίλτρα: ON</button>
+              <button id="btnDbClearFilters" class="mini-btn btn-gray" title="Καθαρισμός όλων των φίλτρων">Clear</button>
               <span id="dbStatus" class="db-status">—</span>
             </div>
 
             <div class="db-table-wrap">
-              <table class="db-table">
+              <table class="db-table" id="dbTable">
                 <thead>
-                  <tr id="dbHeadRow">
-                    <th style="text-align:left">Timestamp</th>
-                    <th>Rain</th>
-                    <th>ΔP</th>
-                    <th>Total</th>
-                    <th>Temp</th>
-                    <th>Hum</th>
-                    <th class="col-wind" style="text-align:left">Wind</th>
-                    <th>Baro</th>
-                  </tr>
+                  <tr id="dbHeadRow"></tr>
+                  <tr id="dbFilterRow" class="db-filter-row"></tr>
                 </thead>
                 <tbody id="dbRows"><tr><td colspan="8" style="color:#6b7a86;font-style:italic">—</td></tr></tbody>
               </table>
@@ -1480,11 +1548,25 @@ async function meteoStationsMap(){
 /* ===== End Meteo Stations layer ===== */
 
 /* ===== Station monitor ===== */
-const STATION_SERIES_MAX = 12;
+const STATION_SERIES_DEFAULT = 50;
+function getSeriesLimit(){
+  const n = Number(document.getElementById('seriesLimit')?.value);
+  const lim = (Number.isFinite(n) && n>0) ? n : STATION_SERIES_DEFAULT;
+  return Math.max(1, Math.min(500, Math.floor(lim)));
+}
 
 // Per-station series contexts (do not mix histories across different primary stations)
 const stationSeriesByKey  = Object.create(null);  // key -> array
 const stationLastKeyByKey = Object.create(null);  // key -> last sample key
+function trimAllStationSeriesToLimit(){
+  const lim = getSeriesLimit();
+  for(const k of Object.keys(stationSeriesByKey)){
+    const arr = stationSeriesByKey[k];
+    if(Array.isArray(arr) && arr.length > lim){
+      arr.splice(0, arr.length - lim);
+    }
+  }
+}
 let currentStationKey = 'open-meteo';
 
 let stationSeries = [];
@@ -2015,7 +2097,7 @@ function setStationMsg(msg){
   const el = document.getElementById('stationMsg');
   if(el) el.innerText = msg;
 }
-function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; if(id==='stationName') updateSeriesSummaryName(); }
+function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; if(id==='stationName'||id==='stationTimestampInline'||id==='stationLat'||id==='stationLon'||id==='stationElev') updateSeriesSummaryName(); }
 
 /* ===== Station freshness (timestamp age) ===== */
 function parseGreekDateTime(ts){
@@ -2073,14 +2155,19 @@ function startStationFreshnessTimer(){
   }catch(_){}
 }
 function updateSeriesSummaryName(){
-  const el = document.getElementById('seriesSummaryName');
-  if(!el) return;
+  // Keep the Primary History header (monitoring table) in sync with the active PRIMARY station
   const name = (document.getElementById('stationName')?.textContent || '').trim();
-  if(!name || name==='—'){
-    el.textContent = '';
-    return;
-  }
-  el.textContent = `• ${name}`;
+  setTxt('seriesStationName', (name && name!=='—') ? name : '—');
+
+  const ts = (document.getElementById('stationTimestampInline')?.textContent || '').trim();
+  setTxt('seriesTimestampInline', (ts && ts!=='—') ? ts : '—');
+
+  const lat = (document.getElementById('stationLat')?.textContent || '').trim();
+  const lon = (document.getElementById('stationLon')?.textContent || '').trim();
+  const elev = (document.getElementById('stationElev')?.textContent || '').trim();
+  setTxt('seriesLat',  (lat  && lat!=='—')  ? lat  : '—');
+  setTxt('seriesLon',  (lon  && lon!=='—')  ? lon  : '—');
+  setTxt('seriesElev', (elev && elev!=='—') ? elev : '—');
 }
 
 // --- Station series context helpers (per *active* primary station) ---
@@ -4145,7 +4232,12 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   if(sampleKey === lastKey) return;
 
   const series = stationSeriesByKey[key] || [];
+  // hard dedup (avoid duplicates after DB merge/import)
+  if(series.some(s => s.key === sampleKey)) return;
   const prev = series.length ? series[series.length-1] : null;
+
+  const l = (latest && typeof latest === 'object') ? latest : {};
+  const dewV = isFiniteNumber(l.dewPoint) ? l.dewPoint : (isFiniteNumber(l.dew) ? l.dew : null);
 
   let dp = null;
   if(totals && totals.total!=null && prev && prev.total!=null && prev.totalSrc && prev.totalSrc === totals.totalSrc){
@@ -4159,16 +4251,37 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   series.push({
     key: sampleKey,
     tsText: tsText || sampleKey,
+    tsMs: dateMs,
     val,
+    rainRate: (typeof val === 'number') ? val : null,
     label,
+    stationName: (typeof label === 'string' && label.trim()) ? label : null,
     total: totals ? totals.total : null,
     totalSrc: totals ? totals.totalSrc : null,
     dp,
-    dateMs
+    dateMs,
+
+    // extra metrics (match the "cards" UI + DB table)
+    temp: isFiniteNumber(l.temp) ? l.temp : null,
+    hum:  isFiniteNumber(l.hum) ? l.hum : null,
+    dewPoint: dewV,
+    wind: (typeof l.wind === 'string' && l.wind.trim()) ? l.wind : null,
+    baro: isFiniteNumber(l.baro) ? l.baro : null,
+
+    today: isFiniteNumber(l.today) ? l.today : (totals && isFiniteNumber(totals.today) ? totals.today : null),
+    storm: isFiniteNumber(l.storm) ? l.storm : (totals && isFiniteNumber(totals.storm) ? totals.storm : null),
+    month: isFiniteNumber(l.month) ? l.month : null,
+    year:  isFiniteNumber(l.year)  ? l.year  : null,
+
+    chill: isFiniteNumber(l.chill) ? l.chill : null,
+    heat:  isFiniteNumber(l.heat)  ? l.heat  : null,
+    sunrise: (typeof l.sunrise === 'string' && l.sunrise.trim()) ? l.sunrise : null,
+    sunset:  (typeof l.sunset  === 'string' && l.sunset.trim())  ? l.sunset  : null
   });
 
-  if(series.length > STATION_SERIES_MAX){
-    series.splice(0, series.length - STATION_SERIES_MAX);
+  const __lim = getSeriesLimit();
+  if(series.length > __lim){
+    series.splice(0, series.length - __lim);
   }
 
   stationSeriesByKey[key] = series;
@@ -4177,12 +4290,34 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   // ---- FIREBASE LOG (non-blocking) ----
   try{
     const l = (latest && typeof latest === 'object') ? latest : {};
+
+    // attach station meta (for DB table cohesion + map focus)
+    let stationUrl = null, stationName = (label || null), lat = null, lon = null, elev = null;
+    try{
+      const sk = String(key || '');
+      let u = sk;
+      if(sk.startsWith('url:')) u = sk.slice(4);
+      if(sk === 'open-meteo') u = (typeof OPEN_METEO_TOKEN !== 'undefined') ? OPEN_METEO_TOKEN : sk;
+      stationUrl = u;
+      let meta = null;
+      if(typeof getStationMeta === 'function') meta = getStationMeta(u);
+      stationName = meta?.name || stationName;
+      lat  = (typeof meta?.lat  === 'number') ? meta.lat  : null;
+      lon  = (typeof meta?.lon  === 'number') ? meta.lon  : null;
+      elev = (typeof meta?.elev === 'number') ? meta.elev : null;
+    }catch(_){}
+
     const payload = {
       tsMs: dateMs,
       tsText: (tsText || sampleKey),
       sampleKey: sampleKey,
       rainRate: (typeof val === 'number') ? val : null,
       label: label || null,
+      stationUrl: stationUrl,
+      stationName: stationName,
+      lat: (typeof lat === "number") ? lat : null,
+      lon: (typeof lon === "number") ? lon : null,
+      elev: (typeof elev === "number") ? elev : null,
       dp: (typeof dp === 'number') ? dp : null,
       total: (totals && typeof totals.total === 'number') ? totals.total : null,
       totalSrc: totals ? (totals.totalSrc || null) : null,
@@ -4190,7 +4325,7 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
       // extra metrics (match the "cards" UI)
       temp: isFiniteNumber(l.temp) ? l.temp : null,
       hum: isFiniteNumber(l.hum) ? l.hum : null,
-      dewPoint: isFiniteNumber(l.dewPoint) ? l.dewPoint : null,
+      dewPoint: isFiniteNumber(l.dewPoint) ? l.dewPoint : (isFiniteNumber(l.dew) ? l.dew : null),
       wind: (typeof l.wind === 'string' && l.wind.trim()) ? l.wind : null,
       baro: isFiniteNumber(l.baro) ? l.baro : null,
 
@@ -4241,25 +4376,22 @@ function updateStationReadouts(){
 }
 
 function renderStationSeriesList(){
-  const box = document.getElementById('stationSeriesList');
-  if(!box) return;
-  if(!stationSeries || !stationSeries.length){
-    box.innerHTML = '—';
-    return;
+  // Backward-compatible name: renders the "Monitoring" history table
+  try{
+    if(typeof __seriesBuildRowsFromBuffer === 'function'){
+      const rows = __seriesBuildRowsFromBuffer();
+      if(typeof renderSeriesHead === 'function') renderSeriesHead();
+      if(typeof renderSeriesRows === 'function') renderSeriesRows(rows);
+      if(typeof __seriesSetStatus === 'function'){
+        __seriesSetStatus(`Monitoring: ${rows.length} δείγματα`, false);
+      }
+      return;
+    }
+  }catch(e){
+    console.warn('renderStationSeriesList error', e);
   }
-  // show newest first
-  const rows = stationSeries.slice().reverse().map(s=>{
-    const ts = escapeHtml(ts24(s.tsText || '—'));
-    const val = (s.val!=null && isFiniteNumber(s.val)) ? `${s.val.toFixed(1)} mm/h` : '—';
-    const dp = (s.dp!=null && isFiniteNumber(s.dp)) ? `ΔP ${s.dp.toFixed(1)} mm` : '';
-    return `<div class="series-row">
-      <div class="series-ts">${ts}</div>
-      <div class="series-val">${val}</div>
-      <div class="series-dp">${dp}</div>
-    </div>`;
-  }).join('');
-  box.innerHTML = rows;
 }
+
 
 /* ===================== STATION BUTTONS UI ===================== */
 function updateStationButtons(){
@@ -4590,7 +4722,7 @@ function runAIAnalysis(ev){
   }
 
   // Station series (last 12)
-  const seriesText = __aiNormalizeText(__aiGetTxt('stationSeriesList'));
+  const seriesText = __aiNormalizeText(__aiGetTxt('seriesTable'));
 
   // DB history (loaded from Firestore, if available)
   let dbHistText = '';
@@ -4700,7 +4832,7 @@ Rain Rate: ${context.station.rain_rate}
 ΔP: ${context.station.dp_mm}
 R60: ${context.station.r60_mm}
 
-=== STATION SERIES (12 latest, UI buffer) ===
+=== STATION SERIES (${getSeriesLimit()} latest, UI buffer) ===
 ${seriesText}
 
 ${dbHistText ? `=== DB HISTORY (loaded) ===
@@ -4811,65 +4943,291 @@ function __dbSetViewMode(mode){
   if(btn){
     btn.textContent = (window.__dbViewMode === 'full') ? 'Προβολή: FULL' : 'Προβολή: BASIC';
   }
+  const btn2 = document.getElementById('btnSeriesView');
+  if(btn2){
+    btn2.textContent = (window.__dbViewMode === 'full') ? 'Προβολή: FULL' : 'Προβολή: BASIC';
+  }
 
   renderDbHead();
-  // re-render rows from last fetch
   renderDbRows(window.__dbLastSamples || []);
+
+  // also refresh Monitoring table (same column mode)
+  if(typeof renderSeriesHead === 'function') renderSeriesHead();
+  if(typeof renderSeriesRows === 'function') renderSeriesRows(window.__seriesLastSamples || []);
+}
+
+function __dbResolveMeta(r){
+  // Best-effort station meta resolution:
+  // 1) fields stored in sample (stationName/url/lat/lon/elev)
+  // 2) derive from stationKey (url:..., open-meteo)
+  // 3) fallback to in-page STATIONS_META by URL
+  const sk = (r && r.stationKey != null) ? String(r.stationKey) : '';
+  let url = (r && r.stationUrl) ? String(r.stationUrl) : '';
+  if(!url && sk){
+    if(sk.startsWith('url:')) url = sk.slice(4);
+    else if(sk === 'open-meteo') url = (typeof OPEN_METEO_TOKEN !== 'undefined') ? OPEN_METEO_TOKEN : sk;
+    else url = sk;
+  }
+
+  let meta = null;
+  try{
+    if(url && typeof getStationMeta === 'function') meta = getStationMeta(url);
+  }catch(_){}
+
+  const name = __dbSafeText(r.stationName || r.label || meta?.name || (sk === 'open-meteo' ? 'Open‑Meteo' : sk) || '—');
+  const lat  = (typeof r.lat  === 'number') ? r.lat  : (typeof meta?.lat  === 'number' ? meta.lat  : null);
+  const lon  = (typeof r.lon  === 'number') ? r.lon  : (typeof meta?.lon  === 'number' ? meta.lon  : null);
+  const elev = (typeof r.elev === 'number') ? r.elev : (typeof meta?.elev === 'number' ? meta.elev : null);
+
+  return { name, url, lat, lon, elev, stationKey: sk };
+}
+
+function __dbOpenUrl(url){
+  const u = __dbSafeText(url);
+  if(!u) return;
+  window.open(u, "_blank");
+}
+
+function __dbFocusMap(lat, lon, label){
+  if(!(typeof lat === 'number') || !(typeof lon === 'number')) return;
+
+  // Ensure map is visible
+  try{
+    if(typeof openMapModal === 'function') openMapModal();
+  }catch(_){}
+
+  // Pan/zoom and drop a temporary marker
+  setTimeout(()=>{
+    try{
+      if(!window.map || !window.L) return;
+      window.map.setView([lat, lon], 15, { animate:true });
+      try{
+        if(window.__dbFocusMarker){
+          window.map.removeLayer(window.__dbFocusMarker);
+          window.__dbFocusMarker = null;
+        }
+      }catch(_){}
+      try{
+        window.__dbFocusMarker = window.L.marker([lat, lon]).addTo(window.map);
+        const title = __dbSafeText(label);
+        if(title) window.__dbFocusMarker.bindPopup(`<b>${title}</b><br>${lat.toFixed(4)}, ${lon.toFixed(4)}`).openPopup();
+      }catch(_){}
+    }catch(_){}
+  }, 120);
+}
+
+function __dbGetFilteredRows(){
+  const rows = window.__dbLastSamples || [];
+  const cols = __dbCols();
+  const filters = window.__dbFilters || {};
+  const enabled = (window.__dbFiltersEnabled !== false);
+
+  if(!enabled) return rows;
+
+  // quick check: any filter set?
+  const hasAny = Object.values(filters).some(v => __dbSafeText(v));
+  if(!hasAny) return rows;
+
+  const norm = (s)=> String(s||'').toLowerCase();
+
+  const parseNumericExpr = (expr)=>{
+    const e = __dbSafeText(expr);
+    if(!e) return null;
+    let m = e.match(/^(-?\d+(?:\.\d+)?)\s*(?:\-|\.\.)\s*(-?\d+(?:\.\d+)?)$/);
+    if(m) return {type:'range', a:Number(m[1]), b:Number(m[2])};
+    m = e.match(/^(>=|<=|>|<|=)\s*(-?\d+(?:\.\d+)?)$/);
+    if(m) return {type:'cmp', op:m[1], n:Number(m[2])};
+    const n = Number(e);
+    if(Number.isFinite(n)) return {type:'eq', n};
+    return {type:'text', s:norm(e)};
+  };
+
+  const matchNumeric = (val, exprObj)=>{
+    const n = Number(val);
+    if(!Number.isFinite(n)) return false;
+    if(!exprObj) return true;
+    if(exprObj.type === 'range'){
+      const lo = Math.min(exprObj.a, exprObj.b);
+      const hi = Math.max(exprObj.a, exprObj.b);
+      return n >= lo && n <= hi;
+    }
+    if(exprObj.type === 'cmp'){
+      const t = exprObj.n;
+      if(!Number.isFinite(t)) return false;
+      if(exprObj.op === '>=') return n >= t;
+      if(exprObj.op === '<=') return n <= t;
+      if(exprObj.op === '>')  return n > t;
+      if(exprObj.op === '<')  return n < t;
+      if(exprObj.op === '=')  return n === t;
+    }
+    if(exprObj.type === 'eq') return n === exprObj.n;
+    if(exprObj.type === 'text') return norm(n).includes(exprObj.s);
+    return true;
+  };
+
+  // Pre-parse numeric expressions once
+  const parsed = {};
+  cols.forEach(c=>{
+    const fv = __dbSafeText(filters[c.k]);
+    if(!fv) return;
+    if(c.filterType === 'num') parsed[c.k] = parseNumericExpr(fv);
+  });
+
+  return rows.filter(r=>{
+    for(const c of cols){
+      const fv = __dbSafeText(filters[c.k]);
+      if(!fv) continue;
+      if(c.noFilter) continue;
+
+      if(c.filterType === 'station'){
+        const meta = __dbResolveMeta(r);
+        if(meta.name !== fv) return false;
+        continue;
+      }
+
+      if(c.filterType === 'num'){
+        const raw = (typeof c.getRaw === 'function') ? c.getRaw(r) : r[c.k];
+        if(!matchNumeric(raw, parsed[c.k])) return false;
+        continue;
+      }
+
+      // text
+      const txt = (typeof c.getFilterText === 'function')
+        ? c.getFilterText(r)
+        : ((typeof c.getText === 'function') ? c.getText(r) : '');
+      if(!norm(txt).includes(norm(fv))) return false;
+    }
+    return true;
+  });
 }
 
 function __dbCols(){
   const mode = __dbGetViewMode();
 
-  const tsGetter = (r)=> __dbSafeText(r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString() : r.id));
+  const tsGetter = (r)=> __dbSafeText(r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString('el-GR') : r.id));
+  const stationGetter = (r)=> __dbResolveMeta(r).name;
 
-  const colsBasic = [
-    {k:'ts',       label:'Timestamp', left:true, get:tsGetter},
-    {k:'rainRate', label:'Rain',      get:(r)=> (typeof r.rainRate === 'number') ? __dbFmt(r.rainRate,1) : '—'},
-    {k:'dp',       label:'ΔP',        get:(r)=> (typeof r.dp === 'number') ? __dbFmt(r.dp,1) : '—'},
-    {k:'total',    label:'Total',     get:(r)=> (typeof r.total === 'number') ? __dbFmt(r.total,1) : '—'},
-    {k:'temp',     label:'Temp',      get:(r)=> (typeof r.temp === 'number') ? __dbFmt(r.temp,1) : '—'},
-    {k:'hum',      label:'Hum',       get:(r)=> (typeof r.hum === 'number') ? __dbFmt(r.hum,0) : '—'},
-    {k:'wind',     label:'Wind', left:true, cls:'col-wind', get:(r)=> __dbSafeText(r.wind || '—')},
-    {k:'baro',     label:'Baro',      get:(r)=> (typeof r.baro === 'number') ? __dbFmt(r.baro,1) : '—'}
+  const colsBase = [
+    {k:'ts', label:'Timestamp', left:true, filterType:'text', getText:tsGetter, getFilterText:tsGetter},
+    {k:'station', label:'Station', left:true, filterType:'station', getText:stationGetter, getFilterText:stationGetter},
+    {
+      k:'link', label:'', cls:'db-col-icon', noFilter:true,
+      render:(r)=>{
+        const meta = __dbResolveMeta(r);
+        const btn = document.createElement('button');
+        btn.className = 'db-icon-btn';
+        btn.title = 'Άνοιγμα URL σταθμού';
+        btn.textContent = '🔗';
+        btn.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); __dbOpenUrl(meta.url); };
+        return btn;
+      }
+    },
+    {
+      k:'map', label:'', cls:'db-col-icon', noFilter:true,
+      render:(r)=>{
+        const meta = __dbResolveMeta(r);
+        const btn = document.createElement('button');
+        btn.className = 'db-icon-btn';
+        btn.title = 'Εστίαση στον χάρτη';
+        btn.textContent = '📍';
+        btn.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); __dbFocusMap(meta.lat, meta.lon, meta.name); };
+        return btn;
+      }
+    },
+    {k:'elev', label:'Elev', filterType:'num', getRaw:(r)=> (__dbResolveMeta(r).elev), getText:(r)=> {
+      const e = __dbResolveMeta(r).elev;
+      return (typeof e === 'number' && Number.isFinite(e)) ? String(Math.round(e)) : '—';
+    }}
   ];
 
-  const colsFull = [
-    {k:'ts',       label:'Timestamp', left:true, get:tsGetter},
-    {k:'rainRate', label:'RainRate',  get:(r)=> (typeof r.rainRate === 'number') ? __dbFmt(r.rainRate,1) : '—'},
-    {k:'dp',       label:'ΔP',        get:(r)=> (typeof r.dp === 'number') ? __dbFmt(r.dp,1) : '—'},
-    {k:'total',    label:'Total',     get:(r)=> (typeof r.total === 'number') ? __dbFmt(r.total,1) : '—'},
-    {k:'temp',     label:'Temp',      get:(r)=> (typeof r.temp === 'number') ? __dbFmt(r.temp,1) : '—'},
-    {k:'hum',      label:'Hum',       get:(r)=> (typeof r.hum === 'number') ? __dbFmt(r.hum,0) : '—'},
-    {k:'dewPoint', label:'Dew',       get:(r)=> (typeof r.dewPoint === 'number') ? __dbFmt(r.dewPoint,1) : '—'},
-    {k:'wind',     label:'Wind', left:true, cls:'col-wind', get:(r)=> __dbSafeText(r.wind || '—')},
-    {k:'baro',     label:'Baro',      get:(r)=> (typeof r.baro === 'number') ? __dbFmt(r.baro,1) : '—'},
-    {k:'today',    label:"Today's",   get:(r)=> (typeof r.today === 'number') ? __dbFmt(r.today,1) : '—'},
-    {k:'storm',    label:'Storm',     get:(r)=> (typeof r.storm === 'number') ? __dbFmt(r.storm,1) : '—'},
-    {k:'month',    label:'Month',     get:(r)=> (typeof r.month === 'number') ? __dbFmt(r.month,1) : '—'},
-    {k:'year',     label:'Year',      get:(r)=> (typeof r.year === 'number') ? __dbFmt(r.year,1) : '—'},
-    {k:'chill',    label:'Chill',     get:(r)=> (typeof r.chill === 'number') ? __dbFmt(r.chill,1) : '—'},
-    {k:'heat',     label:'Heat',      get:(r)=> (typeof r.heat === 'number') ? __dbFmt(r.heat,1) : '—'},
-    {k:'sunrise',  label:'Sunrise',   get:(r)=> __dbSafeText(r.sunrise || '—')},
-    {k:'sunset',   label:'Sunset',    get:(r)=> __dbSafeText(r.sunset || '—')}
+  const metricsBasic = [
+    {k:'temp',     label:'Temp',     filterType:'num', getRaw:(r)=>r.temp,     getText:(r)=> (typeof r.temp === 'number') ? __dbFmt(r.temp,1) : '—'},
+    {k:'hum',      label:'Hum',      filterType:'num', getRaw:(r)=>r.hum,      getText:(r)=> (typeof r.hum === 'number') ? __dbFmt(r.hum,0) : '—'},
+    {k:'dewPoint', label:'Dew',      filterType:'num', getRaw:(r)=>r.dewPoint, getText:(r)=> (typeof r.dewPoint === 'number') ? __dbFmt(r.dewPoint,1) : '—'},
+    {k:'wind',     label:'Wind', left:true, cls:'col-wind', filterType:'text', getText:(r)=> __dbSafeText(r.wind || '—')},
+    {k:'baro',     label:'Baro',     filterType:'num', getRaw:(r)=>r.baro,     getText:(r)=> (typeof r.baro === 'number') ? __dbFmt(r.baro,1) : '—'},
+    {k:'today',    label:"Today's",  filterType:'num', getRaw:(r)=>r.today,    getText:(r)=> (typeof r.today === 'number') ? __dbFmt(r.today,1) : '—'},
+    {k:'rainRate', label:'RainRate', filterType:'num', getRaw:(r)=>r.rainRate, getText:(r)=> (typeof r.rainRate === 'number') ? __dbFmt(r.rainRate,1) : '—'},
+    {k:'storm',    label:'Storm',    filterType:'num', getRaw:(r)=>r.storm,    getText:(r)=> (typeof r.storm === 'number') ? __dbFmt(r.storm,1) : '—'},
+    {k:'month',    label:'Month',    filterType:'num', getRaw:(r)=>r.month,    getText:(r)=> (typeof r.month === 'number') ? __dbFmt(r.month,1) : '—'},
+    {k:'year',     label:'Year',     filterType:'num', getRaw:(r)=>r.year,     getText:(r)=> (typeof r.year === 'number') ? __dbFmt(r.year,1) : '—'},
+    {k:'chill',    label:'Chill',    filterType:'num', getRaw:(r)=>r.chill,    getText:(r)=> (typeof r.chill === 'number') ? __dbFmt(r.chill,1) : '—'},
+    {k:'heat',     label:'Heat',     filterType:'num', getRaw:(r)=>r.heat,     getText:(r)=> (typeof r.heat === 'number') ? __dbFmt(r.heat,1) : '—'},
+    {k:'dp',       label:'ΔP',       filterType:'num', getRaw:(r)=>r.dp,       getText:(r)=> (typeof r.dp === 'number') ? __dbFmt(r.dp,1) : '—'},
+    {k:'total',    label:'Total',    filterType:'num', getRaw:(r)=>r.total,    getText:(r)=> (typeof r.total === 'number') ? __dbFmt(r.total,1) : '—'}
   ];
 
-  return (mode === 'full') ? colsFull : colsBasic;
+  const metricsFullExtra = [
+    {k:'sunrise', label:'Sunrise', filterType:'text', getText:(r)=> __dbSafeText(r.sunrise || '—')},
+    {k:'sunset',  label:'Sunset',  filterType:'text', getText:(r)=> __dbSafeText(r.sunset  || '—')}
+  ];
+
+  const cols = colsBase.concat(metricsBasic);
+  if(mode === 'full') cols.push(...metricsFullExtra);
+  return cols;
 }
 
 function renderDbHead(){
   const hr = document.getElementById('dbHeadRow');
+  const fr = document.getElementById('dbFilterRow');
   if(!hr) return;
 
   const cols = __dbCols();
   hr.innerHTML = '';
+  if(fr) fr.innerHTML = '';
 
+  // Header row
   cols.forEach((c, idx)=>{
     const th = document.createElement('th');
     if(idx === 0 || c.left) th.style.textAlign = 'left';
     if(c.cls) th.className = c.cls;
-    th.textContent = c.label;
+    th.textContent = c.label || '';
     hr.appendChild(th);
   });
+
+  // Filter row
+  if(fr){
+    const enabled = (window.__dbFiltersEnabled !== false);
+    fr.style.display = enabled ? '' : 'none';
+
+    cols.forEach((c, idx)=>{
+      const th = document.createElement('th');
+      if(idx === 0 || c.left) th.style.textAlign = 'left';
+      if(c.cls) th.className = c.cls;
+      if(!enabled || c.noFilter){
+        th.innerHTML = '';
+      }else if(c.filterType === 'station'){
+        const sel = document.createElement('select');
+        sel.innerHTML = '<option value="">(όλα)</option>';
+        // populate from current data
+        const uniq = new Set((window.__dbLastSamples||[]).map(r=>__dbResolveMeta(r).name).filter(Boolean));
+        Array.from(uniq).sort((a,b)=>a.localeCompare(b,'el')).forEach(n=>{
+          const o = document.createElement('option');
+          o.value = n; o.textContent = n;
+          sel.appendChild(o);
+        });
+        sel.value = __dbSafeText((window.__dbFilters||{})[c.k]);
+        sel.onchange = ()=>{
+          window.__dbFilters = window.__dbFilters || {};
+          window.__dbFilters[c.k] = sel.value;
+          renderDbRows(window.__dbLastSamples || []);
+        };
+        th.appendChild(sel);
+      }else{
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = (c.filterType === 'num') ? 'π.χ. >10 ή 10-20' : 'filter…';
+        inp.value = __dbSafeText((window.__dbFilters||{})[c.k]);
+        inp.oninput = ()=>{
+          window.__dbFilters = window.__dbFilters || {};
+          window.__dbFilters[c.k] = inp.value;
+          renderDbRows(window.__dbLastSamples || []);
+        };
+        th.appendChild(inp);
+      }
+      fr.appendChild(th);
+    });
+  }
 }
 
 function renderDbRows(rows){
@@ -4879,13 +5237,15 @@ function renderDbRows(rows){
   const cols = __dbCols();
   const colspan = cols.length;
 
-  if(!rows || !rows.length){
+  const filtered = __dbGetFilteredRows();
+
+  if(!filtered || !filtered.length){
     tb.innerHTML = `<tr><td colspan="${colspan}" style="color:#6b7a86;font-style:italic">—</td></tr>`;
     return;
   }
 
   tb.innerHTML = '';
-  for(const r of rows){
+  for(const r of filtered){
     const tr = document.createElement('tr');
 
     cols.forEach((c, idx)=>{
@@ -4893,7 +5253,13 @@ function renderDbRows(rows){
       if(idx === 0 || c.left) td.style.textAlign = 'left';
       if(c.cls) td.className = c.cls;
 
-      td.textContent = (typeof c.get === 'function') ? c.get(r) : '—';
+      if(typeof c.render === 'function'){
+        const node = c.render(r);
+        if(node) td.appendChild(node);
+        else td.textContent = '—';
+      }else{
+        td.textContent = (typeof c.getText === 'function') ? c.getText(r) : '—';
+      }
       tr.appendChild(td);
     });
 
@@ -4901,8 +5267,467 @@ function renderDbRows(rows){
   }
 }
 
-async function loadDbHistory(){
+/* ===================== PRIMARY HISTORY TABLE (Monitoring) ===================== */
+function __seriesSetStatus(msg, isErr){
+  const el = document.getElementById('seriesStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = isErr ? '#b00020' : '#6b7a86';
+}
+
+function __seriesBuildRowsFromBuffer(){
   const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+  const series = (typeof stationSeriesByKey !== 'undefined' && stationSeriesByKey[key]) ? stationSeriesByKey[key] : (window.stationSeries || []);
+  const out = (series || []).map(s=>{
+    const tsMs = (typeof s.tsMs === 'number') ? s.tsMs : ((typeof s.dateMs === 'number') ? s.dateMs : null);
+    return {
+      id: s.key,
+      sampleKey: s.key,
+
+      tsMs,
+      tsText: s.tsText || (tsMs ? new Date(tsMs).toLocaleString('el-GR') : null),
+
+      stationKey: key,
+      stationName: s.stationName || s.label || null,
+
+      rainRate: (typeof s.rainRate === 'number') ? s.rainRate : ((typeof s.val === 'number') ? s.val : null),
+      dp: (typeof s.dp === 'number') ? s.dp : null,
+      total: (typeof s.total === 'number') ? s.total : null,
+      totalSrc: s.totalSrc || null,
+
+      temp: (typeof s.temp === 'number') ? s.temp : null,
+      hum: (typeof s.hum === 'number') ? s.hum : null,
+      dewPoint: (typeof s.dewPoint === 'number') ? s.dewPoint : null,
+      wind: (typeof s.wind === 'string' && s.wind.trim()) ? s.wind : null,
+      baro: (typeof s.baro === 'number') ? s.baro : null,
+
+      today: (typeof s.today === 'number') ? s.today : null,
+      storm: (typeof s.storm === 'number') ? s.storm : null,
+      month: (typeof s.month === 'number') ? s.month : null,
+      year:  (typeof s.year  === 'number') ? s.year  : null,
+
+      chill: (typeof s.chill === 'number') ? s.chill : null,
+      heat:  (typeof s.heat  === 'number') ? s.heat  : null,
+      sunrise: (typeof s.sunrise === 'string' && s.sunrise.trim()) ? s.sunrise : null,
+      sunset:  (typeof s.sunset  === 'string' && s.sunset.trim())  ? s.sunset  : null
+    };
+  });
+
+  out.sort((a,b)=> (b.tsMs||0) - (a.tsMs||0));
+  window.__seriesLastSamples = out;
+  return out;
+}
+
+function __seriesGetFilteredRows(){
+  const rows = window.__seriesLastSamples || [];
+  const cols = __dbCols();
+  const filters = window.__seriesFilters || {};
+  const enabled = (window.__seriesFiltersEnabled !== false);
+
+  if(!enabled) return rows;
+
+  // quick check: any filter set?
+  const hasAny = Object.values(filters).some(v => __dbSafeText(v));
+  if(!hasAny) return rows;
+
+  const norm = (s)=> String(s||'').toLowerCase();
+
+  const parseNumericExpr = (expr)=>{
+    const e = __dbSafeText(expr);
+    if(!e) return null;
+    const s = e.replace(/\s+/g,'').replace(',', '.');
+    // ranges: a-b
+    let m = s.match(/^(-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)$/);
+    if(m) return {type:'range', a:parseFloat(m[1]), b:parseFloat(m[2])};
+    // >=, <=, >, <, =
+    m = s.match(/^(>=|<=|>|<|=)(-?\d+(?:\.\d+)?)$/);
+    if(m) return {type:'cmp', op:m[1], x:parseFloat(m[2])};
+    // plain number: treat as >=
+    m = s.match(/^(-?\d+(?:\.\d+)?)$/);
+    if(m) return {type:'cmp', op:'>=', x:parseFloat(m[1])};
+    return {type:'text', raw: e};
+  };
+
+  const matchNumeric = (val, parsedExpr, rawText)=>{
+    if(val==null || val==='' || Number.isNaN(val)) return false;
+    const v = Number(val);
+    if(!parsedExpr) return false;
+    if(parsedExpr.type === 'range'){
+      const lo = Math.min(parsedExpr.a, parsedExpr.b);
+      const hi = Math.max(parsedExpr.a, parsedExpr.b);
+      return v >= lo && v <= hi;
+    }
+    if(parsedExpr.type === 'cmp'){
+      const x = parsedExpr.x;
+      switch(parsedExpr.op){
+        case '>':  return v > x;
+        case '>=': return v >= x;
+        case '<':  return v < x;
+        case '<=': return v <= x;
+        case '=':  return v === x;
+      }
+    }
+    // fallback to substring match
+    return norm(String(v)).includes(norm(rawText));
+  };
+
+  // Pre-parse numeric expressions once
+  const parsed = {};
+  cols.forEach(c=>{
+    const fv = __dbSafeText(filters[c.k]);
+    if(!fv) return;
+    if(c.filterType === 'num') parsed[c.k] = parseNumericExpr(fv);
+  });
+
+  return rows.filter(r=>{
+    for(const c of cols){
+      const fv = __dbSafeText(filters[c.k]);
+      if(!fv) continue;
+
+      if(c.filterType === 'station'){
+        const name = __dbResolveMeta(r).name;
+        if(norm(name) !== norm(fv)) return false;
+        continue;
+      }
+
+      if(c.filterType === 'num'){
+        const expr = parsed[c.k];
+        const val = (c.k === 'tsMs') ? r.tsMs : r[c.k];
+        if(!matchNumeric(val, expr, fv)) return false;
+        continue;
+      }
+
+      // text filter
+      const txt = (typeof c.getFilterText === 'function') ? c.getFilterText(r)
+                : (typeof c.getText === 'function') ? c.getText(r)
+                : __dbSafeText(r[c.k]);
+      if(!norm(txt).includes(norm(fv))) return false;
+    }
+    return true;
+  });
+}
+
+function renderSeriesHead(){
+  const hr = document.getElementById('seriesHeadRow');
+  const fr = document.getElementById('seriesFilterRow');
+  if(!hr) return;
+
+  const cols = __dbCols();
+  hr.innerHTML = '';
+  if(fr) fr.innerHTML = '';
+
+  // Header row
+  cols.forEach((c, idx)=>{
+    const th = document.createElement('th');
+    if(idx === 0 || c.left) th.style.textAlign = 'left';
+    if(c.cls) th.className = c.cls;
+    th.textContent = c.label || '';
+    hr.appendChild(th);
+  });
+
+  // Filter row (Excel-like)
+  if(fr){
+    const enabled = (window.__seriesFiltersEnabled !== false);
+    fr.style.display = enabled ? '' : 'none';
+
+    cols.forEach((c, idx)=>{
+      const th = document.createElement('th');
+      if(idx === 0 || c.left) th.style.textAlign = 'left';
+      if(c.cls) th.className = c.cls;
+
+      if(!enabled || c.noFilter){
+        th.innerHTML = '';
+      }else if(c.filterType === 'station'){
+        const sel = document.createElement('select');
+        sel.innerHTML = '<option value="">(όλα)</option>';
+        const uniq = new Set((window.__seriesLastSamples||[]).map(r=>__dbResolveMeta(r).name).filter(Boolean));
+        Array.from(uniq).sort((a,b)=>a.localeCompare(b,'el-GR')).forEach(n=>{
+          const o = document.createElement('option');
+          o.value = n; o.textContent = n;
+          sel.appendChild(o);
+        });
+        sel.value = __dbSafeText((window.__seriesFilters||{})[c.k]);
+        sel.onchange = ()=>{
+          window.__seriesFilters = window.__seriesFilters || {};
+          window.__seriesFilters[c.k] = sel.value;
+          renderSeriesRows(window.__seriesLastSamples || []);
+        };
+        th.appendChild(sel);
+      }else{
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = (c.filterType === 'num') ? 'π.χ. >10 ή 10-20' : 'filter…';
+        inp.value = __dbSafeText((window.__seriesFilters||{})[c.k]);
+        inp.oninput = ()=>{
+          window.__seriesFilters = window.__seriesFilters || {};
+          window.__seriesFilters[c.k] = inp.value;
+          renderSeriesRows(window.__seriesLastSamples || []);
+        };
+        th.appendChild(inp);
+      }
+
+      fr.appendChild(th);
+    });
+  }
+}
+
+function renderSeriesRows(rows){
+  const tb = document.getElementById('seriesRows');
+  if(!tb) return;
+
+  const cols = __dbCols();
+  const colspan = cols.length;
+
+  const filtered = __seriesGetFilteredRows();
+
+  if(!filtered || !filtered.length){
+    tb.innerHTML = `<tr><td colspan="${colspan}" style="color:#6b7a86;font-style:italic">—</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = '';
+  for(const r of filtered){
+    const tr = document.createElement('tr');
+    cols.forEach((c, idx)=>{
+      const td = document.createElement('td');
+      if(idx === 0 || c.left) td.style.textAlign = 'left';
+      if(c.cls) td.className = c.cls;
+      if(typeof c.render === 'function'){
+        const node = c.render(r);
+        if(node) td.appendChild(node);
+        else td.textContent = '—';
+      }else{
+        td.textContent = (typeof c.getText === 'function') ? c.getText(r) : '—';
+      }
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  }
+}
+
+function __seriesMergeIncoming(incoming){
+  const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+  const series = (stationSeriesByKey[key] || []);
+  const existing = new Set(series.map(s=>s.key));
+  let added = 0;
+
+  (incoming||[]).forEach(s=>{
+    if(!s || !s.key) return;
+    if(existing.has(s.key)) return;
+    existing.add(s.key);
+    series.push(s);
+    added++;
+  });
+
+  series.sort((a,b)=> (a.dateMs||0) - (b.dateMs||0));
+  const __lim = getSeriesLimit();
+  if(series.length > __lim){
+    series.splice(0, series.length - __lim);
+  }
+
+  stationSeriesByKey[key] = series;
+  stationLastKeyByKey[key] = series.length ? series[series.length-1].key : null;
+
+  // update current pointers (if we are on the same context)
+  stationSeries = series;
+  stationLastKey = stationLastKeyByKey[key];
+
+  return added;
+}
+
+async function loadSeriesHistoryFromDb(){
+  if(typeof window.fbFetchRecentSamples !== 'function'){
+    __seriesSetStatus('Monitoring DB: δεν είναι διαθέσιμο (Firebase όχι έτοιμο)', true);
+    return;
+  }
+
+  const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+  __seriesSetStatus('Monitoring: DB φόρτωση…', false);
+
+  try{
+    const docs = await window.fbFetchRecentSamples(key, getSeriesLimit());
+    const ordered = (docs||[]).slice().sort((a,b)=> (a.tsMs||0) - (b.tsMs||0));
+
+    const incoming = ordered.map(r => ({
+      key: r.sampleKey || r.id || ('t_' + (r.tsMs||Date.now())),
+      tsText: r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString('el-GR') : (r.id||'')),
+      tsMs: (typeof r.tsMs === 'number') ? r.tsMs : Date.now(),
+
+      val: (typeof r.rainRate === 'number') ? r.rainRate : null,
+      rainRate: (typeof r.rainRate === 'number') ? r.rainRate : null,
+
+      label: (r.stationName || r.label || null),
+      stationName: (r.stationName || r.label || null),
+
+      total: (typeof r.total === 'number') ? r.total : null,
+      totalSrc: r.totalSrc || null,
+      dp: (typeof r.dp === 'number') ? r.dp : null,
+      dateMs: (typeof r.tsMs === 'number') ? r.tsMs : Date.now(),
+
+      temp: (typeof r.temp === 'number') ? r.temp : null,
+      hum: (typeof r.hum === 'number') ? r.hum : null,
+      dewPoint: (typeof r.dewPoint === 'number') ? r.dewPoint : ((typeof r.dew === 'number') ? r.dew : null),
+      wind: (typeof r.wind === 'string' && r.wind.trim()) ? r.wind : null,
+      baro: (typeof r.baro === 'number') ? r.baro : null,
+
+      today: (typeof r.today === 'number') ? r.today : null,
+      storm: (typeof r.storm === 'number') ? r.storm : null,
+      month: (typeof r.month === 'number') ? r.month : null,
+      year:  (typeof r.year  === 'number') ? r.year  : null,
+
+      chill: (typeof r.chill === 'number') ? r.chill : null,
+      heat:  (typeof r.heat  === 'number') ? r.heat  : null,
+      sunrise: (typeof r.sunrise === 'string' && r.sunrise.trim()) ? r.sunrise : null,
+      sunset:  (typeof r.sunset  === 'string' && r.sunset.trim())  ? r.sunset  : null
+    }));
+
+    const added = __seriesMergeIncoming(incoming);
+    updateStationReadouts();
+
+    __seriesSetStatus(`Monitoring: DB OK • +${added}`, false);
+  }catch(e){
+    __seriesSetStatus('Monitoring DB: ERROR • ' + (e && e.message ? e.message : String(e)), true);
+  }
+}
+
+function exportSeriesCsv(){
+  const all = window.__seriesLastSamples || [];
+  if(!all.length){
+    __seriesSetStatus('CSV: δεν υπάρχουν δεδομένα (monitoring)', true);
+    return;
+  }
+
+  const rows = __seriesGetFilteredRows();
+
+  const cols = [
+    'tsMs','tsText','stationKey','stationName','stationUrl','lat','lon','elev',
+    'rainRate','dp','total','totalSrc',
+    'temp','hum','dewPoint','wind','baro',
+    'today','storm','month','year','chill','heat','sunrise','sunset',
+    'sampleKey','id'
+  ];
+
+  const escapeCsv = (v)=>{
+    if(v==null) return '';
+    const s = String(v);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  };
+
+  const lines = [];
+  lines.push(cols.join(','));
+
+  rows
+    .slice()
+    .sort((a,b)=> (a.tsMs||0) - (b.tsMs||0))
+    .forEach(r=>{
+      const meta = __dbResolveMeta(r);
+      const out = {
+        ...r,
+        stationName: meta.name,
+        stationUrl: meta.url,
+        lat: meta.lat,
+        lon: meta.lon,
+        elev: meta.elev
+      };
+      lines.push(cols.map(c=>escapeCsv(out[c])).join(','));
+    });
+
+  const csv = lines.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `nireas_monitoring_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 1500);
+
+  __seriesSetStatus(`CSV: OK (${rows.length} rows)`, false);
+}
+
+function initSeriesReaderUI(){
+  const saved = localStorage.getItem('nireas_series_filters');
+  if(saved === 'off') window.__seriesFiltersEnabled = false;
+  if(saved === 'on')  window.__seriesFiltersEnabled = true;
+
+  const btnLoad = document.getElementById('btnSeriesLoad');
+  const btnCsv  = document.getElementById('btnSeriesExport');
+  const btnView = document.getElementById('btnSeriesView');
+  const btnFilt = document.getElementById('btnSeriesFilters');
+  const btnClr  = document.getElementById('btnSeriesClearFilters');
+  const inpLim  = document.getElementById('seriesLimit');
+
+  if(btnLoad && !btnLoad.dataset.bound){
+    btnLoad.dataset.bound = '1';
+    btnLoad.addEventListener('click', (e)=>{ e.preventDefault(); loadSeriesHistoryFromDb(); });
+  }
+  if(btnCsv && !btnCsv.dataset.bound){
+    btnCsv.dataset.bound = '1';
+    btnCsv.addEventListener('click', (e)=>{ e.preventDefault(); exportSeriesCsv(); });
+  }
+  if(btnView){
+    btnView.textContent = (__dbGetViewMode() === 'full') ? 'Προβολή: FULL' : 'Προβολή: BASIC';
+    if(!btnView.dataset.bound){
+      btnView.dataset.bound = '1';
+      btnView.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const next = (__dbGetViewMode() === 'full') ? 'basic' : 'full';
+        __dbSetViewMode(next); // shared view mode across DB + Monitoring
+      });
+    }
+  }
+  if(btnFilt){
+    btnFilt.textContent = (window.__seriesFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+    if(!btnFilt.dataset.bound){
+      btnFilt.dataset.bound = '1';
+      btnFilt.addEventListener('click', (e)=>{
+        e.preventDefault();
+        window.__seriesFiltersEnabled = !(window.__seriesFiltersEnabled !== false);
+        localStorage.setItem('nireas_series_filters', (window.__seriesFiltersEnabled !== false) ? 'on' : 'off');
+        btnFilt.textContent = (window.__seriesFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+        renderSeriesHead();
+        renderSeriesRows(window.__seriesLastSamples || []);
+      });
+    }
+  }
+  if(btnClr && !btnClr.dataset.bound){
+    btnClr.dataset.bound = '1';
+    btnClr.addEventListener('click', (e)=>{
+      e.preventDefault();
+      window.__seriesFilters = {};
+      renderSeriesHead();
+      renderSeriesRows(window.__seriesLastSamples || []);
+      __seriesSetStatus('Monitoring: filters cleared', false);
+    });
+  }
+
+  // initial render
+  try{
+    __seriesBuildRowsFromBuffer();
+    renderSeriesHead();
+    renderSeriesRows(window.__seriesLastSamples || []);
+    __seriesSetStatus(`Monitoring: ${(window.__seriesLastSamples||[]).length} δείγματα`, false);
+  }catch(_e){}
+
+  if(inpLim && !inpLim.dataset.bound){
+    inpLim.dataset.bound = '1';
+    const onLimChange = ()=>{
+      const lim = getSeriesLimit();
+      inpLim.value = lim;
+      trimAllStationSeriesToLimit();
+      renderStationSeriesList();
+      __seriesSetStatus(`Monitoring: όριο = ${lim}`, false);
+    };
+    inpLim.addEventListener('change', (e)=>{ e.preventDefault(); onLimChange(); });
+    inpLim.addEventListener('input',  (e)=>{ onLimChange(); });
+  }
+
+}
+
+async function loadDbHistory(){
   const name = document.getElementById('stationName')?.innerText?.trim() || '';
   const limEl = document.getElementById('dbLimit');
   const lim = Math.max(1, Math.min(500, Number(limEl?.value || 50)));
@@ -4910,27 +5735,41 @@ async function loadDbHistory(){
   __dbSetStatus('DB: φόρτωση…', false);
 
   try{
-    if(!window.fbFetchRecentSamples){
-      __dbSetStatus('DB: δεν είναι έτοιμο (fbFetchRecentSamples missing)', true);
+    let rows = [];
+    if(window.fbFetchRecentSamplesAll){
+      rows = await window.fbFetchRecentSamplesAll(lim);
+      const sumEl = document.getElementById('dbSeriesSummaryName');
+      if(sumEl) sumEl.textContent = '• ALL STATIONS';
+    }else if(window.fbFetchRecentSamples){
+      const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+      rows = await window.fbFetchRecentSamples(key, lim);
+      const sname = name ? `(${name})` : '';
+      const sumEl = document.getElementById('dbSeriesSummaryName');
+      if(sumEl) sumEl.textContent = sname;
+    }else{
+      __dbSetStatus('DB: δεν είναι έτοιμο (Firestore reader missing)', true);
+      renderDbRows([]);
       return;
     }
-    const rows = await window.fbFetchRecentSamples(key, lim);
+
     window.__dbLastSamples = rows || [];
+    // ensure newest first (table feels like monitoring)
+    window.__dbLastSamples.sort((a,b)=> (b.tsMs||0) - (a.tsMs||0));
+
+    // reset station dropdown options by re-rendering head
+    renderDbHead();
     renderDbRows(window.__dbLastSamples);
 
-    const sname = name ? `(${name})` : '';
-    const sumEl = document.getElementById('dbSeriesSummaryName');
-    if(sumEl) sumEl.textContent = sname;
-
-    __dbSetStatus(`DB: OK • ${window.__dbLastSamples.length} δείγματα`, false);
+    __dbSetStatus(`DB: OK • ${window.__dbLastSamples.length} εγγραφές`, false);
   }catch(e){
     const msg = (e && e.message) ? e.message : String(e);
-    // Common case: permission-denied
     if(/permission|denied/i.test(msg)){
       __dbSetStatus('DB: permission-denied • χρειάζονται Firestore rules για READ', true);
     }else{
       __dbSetStatus('DB: ERROR • ' + msg, true);
     }
+    window.__dbLastSamples = [];
+    renderDbHead();
     renderDbRows([]);
   }
 }
@@ -4943,57 +5782,99 @@ function importDbToHistory(){
   }
 
   const key = (typeof currentStationKey !== 'undefined' && currentStationKey) ? currentStationKey : 'open-meteo';
+  const stationRows = rows.filter(r => String(r.stationKey||'') === String(key));
 
-  // Convert DB rows -> UI buffer entries (oldest -> newest)
-  const ordered = rows.slice().sort((a,b)=> (a.tsMs||0) - (b.tsMs||0));
-  const series = ordered.map(r => ({
+  if(!stationRows.length){
+    __dbSetStatus('DB → Ιστορικό: δεν βρέθηκαν εγγραφές για τον τρέχοντα σταθμό', true);
+    return;
+  }
+
+  const ordered = stationRows.slice().sort((a,b)=> (a.tsMs||0) - (b.tsMs||0));
+  const incoming = ordered.map(r => ({
     key: r.sampleKey || r.id || ('t_' + (r.tsMs||Date.now())),
-    tsText: r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString() : (r.id||'')),
+    tsText: r.tsText || (r.tsMs ? new Date(r.tsMs).toLocaleString('el-GR') : (r.id||'')),
+    tsMs: (typeof r.tsMs === 'number') ? r.tsMs : Date.now(),
+
     val: (typeof r.rainRate === 'number') ? r.rainRate : null,
-    label: r.label || null,
+    rainRate: (typeof r.rainRate === 'number') ? r.rainRate : null,
+
+    label: (r.stationName || r.label || null),
+    stationName: (r.stationName || r.label || null),
+
     total: (typeof r.total === 'number') ? r.total : null,
     totalSrc: r.totalSrc || null,
     dp: (typeof r.dp === 'number') ? r.dp : null,
+
+    // extra metrics
+    temp: (typeof r.temp === 'number') ? r.temp : null,
+    hum: (typeof r.hum === 'number') ? r.hum : null,
+    dewPoint: (typeof r.dewPoint === 'number') ? r.dewPoint : ((typeof r.dew === 'number') ? r.dew : null),
+    wind: (typeof r.wind === 'string' && r.wind.trim()) ? r.wind : null,
+    baro: (typeof r.baro === 'number') ? r.baro : null,
+
+    today: (typeof r.today === 'number') ? r.today : null,
+    storm: (typeof r.storm === 'number') ? r.storm : null,
+    month: (typeof r.month === 'number') ? r.month : null,
+    year:  (typeof r.year  === 'number') ? r.year  : null,
+
+    chill: (typeof r.chill === 'number') ? r.chill : null,
+    heat:  (typeof r.heat  === 'number') ? r.heat  : null,
+    sunrise: (typeof r.sunrise === 'string' && r.sunrise.trim()) ? r.sunrise : null,
+    sunset:  (typeof r.sunset  === 'string' && r.sunset.trim())  ? r.sunset  : null,
+
     dateMs: (typeof r.tsMs === 'number') ? r.tsMs : Date.now()
   }));
 
   try{
+    const existing = (typeof stationSeriesByKey !== 'undefined' && stationSeriesByKey[key]) ? stationSeriesByKey[key] : [];
+    const keySet = new Set(existing.map(s=>s.key));
+
+    for(const it of incoming){
+      if(!it || !it.key) continue;
+      if(keySet.has(it.key)) continue;
+      existing.push(it);
+      keySet.add(it.key);
+    }
+    existing.sort((a,b)=> (a.dateMs||0) - (b.dateMs||0));
+    const __lim2 = getSeriesLimit();
+    if(existing.length > __lim2){
+      existing.splice(0, existing.length - __lim2);
+    }
+
     if(typeof stationSeriesByKey !== 'undefined'){
-      stationSeriesByKey[key] = series;
+      stationSeriesByKey[key] = existing;
     }
     if(typeof stationLastKeyByKey !== 'undefined'){
-      stationLastKeyByKey[key] = series.length ? series[series.length-1].key : null;
+      stationLastKeyByKey[key] = existing.length ? existing[existing.length-1].key : null;
     }
     if(typeof currentStationKey !== 'undefined' && key === currentStationKey){
-      stationSeries = series;
-      stationLastKey = series.length ? series[series.length-1].key : null;
+      stationSeries = existing;
+      stationLastKey = existing.length ? existing[existing.length-1].key : null;
       updateStationReadouts();
     }
-    // Render list
-    if(typeof renderStationSeries === 'function'){
-      renderStationSeries();
-    }else{
-      // fallback: trigger updateStationReadouts already updates seriesList in current code
-      updateStationReadouts();
-    }
-    __dbSetStatus(`DB → Ιστορικό: OK • ${series.length} εγγραφές`, false);
+    if(typeof renderStationSeries === 'function') renderStationSeries();
+    __dbSetStatus(`DB → Ιστορικό: OK • +${incoming.length} (merge)`, false);
   }catch(e){
     __dbSetStatus('Import ERROR • ' + ((e&&e.message)?e.message:String(e)), true);
   }
 }
 
 function exportDbCsv(){
-  const rows = window.__dbLastSamples || [];
-  if(!rows.length){
+  const all = window.__dbLastSamples || [];
+  if(!all.length){
     __dbSetStatus('CSV: δεν υπάρχουν δεδομένα (Load DB πρώτα)', true);
     return;
   }
 
+  // Export filtered view (like Excel)
+  const rows = __dbGetFilteredRows();
+
   const cols = [
-    'tsMs','tsText','rainRate','dp','total','totalSrc',
+    'tsMs','tsText','stationKey','stationName','stationUrl','lat','lon','elev',
+    'rainRate','dp','total','totalSrc',
     'temp','hum','dewPoint','wind','baro',
     'today','storm','month','year','chill','heat','sunrise','sunset',
-    'stationKey','label','sampleKey','id'
+    'sampleKey','id'
   ];
 
   const escapeCsv = (v)=>{
@@ -5005,19 +5886,28 @@ function exportDbCsv(){
 
   const lines = [];
   lines.push(cols.join(','));
+
   rows
     .slice()
     .sort((a,b)=> (a.tsMs||0) - (b.tsMs||0))
     .forEach(r=>{
-      lines.push(cols.map(c=>escapeCsv(r[c])).join(','));
+      const meta = __dbResolveMeta(r);
+      const out = {
+        ...r,
+        stationName: meta.name,
+        stationUrl: meta.url,
+        lat: meta.lat,
+        lon: meta.lon,
+        elev: meta.elev
+      };
+      lines.push(cols.map(c=>escapeCsv(out[c])).join(','));
     });
 
   const csv = lines.join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
-  const name = (document.getElementById('stationName')?.innerText || 'station').replace(/[^\w\-]+/g,'_');
   a.href = URL.createObjectURL(blob);
-  a.download = `nireas_db_${name}_${Date.now()}.csv`;
+  a.download = `nireas_db_ALL_${Date.now()}.csv`;
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{
@@ -5025,14 +5915,23 @@ function exportDbCsv(){
     a.remove();
   }, 1500);
 
-  __dbSetStatus('CSV: OK (download)', false);
+  __dbSetStatus(`CSV: OK (${rows.length} rows)`, false);
 }
 
 function initDbReaderUI(){
+  // Persist filter toggle
+  const saved = localStorage.getItem('nireas_db_filters');
+  if(saved === 'off') window.__dbFiltersEnabled = false;
+  if(saved === 'on')  window.__dbFiltersEnabled = true;
+
   const btnLoad = document.getElementById('btnDbLoad');
   const btnImp  = document.getElementById('btnDbImport');
-  const btnExp  = document.getElementById('btnDbExport');
+  const btnCsv  = document.getElementById('btnDbExport');
   const btnView = document.getElementById('btnDbView');
+  const btnFilt = document.getElementById('btnDbFilters');
+  const btnClr  = document.getElementById('btnDbClearFilters');
+
+  if(btnView){ btnView.textContent = (__dbGetViewMode() === 'full') ? 'Προβολή: FULL' : 'Προβολή: BASIC'; }
 
   if(btnLoad && !btnLoad.dataset.bound){
     btnLoad.dataset.bound = '1';
@@ -5042,21 +5941,46 @@ function initDbReaderUI(){
     btnImp.dataset.bound = '1';
     btnImp.addEventListener('click', (e)=>{ e.preventDefault(); importDbToHistory(); });
   }
-  if(btnExp && !btnExp.dataset.bound){
-    btnExp.dataset.bound = '1';
-    btnExp.addEventListener('click', (e)=>{ e.preventDefault(); exportDbCsv(); });
+  if(btnCsv && !btnCsv.dataset.bound){
+    btnCsv.dataset.bound = '1';
+    btnCsv.addEventListener('click', (e)=>{ e.preventDefault(); exportDbCsv(); });
   }
-
   if(btnView && !btnView.dataset.bound){
     btnView.dataset.bound = '1';
     btnView.addEventListener('click', (e)=>{
       e.preventDefault();
-      const mode = __dbGetViewMode();
-      __dbSetViewMode(mode === 'full' ? 'basic' : 'full');
+      const next = (__dbGetViewMode() === 'full') ? 'basic' : 'full';
+      __dbSetViewMode(next);
     });
   }
 
-  // Initialize view mode + header
+  if(btnFilt){
+    btnFilt.textContent = (window.__dbFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+    if(!btnFilt.dataset.bound){
+      btnFilt.dataset.bound = '1';
+      btnFilt.addEventListener('click', (e)=>{
+        e.preventDefault();
+        window.__dbFiltersEnabled = !(window.__dbFiltersEnabled !== false);
+        localStorage.setItem('nireas_db_filters', (window.__dbFiltersEnabled !== false) ? 'on' : 'off');
+        btnFilt.textContent = (window.__dbFiltersEnabled !== false) ? 'Φίλτρα: ON' : 'Φίλτρα: OFF';
+        renderDbHead();
+        renderDbRows(window.__dbLastSamples || []);
+      });
+    }
+  }
+
+  if(btnClr && !btnClr.dataset.bound){
+    btnClr.dataset.bound = '1';
+    btnClr.addEventListener('click', (e)=>{
+      e.preventDefault();
+      window.__dbFilters = {};
+      renderDbHead();
+      renderDbRows(window.__dbLastSamples || []);
+      __dbSetStatus('DB: filters cleared', false);
+    });
+  }
+
+  // init view mode button + initial render
   __dbSetViewMode(__dbGetViewMode());
   __dbSetStatus('DB: —', false);
 }
@@ -5579,6 +6503,7 @@ function bindInputs(){
     writeBatch,
     serverTimestamp,
     collection,
+    collectionGroup,
     getDocs,
     query,
     orderBy,
@@ -5635,6 +6560,12 @@ function bindInputs(){
       stationKey: String(stationKey),
       label: sample?.label ?? null,
 
+      stationName: sample?.stationName ?? null,
+      stationUrl: sample?.stationUrl ?? null,
+      lat: (typeof sample?.lat === "number") ? sample.lat : null,
+      lon: (typeof sample?.lon === "number") ? sample.lon : null,
+      elev: (typeof sample?.elev === "number") ? sample.elev : null,
+
       sampleKey: sample?.sampleKey ?? null,
       tsMs,
       tsText: sample?.tsText ?? null,
@@ -5672,10 +6603,21 @@ function bindInputs(){
       stationId,
       stationKey: String(stationKey),
       label: sample?.label ?? null,
+
+      stationName: sample?.stationName ?? null,
+      stationUrl: sample?.stationUrl ?? null,
+      lat: (typeof sample?.lat === "number") ? sample.lat : null,
+      lon: (typeof sample?.lon === "number") ? sample.lon : null,
+      elev: (typeof sample?.elev === "number") ? sample.elev : null,
       lastSeen: serverTimestamp(),
       lastSample: {
         tsMs,
         tsText: payload.tsText,
+        stationName: payload.stationName,
+        stationUrl: payload.stationUrl,
+        lat: payload.lat,
+        lon: payload.lon,
+        elev: payload.elev,
         rainRate: payload.rainRate,
         dp: payload.dp,
         total: payload.total,
@@ -5720,6 +6662,18 @@ function bindInputs(){
   };
 
 
+
+  // Reads (ALL stations) via collectionGroup("samples") (orderBy tsMs desc)
+  // NOTE: Requires Firestore rules to allow collectionGroup read.
+  window.fbFetchRecentSamplesAll = async (limitN = 200) => {
+    await authReady;
+    const lim = Math.max(1, Math.min(500, Number(limitN) || 200));
+    const q = query(collectionGroup(db, "samples"), orderBy("tsMs", "desc"), limit(lim));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  };
+
+
   console.log("Firebase logger ready ✅");
 </script>
 <!-- ===================== /FIREBASE LOGGER ===================== -->
@@ -5729,6 +6683,7 @@ function bindInputs(){
 /* ===================== BOOT ===================== */
 initAIAnalysisUI();
 initDbReaderUI();
+initSeriesReaderUI();
 init();
 </script>
 
