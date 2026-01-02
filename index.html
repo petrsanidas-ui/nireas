@@ -5199,6 +5199,11 @@ function __dbCols(){
   return cols;
 }
 
+// Monitoring (Primary History) uses same column set as DB, but WITHOUT link/map icon columns
+function __seriesCols(){
+  return __dbCols().filter(c => c && c.k !== 'link' && c.k !== 'map');
+}
+
 function renderDbHead(){
   const hr = document.getElementById('dbHeadRow');
   const fr = document.getElementById('dbFilterRow');
@@ -5352,7 +5357,7 @@ function __seriesBuildRowsFromBuffer(){
 
 function __seriesGetFilteredRows(){
   const rows = window.__seriesLastSamples || [];
-  const cols = __dbCols();
+  const cols = __seriesCols();
   const filters = window.__seriesFilters || {};
   const enabled = (window.__seriesFiltersEnabled !== false);
 
@@ -5444,7 +5449,7 @@ function renderSeriesHead(){
   const fr = document.getElementById('seriesFilterRow');
   if(!hr) return;
 
-  const cols = __dbCols();
+  const cols = __seriesCols();
   hr.innerHTML = '';
   if(fr) fr.innerHTML = '';
 
@@ -5507,7 +5512,7 @@ function renderSeriesRows(rows){
   const tb = document.getElementById('seriesRows');
   if(!tb) return;
 
-  const cols = __dbCols();
+  const cols = __seriesCols();
   const colspan = cols.length;
 
   const filtered = __seriesGetFilteredRows();
