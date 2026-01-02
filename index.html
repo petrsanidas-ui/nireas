@@ -1115,7 +1115,7 @@
             </div>
           </div>
           <div class="station-meta-line" id="stationMetaLine">
-            <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
+            <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
             <span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
             <span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
             <span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
@@ -1156,6 +1156,7 @@
                 <div class="station-meta-line" id="seriesMetaLine" style="padding:0;background:transparent;box-shadow:none;margin:0;gap:10px;flex:1 1 auto;">
                   <span class="meta-item name-item"><span id="seriesStationName" style="font-weight:700;color:#b03030;">—</span>
                     <button id="btnSeriesOpenPrimary" class="meta-icon-btn no-print" onclick="openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button>
+                    <button id="btnSeriesMapPrimary" class="meta-icon-btn no-print" onclick="openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button>
                     <button id="btnSeriesRefreshPrimary" class="meta-icon-btn no-print" onclick="refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
                   </span>
                   <span class="meta-item"><b>Timestamp:</b> <span id="seriesTimestampInline">—</span></span>
@@ -3004,8 +3005,9 @@ const rows = rest.map(r=>{
         <div class="multi-meta-line">
           <span class="meta-item">
             <span class="multi-name ${ageCls}">${escapeHtml(r.name || '—')}</span>
-            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="openStationUrl(decodeURIComponent(this.dataset.u))" title="Άνοιγμα URL σταθμού">🔗</button>
-            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="refreshExtraStation(decodeURIComponent(this.dataset.u), this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
+            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="event.preventDefault();event.stopPropagation();openStationUrl(decodeURIComponent(this.dataset.u))" title="Άνοιγμα URL σταθμού">🔗</button>
+            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="event.preventDefault();event.stopPropagation();focusStationOnMapByUrl(decodeURIComponent(this.dataset.u))" title="Εστίαση στον χάρτη">📍</button>
+            <button class="meta-icon-btn no-print" data-u="${encodeURIComponent(r.url || '')}" onclick="event.preventDefault();event.stopPropagation();refreshExtraStation(decodeURIComponent(this.dataset.u), this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
           </span>
           <span class="meta-item"><span class="meta-label">Timestamp:</span><span class="multi-ts">${escapeHtml(ts)}</span></span>
           <span class="meta-item"><span class="meta-label">LAT:</span><span class="meta-val">${escapeHtml(latTxt)}</span></span>
@@ -3409,6 +3411,36 @@ function openPrimaryActiveUrl(){
   }
   openStationUrl(url);
 }
+
+function focusStationOnMapByUrl(url){
+  const u = String(url || '').trim();
+  if(!u) return;
+  let meta = null;
+  try{ meta = getStationMeta(u); }catch(_){}
+  // fallback for Open‑Meteo token (approx Chalandri)
+  if(!meta && u === OPEN_METEO_TOKEN){
+    meta = { name:'Open‑Meteo (Χαλάνδρι)', url:u, lat:38.0237, lon:23.8007, elev:null };
+  }
+  if(meta && typeof meta.lat === 'number' && typeof meta.lon === 'number'){
+    try{ __dbFocusMap(meta.lat, meta.lon, meta.name || 'Σταθμός'); }catch(_){}
+  }else{
+    try{
+      if(typeof updatePrimaryStatus === 'function'){
+        updatePrimaryStatus('Χάρτης: Δεν υπάρχουν συντεταγμένες για τον σταθμό.', 'warn');
+      }
+    }catch(_){}
+  }
+}
+
+function openPrimaryActiveMap(){
+  const url = getPrimaryStationUrl();
+  if(!url){
+    try{ if(typeof updatePrimaryStatus==='function') updatePrimaryStatus('Κύριος: Δεν έχει επιλεγεί σταθμός.', 'warn'); }catch(_){}
+    return;
+  }
+  focusStationOnMapByUrl(url);
+}
+
 
 function __setBtnBusy(btn, busy){
   if(!btn) return;
