@@ -577,6 +577,23 @@
     @media (max-width: 1150px){
       .summary-box{grid-template-columns:repeat(2,1fr)}
     }
+    
+    /* ===== Scenario-based panels (Rain / Wind / Heatwave / Frost) ===== */
+    .scenario-panel{display:none;}
+    .scenario-panel.active{display:block;}
+    .ro{
+      font-weight:800;
+      color:var(--ink);
+      padding:4px 0;
+      user-select:text;
+    }
+    .ops-list{
+      font-size:12px;
+      color:#243342;
+      line-height:1.35;
+    }
+    .ops-list ul{margin:6px 0 0 18px; padding:0;}
+    .ops-list li{margin:3px 0;}
     .stat{
       border:1px solid #e6edf3;
       background:#fbfdff;
@@ -1242,7 +1259,11 @@
 
         </div>
 
-      <div class="sel-basin">Επιλεγμένη λεκάνη: <span id="selectedBasinName">—</span></div>
+      
+<div id="scenarioArea">
+
+  <div id="panel_rain" class="scenario-panel">
+<div class="sel-basin">Επιλεγμένη λεκάνη: <span id="selectedBasinName">—</span></div>
 
       <div class="grid-2">
         <div class="box" style="background:#fff3cd;border-color:#f1d27a">
@@ -1367,8 +1388,161 @@
         </div>
       </div>
 
+  </div>
+
+  <div id="panel_wind" class="scenario-panel">
+  <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></div>
+
+  <div class="grid-2">
+    <div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
+      <h3>ΣΕΝΑΡΙΟ: Άνεμος</h3>
+      <div class="row"><label>Όριο προειδοποίησης (km/h):</label><input type="number" id="windWarnKmh" value="50" step="1"></div>
+      <div class="row"><label>Όριο υψηλού κινδύνου (km/h):</label><input type="number" id="windHighKmh" value="70" step="1"></div>
+      <div style="font-size:11px;color:#6b7a86;text-align:right;">*Χρησιμοποιείται η τρέχουσα ταχύτητα (ή/και ριπή αν υπάρχει)</div>
     </div>
-  </main>
+    <div class="box" style="background:#f8fbff;border-color:#d6e6ff">
+      <h3>Σύντομη εκτίμηση</h3>
+      <div class="row"><label>Τρέχουσα ταχύτητα:</label><div class="ro" id="windNow">—</div></div>
+      <div class="row"><label>Διεύθυνση:</label><div class="ro" id="windDir">—</div></div>
+      <div class="row"><label>Κίνδυνος:</label><div class="ro" id="windRisk">—</div></div>
+    </div>
+  </div>
+
+  <div class="panels-row">
+    <div class="box" style="background:#f0fff4;border-color:#c9f2d5">
+      <h3>1. Έκθεση / Ευπάθειες</h3>
+      <div class="ops-list">
+        <ul>
+          <li>Δέντρα/κλαδιά – πάρκα, δενδροστοιχίες, σχολικές αυλές</li>
+          <li>Πινακίδες, στέγαστρα, κάδοι, προσωρινές κατασκευές</li>
+          <li>Εργοτάξια/σκαλωσιές, ελαφριές στέγες, υλικά στο ύπαιθρο</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box" style="background:#fff7e6;border-color:#f2d3a0">
+      <h3>2. Επιχειρησιακές ενέργειες</h3>
+      <div class="ops-list">
+        <ul>
+          <li>Περιπολίες σε ευπαθή σημεία (δέντρα/πινακίδες)</li>
+          <li>Ενημέρωση εργοταξίων για ασφάλιση υλικών</li>
+          <li>Ετοιμότητα συνεργείων για πτώσεις κλαδιών/αντικειμένων</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+      <h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
+      <div class="row"><label>Hotspot:</label><input id="windHotspot" placeholder="π.χ. Πάρκο, κεντρικές λεωφόροι, εργοτάξιο…"></div>
+      <div class="row"><label>Σχόλιο:</label><input id="windNote" placeholder="σύντομη σημείωση…"></div>
+    </div>
+  </div>
+  </div>
+
+  <div id="panel_heatwave" class="scenario-panel">
+  <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedHeatAreaName">—</span></div>
+
+  <div class="grid-2">
+    <div class="box" style="background:#fff3cd;border-color:#f1d27a">
+      <h3>ΣΕΝΑΡΙΟ: Καύσωνας</h3>
+      <div class="row"><label>Όριο μέτριου κινδύνου (°C HI):</label><input type="number" id="heatWarnHI" value="37" step="0.1"></div>
+      <div class="row"><label>Όριο υψηλού κινδύνου (°C HI):</label><input type="number" id="heatHighHI" value="41" step="0.1"></div>
+      <div style="font-size:11px;color:#6b7a86;text-align:right;">*HI = Δείκτης δυσφορίας/Heat Index (αν υπάρχει)</div>
+    </div>
+    <div class="box" style="background:#fff7f7;border-color:#ffd1d1">
+      <h3>Σύντομη εκτίμηση</h3>
+      <div class="row"><label>Θερμοκρασία:</label><div class="ro" id="heatTempNow">—</div></div>
+      <div class="row"><label>Δείκτης δυσφορίας (HI):</label><div class="ro" id="heatIndexNow">—</div></div>
+      <div class="row"><label>Κίνδυνος:</label><div class="ro" id="heatRisk">—</div></div>
+    </div>
+  </div>
+
+  <div class="panels-row">
+    <div class="box" style="background:#f0fff4;border-color:#c9f2d5">
+      <h3>1. Ευάλωτοι πληθυσμοί / σημεία</h3>
+      <div class="ops-list">
+        <ul>
+          <li>Ηλικιωμένοι, παιδιά, άτομα με χρόνια νοσήματα</li>
+          <li>Εργαζόμενοι σε εξωτερικούς χώρους</li>
+          <li>Περιοχές με χαμηλή σκίαση/υψηλή θερμική νησίδα</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
+      <h3>2. Μέτρα Δήμου</h3>
+      <div class="ops-list">
+        <ul>
+          <li>Λειτουργία/ενημέρωση κλιματιζόμενων χώρων (cooling centers)</li>
+          <li>Ενημέρωση δημοτών (ενυδάτωση, αποφυγή έκθεσης 12:00–17:00)</li>
+          <li>Ετοιμότητα για ευπαθείς δομές (ΚΑΠΗ, σχολεία, δομές φιλοξενίας)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+      <h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
+      <div class="row"><label>Hotspot:</label><input id="heatHotspot" placeholder="π.χ. πλατείες χωρίς σκιά, γειτονιές…"></div>
+      <div class="row"><label>Σχόλιο:</label><input id="heatNote" placeholder="σύντομη σημείωση…"></div>
+    </div>
+  </div>
+  </div>
+
+  <div id="panel_frost_snow" class="scenario-panel">
+  <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedFrostAreaName">—</span></div>
+
+  <div class="grid-2">
+    <div class="box" style="background:#e8f4ff;border-color:#bfe4ff">
+      <h3>ΣΕΝΑΡΙΟ: Παγετός / Χιόνια</h3>
+      <div class="row"><label>Όριο παγετού (°C):</label><input type="number" id="frostTemp0" value="0" step="0.1"></div>
+      <div class="row"><label>Όριο αυξημένου κινδύνου (°C):</label><input type="number" id="frostTempHigh" value="-2" step="0.1"></div>
+      <div style="font-size:11px;color:#6b7a86;text-align:right;">*Αν υπάρχει υετός με T≤0 → αυξημένος κίνδυνος πάγου</div>
+    </div>
+    <div class="box" style="background:#f8fbff;border-color:#d6e6ff">
+      <h3>Σύντομη εκτίμηση</h3>
+      <div class="row"><label>Θερμοκρασία:</label><div class="ro" id="frostTempNow">—</div></div>
+      <div class="row"><label>Wind Chill:</label><div class="ro" id="frostChillNow">—</div></div>
+      <div class="row"><label>Κίνδυνος παγετού:</label><div class="ro" id="frostRisk">—</div></div>
+      <div class="row"><label>Κίνδυνος πάγου:</label><div class="ro" id="iceRisk">—</div></div>
+    </div>
+  </div>
+
+  <div class="panels-row">
+    <div class="box" style="background:#fff3cd;border-color:#f1d27a">
+      <h3>1. Οδικό δίκτυο προτεραιότητας</h3>
+      <div class="ops-list">
+        <ul>
+          <li>Ανηφόρες/κατηφόρες, γέφυρες, σημεία σκιάς</li>
+          <li>Πρόσβαση σε σχολεία, δομές υγείας, κρίσιμες αρτηρίες</li>
+          <li>Κόμβοι/διασταυρώσεις με ιστορικό ολισθηρότητας</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box" style="background:#f0fff4;border-color:#c9f2d5">
+      <h3>2. Ετοιμότητα – αλάτι & συνεργεία</h3>
+      <div class="ops-list">
+        <ul>
+          <li>Διαθεσιμότητα αλατιού/διανομή σε ευπαθείς</li>
+          <li>Ετοιμότητα εκχιονιστικών/αλατιέρων & βάρδιες</li>
+          <li>Συντονισμός ενημέρωσης (σχολεία/δημότες)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+      <h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
+      <div class="row"><label>Hotspot:</label><input id="frostHotspot" placeholder="π.χ. ανηφόρα, γέφυρα, σκιασμένη οδός…"></div>
+      <div class="row"><label>Σχόλιο:</label><input id="frostNote" placeholder="σύντομη σημείωση…"></div>
+    </div>
+  </div>
+  </div>
+
+</div>
+
+    </div>
+  
+</main>
 
 </div>
 
@@ -1646,7 +1820,175 @@ function setModelScenario(val){
   const t = document.getElementById('scenarioTitle');
   if(t) t.textContent = `ΣΕΝΑΡΙΟ: ${nice}`;
   document.body.dataset.modelScenario = MODEL_SCENARIO;
+  try{ applyScenarioUI(MODEL_SCENARIO); }catch(_){}
+
   try{ scheduleSaveUiState(); }catch(_){}
+
+/* ===== Scenario-based UI: show only relevant panels (from 'Λεκάνη και κάτω') ===== */
+function applyScenarioUI(scn){
+  const val = String(scn || 'rain');
+  const map = {
+    rain: 'panel_rain',
+    wind: 'panel_wind',
+    heatwave: 'panel_heatwave',
+    frost_snow: 'panel_frost_snow'
+  };
+  const target = map[val] || 'panel_rain';
+  const root = document.getElementById('scenarioArea');
+  if(!root) return;
+
+  const panels = root.querySelectorAll('.scenario-panel');
+  panels.forEach(p=>{
+    const on = (p.id === target);
+    p.classList.toggle('active', on);
+    try{ p.setAttribute('aria-hidden', on ? 'false' : 'true'); }catch(_){}
+  });
+
+  // Keep "Επιλεγμένη περιοχή" in sync with the currently selected basin (until we add dedicated area selection)
+  try{
+    const basin = document.getElementById('selectedBasinName')?.textContent?.trim() || '—';
+    const ids = ['selectedAreaName','selectedHeatAreaName','selectedFrostAreaName'];
+    ids.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = basin;
+    });
+  }catch(_){}
+
+  refreshScenarioPanels();
+}
+
+/* ===== Scenario mini-metrics (read-only) from latest primary sample ===== */
+function __numFromText(txt){
+  if(txt == null) return null;
+  const s = String(txt).replace(',', '.');
+  const m = s.match(/-?\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+}
+function __fmt(v, unit=''){
+  if(v==null || !Number.isFinite(v)) return '—';
+  const n = Math.round(v*10)/10;
+  return `${n.toFixed(1)}${unit}`;
+}
+function __riskLabel(level, text){
+  const map = {
+    low:   "<span class='status-ok'>Χαμηλός</span>",
+    med:   "<span class='status-warn'>Μέτριος</span>",
+    high:  "<span class='status-fail'>Υψηλός</span>",
+    ext:   "<span class='status-extreme'>Ακραίος</span>",
+    none:  "<span style='color:#6b7a86'>—</span>"
+  };
+  return map[level] ? map[level] + (text ? ` <span style="color:#6b7a86;font-weight:700">${text}</span>` : '') : (text || '—');
+}
+function getLatestPrimarySample(){
+  try{
+    if(typeof stationSeries !== 'undefined' && Array.isArray(stationSeries) && stationSeries.length){
+      return stationSeries[stationSeries.length-1];
+    }
+    if(window.stationSeries && Array.isArray(window.stationSeries) && window.stationSeries.length){
+      return window.stationSeries[window.stationSeries.length-1];
+    }
+  }catch(_){}
+  return null;
+}
+
+function refreshScenarioPanels(){
+  const s = getLatestPrimarySample();
+  if(!s){
+    // keep panels clean if nothing loaded yet
+    ['windNow','windDir','windRisk','heatTempNow','heatIndexNow','heatRisk','frostTempNow','frostChillNow','frostRisk','iceRisk']
+      .forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='—'; });
+    return;
+  }
+
+  // ---- WIND ----
+  const windTxt = (s.wind != null) ? String(s.wind) : '';
+  const wKmh = (typeof s.windKmh === 'number') ? s.windKmh
+            : (typeof s.wind_kmh === 'number') ? s.wind_kmh
+            : __numFromText(windTxt);
+  let wDir = '—';
+  try{
+    const toks = windTxt.trim().split(/\s+/);
+    if(toks.length>=2){
+      const last = toks[toks.length-1];
+      if(/[NSEWΑ-Ω]/i.test(last)) wDir = last;
+    }
+  }catch(_){}
+
+  const warnK = Number(document.getElementById('windWarnKmh')?.value);
+  const highK = Number(document.getElementById('windHighKmh')?.value);
+
+  let wLevel = 'none';
+  if(Number.isFinite(wKmh)){
+    if(Number.isFinite(highK) && wKmh >= highK) wLevel = 'high';
+    else if(Number.isFinite(warnK) && wKmh >= warnK) wLevel = 'med';
+    else wLevel = 'low';
+  }
+
+  const windNowEl = document.getElementById('windNow');
+  if(windNowEl) windNowEl.textContent = Number.isFinite(wKmh) ? __fmt(wKmh, ' km/h') : (windTxt || '—');
+  const windDirEl = document.getElementById('windDir');
+  if(windDirEl) windDirEl.textContent = wDir;
+  const windRiskEl = document.getElementById('windRisk');
+  if(windRiskEl) windRiskEl.innerHTML = __riskLabel(wLevel);
+
+  // ---- HEATWAVE ----
+  const t = (typeof s.temp === 'number') ? s.temp : ((typeof s.temperature === 'number') ? s.temperature : null);
+  const hi = (typeof s.heat === 'number') ? s.heat : null;
+  const warnHI = Number(document.getElementById('heatWarnHI')?.value);
+  const highHI = Number(document.getElementById('heatHighHI')?.value);
+
+  let hLevel = 'none';
+  if(Number.isFinite(hi)){
+    if(Number.isFinite(highHI) && hi >= highHI) hLevel = 'high';
+    else if(Number.isFinite(warnHI) && hi >= warnHI) hLevel = 'med';
+    else hLevel = 'low';
+  }else if(Number.isFinite(t)){
+    // fallback: use temp thresholds if HI missing
+    if(t >= 40) hLevel = 'high';
+    else if(t >= 35) hLevel = 'med';
+    else hLevel = 'low';
+  }
+
+  const heatTempEl = document.getElementById('heatTempNow');
+  if(heatTempEl) heatTempEl.textContent = Number.isFinite(t) ? __fmt(t,' °C') : '—';
+  const heatIdxEl = document.getElementById('heatIndexNow');
+  if(heatIdxEl) heatIdxEl.textContent = Number.isFinite(hi) ? __fmt(hi,' °C') : '—';
+  const heatRiskEl = document.getElementById('heatRisk');
+  if(heatRiskEl) heatRiskEl.innerHTML = __riskLabel(hLevel);
+
+  // ---- FROST / SNOW ----
+  const chill = (typeof s.chill === 'number') ? s.chill : null;
+  const rr = (typeof s.rainRate === 'number') ? s.rainRate : ((typeof s.rr === 'number') ? s.rr : null);
+
+  const t0 = Number(document.getElementById('frostTemp0')?.value);
+  const tHigh = Number(document.getElementById('frostTempHigh')?.value);
+
+  let fLevel = 'none';
+  if(Number.isFinite(t)){
+    if(Number.isFinite(tHigh) && t <= tHigh) fLevel = 'high';
+    else if(Number.isFinite(t0) && t <= t0) fLevel = 'med';
+    else if(t <= 2) fLevel = 'low';
+    else fLevel = 'low';
+  }
+
+  let iceLevel = 'none';
+  if(Number.isFinite(t) && t <= (Number.isFinite(t0) ? t0 : 0) && Number.isFinite(rr) && rr > 0){
+    iceLevel = 'high';
+  }else if(Number.isFinite(t) && t <= 1){
+    iceLevel = 'med';
+  }else{
+    iceLevel = 'low';
+  }
+
+  const frostTempEl = document.getElementById('frostTempNow');
+  if(frostTempEl) frostTempEl.textContent = Number.isFinite(t) ? __fmt(t,' °C') : '—';
+  const frostChillEl = document.getElementById('frostChillNow');
+  if(frostChillEl) frostChillEl.textContent = Number.isFinite(chill) ? __fmt(chill,' °C') : '—';
+  const frostRiskEl = document.getElementById('frostRisk');
+  if(frostRiskEl) frostRiskEl.innerHTML = __riskLabel(fLevel);
+  const iceRiskEl = document.getElementById('iceRisk');
+  if(iceRiskEl) iceRiskEl.innerHTML = __riskLabel(iceLevel, (Number.isFinite(rr) ? `(υετός ${__fmt(rr,' mm/h')})` : ''));
+}
 }
 // ====== Scenario dropdown: becomes green only after user selection ======
 const LS_MODEL_SCENARIO = 'NIREAS_MODEL_SCENARIO';
@@ -2203,7 +2545,9 @@ function updateStationFreshnessUI(){
 
   if(diffMin < 5) nameEl.classList.add('age-fresh');
   else if(diffMin < 10) nameEl.classList.add('age-warn');
-  else nameEl.classList.add('age-stale');
+  else nameEl.classList.add('age-stale')
+  try{ refreshScenarioPanels(); }catch(_){}
+;
 }
 
 function startStationFreshnessTimer(){
@@ -2354,6 +2698,8 @@ if(!loaded){
     runMasterCalculation();
     updateStationButtons();
     loadScenarioState();
+    try{ applyScenarioUI(MODEL_SCENARIO || (document.getElementById('modelScenario')?.value) || 'rain'); }catch(_){}
+
     updateLocalScenarioBtn();
     startStationFreshnessTimer();
 
