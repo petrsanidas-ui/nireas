@@ -2699,6 +2699,7 @@ if(!loaded){
     updateStationButtons();
     loadScenarioState();
     try{ applyScenarioUI(MODEL_SCENARIO || (document.getElementById('modelScenario')?.value) || 'rain'); }catch(_){}
+    try{ refreshScenarioPanels(); }catch(_){}
 
     updateLocalScenarioBtn();
     startStationFreshnessTimer();
@@ -4802,6 +4803,8 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
 
 function onNewStationSample(sampleKey, tsText, val, label, totals, latest) {
   storeSampleForKey(currentStationKey, sampleKey, tsText, val, label, totals, true, latest);
+  // Keep scenario mini-panels in sync with the latest PRIMARY sample
+  try{ refreshScenarioPanels(); }catch(_){}
 }
 
 function updateStationReadouts(){
@@ -4821,6 +4824,7 @@ function updateStationReadouts(){
     setTxt('stationR60', '—');
   }
   renderStationSeriesList();
+  try{ refreshScenarioPanels(); }catch(_){ }
 }
 
 function renderStationSeriesList(){
@@ -7232,6 +7236,10 @@ function bindInputs(){
 initAIAnalysisUI();
 initDbReaderUI();
 initSeriesReaderUI();
+  try{
+    ['windWarnKmh','windHighKmh','heatWarnHI','heatHighHI','frostWarnT','frostHighT']
+      .forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', ()=>{ try{ refreshScenarioPanels(); }catch(_){ } }); });
+  }catch(_){ }
 init();
 </script>
 
