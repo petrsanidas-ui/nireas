@@ -217,6 +217,53 @@
     #dataPanelDetails:not([open]) .monitor-panel-summary{margin-bottom:0}
     .monitor-panel-body{margin-top:0}
 
+/* Parameters (Παράμετροι) — header row aligned like the other section headers */
+.param-summary{
+  /* Native disclosure triangle like Monitor; keep marker visible */
+  list-style-position: inside;
+  position: relative;
+  padding-right: 44px; /* space for reset button */
+}
+.param-summary .param-title{
+  display:inline-block;
+}
+.param-summary .param-reset-btn{
+  position:absolute;
+  right:0;
+  top:50%;
+  transform:translateY(-50%);
+}
+.param-caret{
+  width:30px;
+  height:26px;
+  border-radius:6px;
+  background:rgba(44,62,80,.10);
+  border:1px solid rgba(0,0,0,.10);
+  color:#1f2a33;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  line-height:1;
+  flex:0 0 auto;
+  transition:transform .15s ease;
+}
+.param-reset-btn{
+  border:1px solid rgba(0,0,0,.10);
+  background:rgba(44,62,80,.10);
+  color:#1f2a33;
+  width:30px;
+  height:26px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:900;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.param-reset-btn:hover{background:rgba(44,62,80,.16)}
+
     /* Co‑Hazards panel (collapsible like Monitor/Data) */
     #coHazardsPanelDetails:not([open]) .monitor-panel-summary{margin-bottom:0}
     /* Admin boundaries panel (collapsible like Monitor/Data) */
@@ -273,13 +320,23 @@
     }
     .cohazards .cohz:hover{filter:brightness(0.98)}
     .cohazards .cohz:disabled{opacity:0.45;cursor:not-allowed}
-
-    /* Active (ON) state – hazard‑coded colors, consistent with scenario panels */
-    .cohazards .cohz.cohz-on{color:#1f2a33}
-    .cohazards .cohz-wind.cohz-on{background:#e7f6ff;border-color:#b6e6ff}
-    .cohazards .cohz-rain.cohz-on{background:#fff3cd;border-color:#f1d27a}
-    .cohazards .cohz-heatwave.cohz-on{background:#fff7f7;border-color:#ffd1d1}
-    .cohazards .cohz-frost_snow.cohz-on{background:#e8f4ff;border-color:#bfe4ff}
+/* Active (ON) state – green outline + hazard‑coded colors (clear selection) */
+.cohazards .cohz.cohz-on{
+  color:#1f2a33;
+  box-shadow:0 0 0 3px var(--btn-green);  /* green outline */
+  position:relative;
+  z-index:1;
+}
+/* Color meaning:
+   - Βροχή: μπλε
+   - Άνεμος: ουδέτερο/γκρι
+   - Καύσωνας: πορτοκαλί/κόκκινο
+   - Παγετός/Χιόνι: γαλάζιο
+*/
+.cohazards .cohz-rain.cohz-on{background:#e7f6ff;border-color:#b6e6ff}
+.cohazards .cohz-wind.cohz-on{background:#f3f5f7;border-color:#d6dde4}
+.cohazards .cohz-heatwave.cohz-on{background:#fff1e6;border-color:#ffd1a6}
+.cohazards .cohz-frost_snow.cohz-on{background:#eef6ff;border-color:#cfe3ff}
 
     /* Global summary box */
     .cohazards-global{margin-top:0;background:transparent;border:0;padding:0}
@@ -298,10 +355,10 @@
       color:#24323d;
       font-size:12px
     }
-    .cohazards-badge.cohz-badge-wind{background:#e7f6ff;border-color:#b6e6ff}
-    .cohazards-badge.cohz-badge-rain{background:#fff3cd;border-color:#f1d27a}
-    .cohazards-badge.cohz-badge-heatwave{background:#fff7f7;border-color:#ffd1d1}
-    .cohazards-badge.cohz-badge-frost_snow{background:#e8f4ff;border-color:#bfe4ff}
+    .cohazards-badge.cohz-badge-rain{background:#e7f6ff;border-color:#b6e6ff}
+.cohazards-badge.cohz-badge-wind{background:#f3f5f7;border-color:#d6dde4}
+.cohazards-badge.cohz-badge-heatwave{background:#fff1e6;border-color:#ffd1a6}
+.cohazards-badge.cohz-badge-frost_snow{background:#eef6ff;border-color:#cfe3ff}
 
     .cohazards-metrics{font-size:13px;color:#1f2a33}
     .cohazards-metrics ul{margin:6px 0 0 18px}
@@ -472,7 +529,10 @@
 }
 .ai-select{
   flex:0 0 auto;
-  min-width:150px;
+  min-width:132px;
+  padding:5px 10px;
+  padding-right:28px; /* keep room for the arrow */
+  font-size:11px;
   color:#fff;
   border:1px solid rgba(255,255,255,.35);
   border-radius:10px;
@@ -1272,12 +1332,17 @@
     <div class="tool-wrap">
       <div class="box data-box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
           <details id="dataPanelDetails" open style="margin:0;">
-            <summary class="monitor-panel-summary" style="cursor:pointer;">Παράμετροι</summary>
+            <summary class="monitor-panel-summary param-summary" style="cursor:pointer;">
+  <span class="param-title">Παράμετροι</span>
+  <button type="button" class="param-reset-btn no-print"
+          title="Επαναφορά παραμέτρων στις προεπιλογές"
+          onclick="event.preventDefault();event.stopPropagation();resetParametersToDefaults();">⟲</button>
+</summary>
             <div class="data-panel-body">
               <div class="data-hdr">
                 <div class="data-actions no-print">
               <select id="modelScenario" class="mini-btn hdr-btn btn-scenario" onchange="onScenarioChange(this)" title="Επιλογή σεναρίου μοντέλου">
-                <option value="wind">Επιλογή σεναρίου μοντέλου</option>
+                <option value="">Επιλογή σεναρίου μοντέλου</option>
                 <option value="wind">Άνεμος</option>
                 <option value="rain">Βροχή</option>
                 <option value="heatwave">Καύσωνας</option>
@@ -2352,35 +2417,42 @@ function loadScenarioState(){
   const sel = document.getElementById('modelScenario');
   if(!sel) return;
 
-  let saved = null;
-  let touched = false;
+  // Always start with the initial (placeholder) indication when NIREAS opens
+  sel.value = '';
+  sel.classList.remove('scenario-active');
+
+  // Default scenario logic (keeps panels/outputs consistent) until user picks something
+  setModelScenario('rain');
+
+  // Clear persisted "touched/selected" so the dropdown stays neutral on every fresh open
   try{
-    saved = localStorage.getItem(LS_MODEL_SCENARIO);
-    touched = localStorage.getItem(LS_MODEL_SCENARIO_TOUCHED) === '1';
+    localStorage.removeItem(LS_MODEL_SCENARIO);
+    localStorage.removeItem(LS_MODEL_SCENARIO_TOUCHED);
   }catch(e){}
-
-  if(saved && sel.querySelector(`option[value="${saved}"]`)){
-    sel.value = saved;
-  }
-
-  // Apply the scenario to UI (title etc.) but keep dropdown grey unless user has "touched" it before
-  setModelScenario(sel.value);
-
-  if(touched){
-    sel.classList.add('scenario-active');
-  }else{
-    sel.classList.remove('scenario-active');
-  }
 }
 
 function onScenarioChange(sel){
   if(!sel) return;
-  setModelScenario(sel.value);
+
+  const v = String(sel.value || '');
+
+  // Placeholder selected -> keep initial (grey) look and clear persisted selection
+  if(!v){
+    setModelScenario('rain');
+    sel.classList.remove('scenario-active');
+    try{
+      localStorage.removeItem(LS_MODEL_SCENARIO);
+      localStorage.removeItem(LS_MODEL_SCENARIO_TOUCHED);
+    }catch(e){}
+    return;
+  }
+
+  setModelScenario(v);
 
   // Turn green only after the user actively makes a choice
   sel.classList.add('scenario-active');
   try{
-    localStorage.setItem(LS_MODEL_SCENARIO, sel.value);
+    localStorage.setItem(LS_MODEL_SCENARIO, v);
     localStorage.setItem(LS_MODEL_SCENARIO_TOUCHED, '1');
   }catch(e){}
 }
@@ -2415,6 +2487,48 @@ function toggleLocalScenario(){
 }
 
 
+
+
+
+/* ===== Reset Parameters (Παράμετροι) to defaults ===== */
+function resetParametersToDefaults(){
+  // 1) Scenario dropdown back to placeholder (keeps internal default scenario as rain)
+  try{
+    const sel = document.getElementById('modelScenario');
+    if(sel){
+      sel.value = '';
+      onScenarioChange(sel);
+    }else{
+      try{ setModelScenario('rain'); }catch(_){}
+    }
+  }catch(_){}
+
+  // 2) Clear Co‑Hazards selections
+  try{
+    if(typeof window.clearCoHazards === 'function') window.clearCoHazards();
+  }catch(_){}
+
+  // 3) Live OFF
+  try{
+    if(typeof stationLiveOn !== 'undefined' && stationLiveOn) toggleLive();
+  }catch(_){}
+
+  // 4) Local Scenario OFF
+  try{
+    const cb = document.getElementById('localScenarioToggle');
+    if(cb) cb.checked = false;
+    LOCAL_SCENARIO_ON = false;
+    updateLocalScenarioBtn();
+  }catch(_){}
+
+  // 5) AI provider back to ChatGPT
+  try{ setAITarget('chatgpt'); }catch(_){}
+
+  // Persist UI (if enabled)
+  try{ scheduleSaveUiState(); }catch(_){}
+
+  try{ setStationMsg('Παράμετροι: επαναφορά στις προεπιλογές.'); }catch(_){}
+}
 
 
 /* ===================== UI PERSISTENCE (keep values on refresh) ===================== */
@@ -7942,6 +8056,18 @@ function renderCoHazardsGlobal(){
     syncCoHazardButtons();
     renderCoHazardsGlobal();
   };
+// Clear all selected secondary hazards (used by the reset icon)
+window.clearCoHazards = function(){
+  try{
+    coHaz.clear();
+    saveCoHazards();
+    syncCoHazardButtons();
+    renderCoHazardsGlobal();
+  }catch(e){
+    console.warn('clearCoHazards failed', e);
+  }
+};
+
 
   window.initCoHazardsUI = function(){
     loadCoHazards();
