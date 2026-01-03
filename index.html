@@ -213,6 +213,8 @@
       list-style-position: inside;
     }
     #monitorPanelDetails:not([open]) .monitor-panel-summary{margin-bottom:0}
+    /* Keep the Data panel header the exact same height when collapsed */
+    #dataPanelDetails:not([open]) .monitor-panel-summary{margin-bottom:0}
     .monitor-panel-body{margin-top:0}
 
 /* ===== Co‑Hazards (secondary hazards) ===== */
@@ -513,7 +515,7 @@
     }
 
     /* ====== Main tool ====== */
-    .tool-wrap{padding:12px}
+    .tool-wrap{padding:12px 0 0 0}
     .tool-header{
       display:flex;
       align-items:center;
