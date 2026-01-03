@@ -167,21 +167,55 @@
     .btn-live-on{background:var(--btn-green)}
     .temp-green{background:var(--btn-green)!important}
 
-    /* Monitor header controls (Live + Scenario + Local Scenario) */
+    /* Data panel above Monitor (scenario + live + AI etc.) */
+    .data-panel{margin:0}
+    .data-box{margin-bottom:10px}
+    .data-hdr{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:8px 10px;
+      background:rgba(255,255,255,.22);
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:12px;
+    }
+    .data-panel-body{ margin-top:6px; }
+
+    .data-title{font-weight:900;letter-spacing:.2px;white-space:nowrap}
+    .data-actions{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:nowrap;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+    .data-actions::-webkit-scrollbar{height:6px}
+    .data-actions::-webkit-scrollbar-thumb{background:rgba(0,0,0,.22);border-radius:6px}
+
+    /* Monitor title row */
     .monitor-head{
       display:flex;
       align-items:center;
       justify-content:flex-start;
-      gap:6px;
-      margin-bottom:0px;
-      flex-wrap:nowrap;        /* keep everything on one row */
-      overflow-x:auto;         /* if space is tight, allow horizontal scroll instead of wrapping */
-      -webkit-overflow-scrolling:touch;
+      gap:8px;
+      margin-bottom:8px;
     }
     .monitor-head h3{white-space:nowrap}
-    .monitor-head .monitor-controls{margin-left:auto; flex:0 0 auto}
 
-    /* ===== Co‑Hazards (secondary hazards) ===== */
+    /* ===== Monitor panel (collapse entire Monitor) ===== */
+    .monitor-panel-summary{
+      font-size:13px;
+      font-weight:900;
+      color:var(--ink);
+      margin:0 0 8px 0;
+      list-style-position: inside;
+    }
+    #monitorPanelDetails:not([open]) .monitor-panel-summary{margin-bottom:0}
+    .monitor-panel-body{margin-top:0}
+
+/* ===== Co‑Hazards (secondary hazards) ===== */
     .cohazards{display:flex;gap:6px;align-items:center;margin-left:6px;flex:0 0 auto}
     .cohazards .cohz{background:#ffffff;border:1px solid #cfe0ea;color:#1f2a33;font-weight:800;padding:6px 10px;border-radius:10px;line-height:1;white-space:nowrap}
     .cohazards .cohz:hover{filter:brightness(0.98)}
@@ -814,17 +848,25 @@
 
     /* Station meta line (one-line header) */
     .station-meta-line{
-      display:flex;
+      display:inline-flex;
       flex-wrap:wrap;
       gap:10px;
       align-items:baseline;
       font-size:12px;
-      margin:4px 0 6px 0;
+      margin:0;
     }
     .station-meta-line .meta-item{ white-space:nowrap; }
     .station-meta-line #stationName{ font-weight:800; }
 
     .station-meta-line .name-item{ display:inline-flex; align-items:center; gap:6px; }
+
+    /* Collapsible: Primary station (triangle like other sections) */
+    .station-summary{ font-size:11px; font-weight:400; color:var(--ink);
+      list-style-position: inside;}
+    #primaryStationDetails > summary::marker{ font-size:11px; }
+    #dataPanelDetails > summary::marker{ font-size:13px; }
+
+
 
     /* Small icon buttons for station actions (open URL / refresh) */
     .meta-icon-btn{
@@ -1147,10 +1189,12 @@
     </div>
 
     <div class="tool-wrap">
-      <div class="box" style="background:#97c9d1;border-color:#dfe7ee">
-          <div class="monitor-head">
-            <h3 style="margin:0">ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)</h3>
-            <div class="monitor-controls no-print">
+      <div class="box data-box" style="background:#97c9d1;border-color:#dfe7ee">
+          <details id="dataPanelDetails" open style="margin:0;">
+            <summary class="monitor-panel-summary" style="cursor:pointer;">Δεδομένα</summary>
+            <div class="data-panel-body">
+              <div class="data-hdr">
+                <div class="data-actions no-print">
               <select id="modelScenario" class="mini-btn hdr-btn btn-scenario" onchange="onScenarioChange(this)" title="Επιλογή σεναρίου μοντέλου">
                 <option value="wind">Άνεμος</option>
                 <option value="rain">Βροχή</option>
@@ -1176,18 +1220,36 @@
 </div>
 <button id="btnAIAnalysis" class="mini-btn hdr-btn btn-ai" onclick="runAIAnalysis(event)" title="Συλλογή δεδομένων &amp; ανάλυση με AI (Shift+Click = EXTRA FULL)">AI analysis</button>
               <input type="checkbox" id="localScenarioToggle" style="display:none" />
+            
+              </div>
+              </div>
             </div>
-          </div>
-          <div class="station-meta-line" id="stationMetaLine">
-            <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
+          </details>
+      </div>
+</div>
+
+      <div class="box" style="background:#97c9d1;border-color:#dfe7ee">
+
+
+          <details id="monitorPanelDetails" open style="margin:0;">
+            <summary class="monitor-panel-summary" style="cursor:pointer;">
+              ΜΕΤΕΩΡΟΛΟΓΙΚΟΣ ΣΤΑΘΜΟΣ (Monitor)
+            </summary>
+            <div class="monitor-panel-body">
+                    <details id="primaryStationDetails" open style="margin:0;">
+            <summary class="station-summary" id="stationSummary" style="cursor:pointer;margin-bottom:6px;">
+              <span class="station-meta-line" id="stationMetaLine">
+                <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
             <span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
             <span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
             <span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
             <span class="meta-item"><b>ELEV:</b> <span id="stationElev">—</span></span>
             <span style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></span>
-          </div>
+              </span>
+            </summary>
 
-          <div id="stationLatestRow" class="latest-row">
+            <div id="primaryStationContent">
+<div id="stationLatestRow" class="latest-row">
             <div id="stationLatestChips" class="latest-chips">—</div>
             <span id="stationLatestValues" class="latest-text">—</span>
           </div>
@@ -1212,7 +1274,11 @@
             <button id="btnClearStation" class="mini-btn btn-gray" onclick="clearStationSeries()">Καθαρισμός</button>
           </div>
           <div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
+            </div>
+          </details>
+
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
+
           <details id="seriesDetails" open style="margin-top:10px;">
             <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
               <span>Ιστορικό Κύριου Σταθμού</span>
@@ -1276,6 +1342,8 @@
                 </thead>
                 <tbody id="dbRows"><tr><td colspan="8" style="color:#6b7a86;font-style:italic">—</td></tr></tbody>
               </table>
+            </div>
+          </details>
             </div>
           </details>
 
@@ -2729,6 +2797,7 @@ if(!loaded){
     bindInputs();
     runMasterCalculation();
     updateStationButtons();
+    initMonitorContentToggle();
     loadScenarioState();
     try{ applyScenarioUI(MODEL_SCENARIO || (document.getElementById('modelScenario')?.value) || 'rain'); }catch(_){}
     try{ refreshScenarioPanels(); }catch(_){}
@@ -4896,6 +4965,26 @@ function updateStationButtons(){
   }
 
   updateLocalScenarioBtn();
+}
+
+
+/* ===================== MONITOR: SUB TOGGLE (arrow before station name) ===================== */
+function toggleMonitorContent(){
+  const wrap = document.getElementById('monitorBodyContent');
+  const btn  = document.getElementById('btnToggleMonitorContent');
+  if(!wrap || !btn) return;
+  const isCollapsed = wrap.classList.toggle('collapsed');
+  btn.textContent = isCollapsed ? '▶' : '▼';
+  btn.title = isCollapsed ? 'Άνοιγμα περιεχομένου' : 'Κλείσιμο περιεχομένου';
+}
+
+function initMonitorContentToggle(){
+  const wrap = document.getElementById('monitorBodyContent');
+  const btn  = document.getElementById('btnToggleMonitorContent');
+  if(!wrap || !btn) return;
+  const isCollapsed = wrap.classList.contains('collapsed');
+  btn.textContent = isCollapsed ? '▶' : '▼';
+  btn.title = isCollapsed ? 'Άνοιγμα περιεχομένου' : 'Κλείσιμο περιεχομένου';
 }
 
 function flashTempGreen(btnOrId, ms=3000){
