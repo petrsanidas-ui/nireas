@@ -1757,6 +1757,9 @@ const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_
 let DATA_GROUPS = { boundaries: [], streams: [], basins: [] }; // NOTE ORDER
 let SELECTED_GEO = null;
 let SELECTED_BASIN_KEY = null;
+let SELECTED_ZONE_KEY = null;
+let SELECTED_ZONE_NAME = null;
+let SELECTED_ZONE_KIND = null; // 'basin' | 'boundary'
 let STATION_SELECT_BOUND = false; // bind dropdown change listener once
 let MULTI_DETAILS_OPEN = true; // remember collapse state for "Επιπλέον σταθμοί"
 
@@ -2293,7 +2296,12 @@ function saveUiStateNow(){
       }
     });
 
-    // Save selected basin + visible layers (GeoJSON project state)
+    // Save selected zone (basin/boundary) + visible layers (GeoJSON project state)
+    state.__selectedZoneKey = SELECTED_ZONE_KEY || null;
+    state.__selectedZoneName = SELECTED_ZONE_NAME || document.getElementById('selectedBasinName')?.innerText || null;
+    state.__selectedZoneKind = SELECTED_ZONE_KIND || null;
+
+    // backward compatibility (older state keys)
     state.__selectedBasinKey = SELECTED_BASIN_KEY || null;
     state.__selectedBasinName = document.getElementById('selectedBasinName')?.innerText || null;
     state.__visiblePaths = Array.from(VISIBLE || []);
@@ -2394,23 +2402,37 @@ async function restoreUiStateLate(){
   const st = getSavedUiState();
   if(!st) return;
 
-  // 1) Restore basin first (so geometry/state exists), then re-apply saved fields so user's last values win
-  if(st.__selectedBasinKey){
+  // 1) Restore last selected zone (basin/boundary) first (so geometry/state exists),
+  // then re-apply saved fields so user's last values win.
+  if(st.__selectedZoneKey){
+    try{
+      const key = String(st.__selectedZoneKey);
+      const name = st.__selectedZoneName || key.split('/').pop().replace('.geojson','');
+      if(typeof loadToTool === 'function'){
+        await loadToTool(key, name);
+      }else{
+        // at least restore label
+        try{ setSelectedZoneLabels(name); }catch(_){}
+        SELECTED_ZONE_KEY = key;
+        SELECTED_ZONE_NAME = name;
+        SELECTED_ZONE_KIND = st.__selectedZoneKind || null;
+      }
+    }catch(_){}
+  } else if(st.__selectedBasinKey){
+    // legacy (older saves)
     try{
       const key = String(st.__selectedBasinKey);
       const name = st.__selectedBasinName || key.split('/').pop().replace('.geojson','');
       if(typeof loadToTool === 'function'){
         await loadToTool(key, name);
       }else{
-        // at least restore label
         const el = document.getElementById('selectedBasinName');
         if(el) el.innerText = name;
         SELECTED_BASIN_KEY = key;
       }
     }catch(_){}
-  }else if(st.__selectedBasinName){
-    const el = document.getElementById('selectedBasinName');
-    if(el) el.innerText = st.__selectedBasinName;
+  } else if(st.__selectedZoneName || st.__selectedBasinName){
+    try{ setSelectedZoneLabels(st.__selectedZoneName || st.__selectedBasinName); }catch(_){}
   }
 
   // 2) Restore all tool fields
@@ -2958,22 +2980,42 @@ async function fetchGeoJSON(path){
   return json;
 }
 
+
+function setSelectedZoneLabels(name){
+  const v = (name && String(name).trim()) ? String(name).trim() : '—';
+  const ids = ['selectedBasinName','selectedAreaName','selectedHeatAreaName','selectedFrostAreaName'];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = v;
+  });
+}
+
 /* ===================== LOAD / MAP / ON-OFF LOGIC ===================== */
 async function loadToTool(path, name){
   updateMeteoStatus("Φόρτωση: " + name + "…");
   try{
     const gj = await fetchGeoJSON(path);
 
-    // Only basins are expected to populate the tool inputs
     const isBasin = path.includes('data/basins/');
-    if(isBasin){
-      SELECTED_GEO = gj;
-      SELECTED_BASIN_KEY = path;
-      document.getElementById('selectedBasinName').innerText = name;
-      if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+    const isBoundary = path.includes('data/boundaries/');
+    const isZone = isBasin || isBoundary;
 
-      // reset only if you want a clean start
-      // (keep user's values if not present)
+    // MAIN selection for UI ("Επιλεγμένη περιοχή/ζώνη")
+    if(isZone){
+      SELECTED_GEO = gj;
+      SELECTED_ZONE_KEY = path;
+      SELECTED_ZONE_NAME = name;
+      SELECTED_ZONE_KIND = isBasin ? 'basin' : 'boundary';
+
+      // backward compatibility: basin key exists ONLY when the selection is a basin
+      SELECTED_BASIN_KEY = isBasin ? path : null;
+
+      setSelectedZoneLabels(name);
+      if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+    }
+
+    // Populate tool inputs when properties exist (works for basins & boundaries)
+    if(isZone){
       const p = getPropsMerged(gj);
 
       if(p.area!=null)   setVal('area', p.area);
@@ -2992,18 +3034,21 @@ async function loadToTool(path, name){
       if(p.strDrop!=null)  setVal('strDrop', p.strDrop);
 
       if(p.strType!=null){
-        // if exact match exists in select
         const sel = document.getElementById('strType');
         const val = String(p.strType);
-        if([...sel.options].some(o=>o.value===val)) sel.value = val;
+        if(sel && [...sel.options].some(o=>o.value===val)) sel.value = val;
       }
 
       // IMPORTANT: do NOT auto-open map; do NOT change On/Off here
-      updateMeteoStatus(`Φορτώθηκε στο εργαλείο: ${name}`);
-      runMasterCalculation();
-      drawBasinPlan();
+      updateMeteoStatus(isBasin
+        ? `Φορτώθηκε στο εργαλείο (λεκάνη): ${name}`
+        : `Φορτώθηκε στο εργαλείο (περιοχή/όρια): ${name}`);
+
+      // Recalculate + redraw (safe even if some values are missing)
+      try{ runMasterCalculation(); }catch(_){}
+      try{ drawBasinPlan(); }catch(_){}
     } else {
-      // non-basin: just cache + message
+      // non-zone (streams etc): just cache + message
       updateMeteoStatus(`Φορτώθηκε (cache): ${name}`);
     }
 
