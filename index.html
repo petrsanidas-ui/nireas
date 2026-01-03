@@ -370,6 +370,7 @@
       font-weight:800;
       color:var(--ink);
       letter-spacing:0.2px;
+      list-style-position: inside;
     }
 
     /* ===== DB History (Firestore) ===== */
@@ -1024,7 +1025,49 @@
       font-size:14px;
       padding:0;
     }
-    .meta-icon-btn:hover{ background:rgba(44,62,80,.14); }
+    
+    /* Unified summary row with right-aligned actions (keeps native <summary> triangle) */
+    .summary-flex{
+      display:inline-flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      width:calc(100% - 1.6em);
+      box-sizing:border-box;
+    }
+    .summary-flex .summary-left{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      flex:1;
+    }
+    .summary-flex .summary-left > *{min-width:0;}
+    .summary-flex .summary-right{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      flex:0 0 auto;
+    }
+    /* Reset icon inside summaries (use same visual language as meta-icon-btn) */
+    .summary-reset-btn{
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(44,62,80,.08);
+      color:#1f2a33;
+      width:24px;
+      height:22px;
+      border-radius:8px;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      vertical-align:middle;
+      line-height:1;
+      font-size:14px;
+      padding:0;
+    }
+    .summary-reset-btn:hover{filter:brightness(0.98)}
+.meta-icon-btn:hover{ background:rgba(44,62,80,.14); }
     .meta-icon-btn:disabled{ opacity:.6; cursor:default; }
     .meta-icon-btn.spinning{ animation: spin 0.9s linear infinite; }
     @keyframes spin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
@@ -1386,7 +1429,7 @@
                     <details id="primaryStationDetails" open style="margin:0;">
             <summary class="station-summary" id="stationSummary" style="cursor:pointer;margin-bottom:6px;">
               <span class="station-meta-line" id="stationMetaLine">
-                <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button></span>
+                <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetPrimaryStationQuick()" title="Επαναφορά Κύριου Σταθμού">⟲</button></span>
             <span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
             <span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
             <span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
@@ -1521,7 +1564,7 @@
 
   <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="boundariesPanelDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Διοικητικά Όρια: <span id="selectedBoundaryName">—</span></summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Διοικητικά Όρια: <span id="selectedBoundaryName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedBoundary()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Διοικητικά Όρια</b> για να ενημερωθεί η επιλογή.
@@ -1533,7 +1576,7 @@
 
   <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="streamsPanelDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedStream()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> για να ενημερωθεί η επιλογή.
@@ -1547,7 +1590,7 @@
   <div id="panel_rain" class="scenario-panel">
   <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="rainAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedBasinName">—</span></summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedBasinName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
@@ -1559,11 +1602,11 @@
 
   <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="rainScenarioDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Βροχή</summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: Βροχή</span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetScenarioPanel('panel_rain')" title="Reset">⟲</button></span></span></summary>
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_rain" class="cohazards-badges"></span></summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_rain" class="cohazards-badges"></span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών">⟲</button></span></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_rain" class="cohazards-metrics">—</div>
@@ -1701,7 +1744,7 @@
 <div id="panel_wind" class="scenario-panel">
   <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="windAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
@@ -1713,11 +1756,11 @@
 
   <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="windScenarioDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Άνεμος</summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: Άνεμος</span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetScenarioPanel('panel_wind')" title="Reset">⟲</button></span></span></summary>
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_wind" class="cohazards-badges"></span></summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_wind" class="cohazards-badges"></span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών">⟲</button></span></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_wind" class="cohazards-metrics">—</div>
@@ -1777,7 +1820,7 @@
 <div id="panel_heatwave" class="scenario-panel">
   <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="heatAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedHeatAreaName">—</span></summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedHeatAreaName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
@@ -1789,11 +1832,11 @@
 
   <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="heatwaveScenarioDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Καύσωνας</summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: Καύσωνας</span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetScenarioPanel('panel_heatwave')" title="Reset">⟲</button></span></span></summary>
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></span></summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών">⟲</button></span></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_heatwave" class="cohazards-metrics">—</div>
@@ -1853,7 +1896,7 @@
 <div id="panel_frost_snow" class="scenario-panel">
   <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="frostAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedFrostAreaName">—</span></summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedFrostAreaName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
@@ -1864,11 +1907,11 @@
 
   <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="frost_snowScenarioDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Παγετός / Χιόνια</summary>
+      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: Παγετός / Χιόνια</span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetScenarioPanel('panel_frost_snow')" title="Reset">⟲</button></span></span></summary>
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span></summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών">⟲</button></span></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_frost_snow" class="cohazards-metrics">—</div>
@@ -2529,6 +2572,111 @@ function resetParametersToDefaults(){
 
   try{ setStationMsg('Παράμετροι: επαναφορά στις προεπιλογές.'); }catch(_){}
 }
+
+
+/* ===================== RESET HELPERS (per-line resets) ===================== */
+function resetPrimaryStationQuick(){
+  try{
+    ACTIVE_PRIMARY_URL = '';
+    ACTIVE_PRIMARY_NAME = '';
+    try{ refreshSelectedMeteoMarkers(); }catch(_){ }
+    const sel = document.getElementById('meteoStationSelect');
+    if(sel){
+      sel.value = '';
+      sel.dispatchEvent(new Event('change'));
+    }
+    // Clear main station display
+    setTxt('stationName','—');
+    setTxt('stationTimestamp','—');
+    setTxt('stationTimestampInline','—');
+    try{ updateStationFreshnessUI(); }catch(_){}
+    try{ updatePrimaryMetaCoords(); }catch(_){}
+    setTxt('stationRainRate','—');
+    setTxt('stationDP','—');
+    setTxt('stationR60','—');
+    try{ setLatestValuesDisplay(null,'—'); }catch(_){}
+    try{ setStationMsg('—'); }catch(_){}
+    try{ switchSeriesContext('open-meteo'); }catch(_){}
+    try{
+      if(typeof watchlist !== 'undefined' && watchlist && watchlist.size){
+        updatePrimaryStatus('Κύριος: (καθαρίστηκε)', 'neutral');
+      }else{
+        updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
+      }
+    }catch(_){}
+  }catch(e){
+    console.warn('resetPrimaryStationQuick failed', e);
+  }
+}
+
+function resetSelectedBoundary(){
+  try{
+    SELECTED_BOUNDARY_GEO = null;
+    SELECTED_BOUNDARY_KEY = null;
+    SELECTED_BOUNDARY_NAME = null;
+    try{ setSelectedBoundaryLabel(null); }catch(_){}
+    try{ if(typeof scheduleSaveUiState==='function') scheduleSaveUiState(); }catch(_){}
+  }catch(e){ console.warn('resetSelectedBoundary failed', e); }
+}
+
+function resetSelectedStream(){
+  try{
+    SELECTED_STREAM_GEO = null;
+    SELECTED_STREAM_KEY = null;
+    SELECTED_STREAM_NAME = null;
+    try{ setSelectedStreamLabel(null); }catch(_){}
+    try{ if(typeof scheduleSaveUiState==='function') scheduleSaveUiState(); }catch(_){}
+  }catch(e){ console.warn('resetSelectedStream failed', e); }
+}
+
+function resetSelectedZone(){
+  try{
+    SELECTED_BASIN_KEY = null;
+    SELECTED_ZONE_KEY = null;
+    SELECTED_ZONE_NAME = null;
+    SELECTED_ZONE_KIND = null;
+    try{ setSelectedZoneLabels(null); }catch(_){}
+    try{ if(typeof scheduleSaveUiState==='function') scheduleSaveUiState(); }catch(_){}
+  }catch(e){ console.warn('resetSelectedZone failed', e); }
+}
+
+function resetScenarioPanel(panelId){
+  try{
+    const root = document.getElementById(panelId);
+    if(!root) return;
+
+    // Reset standard form controls to their default values
+    root.querySelectorAll('input, select, textarea').forEach(el=>{
+      try{
+        const tag = (el.tagName||'').toUpperCase();
+        if(tag === 'SELECT'){
+          const opts = Array.from(el.options||[]);
+          const di = opts.findIndex(o=>o.defaultSelected);
+          el.selectedIndex = (di>=0) ? di : 0;
+        }else if(el.type === 'checkbox' || el.type === 'radio'){
+          el.checked = el.defaultChecked;
+        }else{
+          el.value = el.defaultValue;
+        }
+        el.dispatchEvent(new Event('input', {bubbles:true}));
+        el.dispatchEvent(new Event('change', {bubbles:true}));
+      }catch(_){}
+    });
+
+    // Special: reset manual stream y (if present)
+    try{ if(typeof resetStrY === 'function' && root.querySelector('#strY')) resetStrY(); }catch(_){}
+
+    // Recompute / refresh UI
+    try{ if(typeof runMasterCalculation==='function') runMasterCalculation(); }catch(_){}
+    try{ if(typeof refreshScenarioPanels==='function') refreshScenarioPanels(); }catch(_){}
+  }catch(e){
+    console.warn('resetScenarioPanel failed', e);
+  }
+}
+/* ===================== /RESET HELPERS ===================== */
+
+
+
 
 
 /* ===================== UI PERSISTENCE (keep values on refresh) ===================== */
