@@ -628,6 +628,8 @@
       border-radius:10px;
       padding:10px;
     }
+    .top-panel-box{margin:0 0 10px 0}
+
     .box h3{
       margin:0 0 8px 0;
       font-size:13px;
@@ -1244,7 +1246,7 @@
     </div>
 
     <div class="tool-wrap">
-      <div class="box data-box" style="background:#97c9d1;border-color:#dfe7ee">
+      <div class="box data-box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
           <details id="dataPanelDetails" open style="margin:0;">
             <summary class="monitor-panel-summary" style="cursor:pointer;">Δεδομένα</summary>
             <div class="data-panel-body">
@@ -1283,7 +1285,7 @@
       </div>
 </div>
 
-      <div class="box" style="background:#97c9d1;border-color:#dfe7ee">
+      <div class="box" top-panel-box style="background:#97c9d1;border-color:#dfe7ee">
 
 
           <details id="monitorPanelDetails" open style="margin:0;">
@@ -1405,6 +1407,27 @@
         </div>
 
       
+
+
+  
+  
+  <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="coHazardsPanelDetails" open style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">Συνδυαστικά Φαινόμενα (Co‑Hazards)</summary>
+      <div class="cohazards-panel-body">
+        <div id="coHazardsGlobal" class="cohazards-global">
+          <div class="cohazards-panel-inner">
+            <div class="cohazards-global-head">
+              <div id="coHazardsBadges" class="cohazards-badges"></div>
+            </div>
+            <div id="coHazardsMetrics" class="cohazards-metrics">—</div>
+            <div class="cohazards-note">*Τα συνδυαστικά είναι συμπληρωματικά. Οι υπολογισμοί/πίνακες κάτω ακολουθούν το <b>Κύριο Σενάριο</b>.</div>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
 <div id="scenarioArea">
 
   <div id="panel_rain" class="scenario-panel">
@@ -1533,25 +1556,6 @@
         </div>
       </div>
 
-  </div>
-
-  
-  
-  <div class="box" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="coHazardsPanelDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;">Συνδυαστικά Φαινόμενα (Co‑Hazards)</summary>
-      <div class="cohazards-panel-body">
-        <div id="coHazardsGlobal" class="cohazards-global">
-          <div class="cohazards-panel-inner">
-            <div class="cohazards-global-head">
-              <div id="coHazardsBadges" class="cohazards-badges"></div>
-            </div>
-            <div id="coHazardsMetrics" class="cohazards-metrics">—</div>
-            <div class="cohazards-note">*Τα συνδυαστικά είναι συμπληρωματικά. Οι υπολογισμοί/πίνακες κάτω ακολουθούν το <b>Κύριο Σενάριο</b>.</div>
-          </div>
-        </div>
-      </div>
-    </details>
   </div>
 
 <div id="panel_wind" class="scenario-panel">
