@@ -1444,6 +1444,18 @@
     </details>
   </div>
 
+
+  <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="streamsPanelDetails" open style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></summary>
+      <div class="monitor-panel-body" style="margin-top:0">
+        <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
+          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> για να ενημερωθεί η επιλογή.
+        </div>
+      </div>
+    </details>
+  </div>
+
 <div id="scenarioArea">
 
   <div id="panel_rain" class="scenario-panel">
@@ -1776,6 +1788,10 @@ let SELECTED_ZONE_NAME = null;
 let SELECTED_ZONE_KIND = null; // 'basin' | 'boundary'
 let SELECTED_BOUNDARY_KEY = null;
 let SELECTED_BOUNDARY_NAME = null;
+let SELECTED_BOUNDARY_GEO = null;
+let SELECTED_STREAM_KEY = null;
+let SELECTED_STREAM_NAME = null;
+let SELECTED_STREAM_GEO = null;
 let STATION_SELECT_BOUND = false; // bind dropdown change listener once
 let MULTI_DETAILS_OPEN = true; // remember collapse state for "Επιπλέον σταθμοί"
 
@@ -2313,11 +2329,13 @@ function saveUiStateNow(){
     });
 
     // Save selected zone (basin/boundary) + visible layers (GeoJSON project state)
-    state.__selectedZoneKey = SELECTED_ZONE_KEY || null;
+    state.__selectedZoneKey = SELECTED_BASIN_KEY || null;
     state.__selectedZoneName = SELECTED_ZONE_NAME || document.getElementById('selectedBasinName')?.innerText || null;
-    state.__selectedZoneKind = SELECTED_ZONE_KIND || null;
+    state.__selectedZoneKind = (SELECTED_BASIN_KEY ? 'basin' : null);
     state.__selectedBoundaryKey = SELECTED_BOUNDARY_KEY || null;
     state.__selectedBoundaryName = SELECTED_BOUNDARY_NAME || document.getElementById('selectedBoundaryName')?.innerText || null;
+    state.__selectedStreamKey = SELECTED_STREAM_KEY || null;
+    state.__selectedStreamName = SELECTED_STREAM_NAME || document.getElementById('selectedStreamName')?.innerText || null;
 
     // backward compatibility (older state keys)
     state.__selectedBasinKey = SELECTED_BASIN_KEY || null;
@@ -2420,37 +2438,71 @@ async function restoreUiStateLate(){
   const st = getSavedUiState();
   if(!st) return;
 
-  // 1) Restore last selected zone (basin/boundary) first (so geometry/state exists),
-  // then re-apply saved fields so user's last values win.
-  if(st.__selectedZoneKey){
+  // 1) Restore last selections:
+  //    - "Επιλεγμένη περιοχή/ζώνη" παίρνει τιμή ΜΟΝΟ από basins
+  //    - "Διοικητικά Όρια" παίρνει τιμή ΜΟΝΟ από boundaries
+  const basinKey = st.__selectedBasinKey
+    || (st.__selectedZoneKey && String(st.__selectedZoneKey).includes('data/basins/') ? st.__selectedZoneKey : null);
+
+  const basinName = st.__selectedBasinName || st.__selectedZoneName || null;
+
+  if(basinKey){
     try{
-      const key = String(st.__selectedZoneKey);
-      const name = st.__selectedZoneName || key.split('/').pop().replace('.geojson','');
+      const key = String(basinKey);
+      const name = basinName || key.split('/').pop().replace('.geojson','');
       if(typeof loadToTool === 'function'){
         await loadToTool(key, name);
       }else{
-        // at least restore label
         try{ setSelectedZoneLabels(name); }catch(_){}
+        SELECTED_BASIN_KEY = key;
         SELECTED_ZONE_KEY = key;
         SELECTED_ZONE_NAME = name;
-        SELECTED_ZONE_KIND = st.__selectedZoneKind || null;
+        SELECTED_ZONE_KIND = 'basin';
       }
     }catch(_){}
-  } else if(st.__selectedBasinKey){
-    // legacy (older saves)
+  } else if(basinName){
+    try{ setSelectedZoneLabels(basinName); }catch(_){}
+  }
+
+  const boundaryKey = st.__selectedBoundaryKey
+    || (st.__selectedZoneKey && String(st.__selectedZoneKey).includes('data/boundaries/') ? st.__selectedZoneKey : null);
+
+  const boundaryName = st.__selectedBoundaryName || null;
+
+  if(boundaryKey){
     try{
-      const key = String(st.__selectedBasinKey);
-      const name = st.__selectedBasinName || key.split('/').pop().replace('.geojson','');
+      const key = String(boundaryKey);
+      const name = boundaryName || key.split('/').pop().replace('.geojson','');
       if(typeof loadToTool === 'function'){
         await loadToTool(key, name);
       }else{
-        const el = document.getElementById('selectedBasinName');
-        if(el) el.innerText = name;
-        SELECTED_BASIN_KEY = key;
+        try{ setSelectedBoundaryLabel(name); }catch(_){}
+        SELECTED_BOUNDARY_KEY = key;
+        SELECTED_BOUNDARY_NAME = name;
       }
     }catch(_){}
-  } else if(st.__selectedZoneName || st.__selectedBasinName){
-    try{ setSelectedZoneLabels(st.__selectedZoneName || st.__selectedBasinName); }catch(_){}
+  } else if(boundaryName){
+    try{ setSelectedBoundaryLabel(boundaryName); }catch(_){}
+  }
+
+
+  const streamKey = st.__selectedStreamKey || null;
+  const streamName = st.__selectedStreamName || null;
+
+  if(streamKey){
+    try{
+      const key = String(streamKey);
+      const name = streamName || key.split('/').pop().replace('.geojson','');
+      if(typeof loadToTool === 'function'){
+        await loadToTool(key, name);
+      }else{
+        try{ setSelectedStreamLabel(name); }catch(_){}
+        SELECTED_STREAM_KEY = key;
+        SELECTED_STREAM_NAME = name;
+      }
+    }catch(_){}
+  } else if(streamName){
+    try{ setSelectedStreamLabel(streamName); }catch(_){}
   }
 
   // Restore last selected administrative boundary (independent from the main zone)
@@ -2467,6 +2519,20 @@ async function restoreUiStateLate(){
   }catch(_){}
 
 
+
+
+  // Restore last selected hydrographic network (independent)
+  try{
+    if(st.__selectedStreamKey){
+      SELECTED_STREAM_KEY = String(st.__selectedStreamKey);
+      const nm = st.__selectedStreamName || SELECTED_STREAM_KEY.split('/').pop().replace('.geojson','');
+      SELECTED_STREAM_NAME = nm;
+      setSelectedStreamLabel(nm);
+    }else if(st.__selectedStreamName){
+      SELECTED_STREAM_NAME = String(st.__selectedStreamName);
+      setSelectedStreamLabel(SELECTED_STREAM_NAME);
+    }
+  }catch(_){}
 
   // 2) Restore all tool fields
   restoreUiFieldsFromState(st);
@@ -2898,7 +2964,7 @@ async function init(){
     // IMPORTANT: paths based on your current repo layout (from previous versions)
     // data/boundaries, data/streams, data/basins
     DATA_GROUPS.boundaries = files.filter(f => f.path.includes('data/boundaries/') && f.path.endsWith('.geojson'));
-    DATA_GROUPS.streams    = files.filter(f => f.path.includes('data/streams/')    && f.path.endsWith('.geojson'));
+    DATA_GROUPS.streams    = files.filter(f => (f.path.includes('data/streams/') || f.path.includes('streams/geojson/')) && f.path.endsWith('.geojson'));
     DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/')     && f.path.endsWith('.geojson'));
 
     restoreUiStateEarly();
@@ -3030,37 +3096,59 @@ function setSelectedBoundaryLabel(name){
   if(el) el.textContent = v;
 }
 
+
+function setSelectedStreamLabel(name){
+  const v = (name && String(name).trim()) ? String(name).trim() : '—';
+  const el = document.getElementById('selectedStreamName');
+  if(el) el.textContent = v;
+}
+
 /* ===================== LOAD / MAP / ON-OFF LOGIC ===================== */
 async function loadToTool(path, name){
   updateMeteoStatus("Φόρτωση: " + name + "…");
   try{
     const gj = await fetchGeoJSON(path);
 
+    
     const isBasin = path.includes('data/basins/');
     const isBoundary = path.includes('data/boundaries/');
-    const isZone = isBasin || isBoundary;
+    const isStream = path.includes('data/streams/') || path.includes('streams/geojson/');
 
-    // MAIN selection for UI ("Επιλεγμένη περιοχή/ζώνη")
-    if(isZone){
+    // ΔΙΟΙΚΗΤΙΚΑ ΟΡΙΑ: ενημερώνονται ΜΟΝΟ από boundaries (δεν επηρεάζουν την Επιλεγμένη περιοχή/ζώνη)
+    if(isBoundary){
+      SELECTED_BOUNDARY_GEO = gj;
+      SELECTED_BOUNDARY_KEY = path;
+      SELECTED_BOUNDARY_NAME = name;
+      setSelectedBoundaryLabel(name);
+      if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+      updateMeteoStatus(`Φορτώθηκε (Διοικητικά Όρια): ${name}`);
+      return;
+    }
+
+
+    // ΥΔΡΟΓΡΑΦΙΚΟ ΔΙΚΤΥΟ: ενημερώνεται ΜΟΝΟ από streams (δεν επηρεάζει την Επιλεγμένη περιοχή/ζώνη)
+    if(isStream){
+      SELECTED_STREAM_GEO = gj;
+      SELECTED_STREAM_KEY = path;
+      SELECTED_STREAM_NAME = name;
+      setSelectedStreamLabel(name);
+      if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+      updateMeteoStatus(`Φορτώθηκε (Υδρογραφικό Δίκτυο): ${name}`);
+      return;
+    }
+
+// ΕΠΙΛΕΓΜΕΝΗ ΠΕΡΙΟΧΗ/ΖΩΝΗ: ενημερώνεται ΜΟΝΟ από basins
+    if(isBasin){
       SELECTED_GEO = gj;
       SELECTED_ZONE_KEY = path;
       SELECTED_ZONE_NAME = name;
-      SELECTED_ZONE_KIND = isBasin ? 'basin' : 'boundary';
-
-      // backward compatibility: basin key exists ONLY when the selection is a basin
-      SELECTED_BASIN_KEY = isBasin ? path : null;
+      SELECTED_ZONE_KIND = 'basin';
+      SELECTED_BASIN_KEY = path;
 
       setSelectedZoneLabels(name);
-      if(isBoundary){
-        SELECTED_BOUNDARY_KEY = path;
-        SELECTED_BOUNDARY_NAME = name;
-        setSelectedBoundaryLabel(name);
-      }
       if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
-    }
 
-    // Populate tool inputs when properties exist (works for basins & boundaries)
-    if(isZone){
+      // Populate tool inputs ONLY for basins (υδρολογικά στοιχεία)
       const p = getPropsMerged(gj);
 
       if(p.area!=null)   setVal('area', p.area);
@@ -3079,15 +3167,13 @@ async function loadToTool(path, name){
       if(p.strDrop!=null)  setVal('strDrop', p.strDrop);
 
       if(p.strType!=null){
-        const sel = document.getElementById('strType');
+        const restoreSel = document.getElementById('strType');
         const val = String(p.strType);
-        if(sel && [...sel.options].some(o=>o.value===val)) sel.value = val;
+        if(restoreSel && [...restoreSel.options].some(o=>String(o.value)===val)) restoreSel.value = val;
       }
 
       // IMPORTANT: do NOT auto-open map; do NOT change On/Off here
-      updateMeteoStatus(isBasin
-        ? `Φορτώθηκε στο εργαλείο (λεκάνη): ${name}`
-        : `Φορτώθηκε στο εργαλείο (περιοχή/όρια): ${name}`);
+      updateMeteoStatus(`Φορτώθηκε στο εργαλείο (λεκάνη): ${name}`);
 
       // Recalculate + redraw (safe even if some values are missing)
       try{ runMasterCalculation(); }catch(_){}
@@ -3096,6 +3182,7 @@ async function loadToTool(path, name){
       // non-zone (streams etc): just cache + message
       updateMeteoStatus(`Φορτώθηκε (cache): ${name}`);
     }
+
 
   }catch(e){
     alert("Σφάλμα: " + e.message);
@@ -3197,7 +3284,7 @@ function closeMapModal(){
 
 function categoryFromPath(path){
   if(path.includes('data/boundaries/')) return 'boundaries';
-  if(path.includes('data/streams/')) return 'streams';
+  if(path.includes('data/streams/') || path.includes('streams/geojson/')) return 'streams';
   return 'basins';
 }
 
