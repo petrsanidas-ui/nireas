@@ -2120,6 +2120,44 @@ function setStationMsg(msg){
 }
 function setTxt(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; if(id==='stationName'||id==='stationTimestampInline'||id==='stationLat'||id==='stationLon'||id==='stationElev') updateSeriesSummaryName(); }
 
+/* ===== Clear/Reset confirmations (UI vs DB) =====
+   Στόχος: ένα "Clear" ανά section, με μίνι επιβεβαίωση που εξηγεί ΤΙ καθαρίζεται.
+   Σημ.: Τα παρακάτω ΔΕΝ διαγράφουν δεδομένα από Firestore. Καθαρίζουν μόνο UI/buffer/προβολή. */
+function __confirmClear(title, lines, note){
+  const footer = note || "Σημ.: Δεν διαγράφεται τίποτα από τη Βάση (DB). Καθαρίζεται μόνο η προσωρινή μνήμη/προβολή στον browser.";
+  const body = (Array.isArray(lines) ? lines : [String(lines||'')]).join("\n");
+  const msg = `${title}\n\n${body}\n\n${footer}`;
+  return confirm(msg);
+}
+
+function confirmAndClearSeriesFiltersUI(){
+  const ok = __confirmClear(
+    "Clear – Ιστορικό Κύριου Σταθμού (UI)",
+    [
+      "• Θα καθαριστούν τα φίλτρα στη γραμμή φίλτρων.",
+      "• Θα αδειάσει ο πίνακας προβολής.",
+      "• Θα καθαριστεί η προσωρινή χρονοσειρά (buffer) του ενεργού κύριου σταθμού."
+    ]
+  );
+  if(!ok) return;
+  clearSeriesFiltersUI();
+}
+
+function confirmAndClearDbFiltersUI(){
+  const ok = __confirmClear(
+    "Clear – Ιστορικό από Βάση (DB) (Προβολή)",
+    [
+      "• Θα καθαριστούν τα φίλτρα στη γραμμή φίλτρων.",
+      "• Θα αδειάσει ο πίνακας προβολής (cached rows)."
+    ],
+    "Σημ.: Δεν διαγράφεται τίποτα από τη Βάση (DB). Απλώς καθαρίζει η προβολή/φίλτρα στο UI."
+  );
+  if(!ok) return;
+  clearDbFiltersUI();
+}
+
+
+
 /* ===== Station freshness (timestamp age) ===== */
 function parseGreekDateTime(ts){
   if(!ts) return null;
@@ -2844,6 +2882,12 @@ function setPrimaryStation(){
 }
 
 function clearPrimaryStation(){
+  const ok = __confirmClear("Καθαρισμός Κύριου Σταθμού (UI)", [
+    "• Θα αφαιρεθεί ο κύριος σταθμός από την επιλογή.",
+    "• Θα μηδενιστούν οι τιμές/ενδείξεις του κύριου σταθμού στην οθόνη."
+  ]);
+  if(!ok) return;
+
   // Clear ACTIVE primary (and keep watchlist/extras intact)
   ACTIVE_PRIMARY_URL = '';
   ACTIVE_PRIMARY_NAME = '';
@@ -2943,6 +2987,12 @@ function addToWatchlist(){
 }
 
 function clearWatchlist(){
+  const ok = __confirmClear("Καθαρισμός Επιπλέον Σταθμών (Παρακολούθηση)", [
+    "• Θα αφαιρεθούν ΟΛΟΙ οι επιπλέον σταθμοί (watchlist).",
+    "• Θα κλείσουν/καθαριστούν οι κάρτες & οι τιμές τους στην οθόνη."
+  ]);
+  if(!ok) return;
+
   watchlist.clear();
   renderWatchlist();
   saveWatchlist();
@@ -4519,7 +4569,10 @@ function toggleLive(){
 }
 
 function clearStationSeries(){
-  const ok = confirm("Να γίνει καθαρισμός της χρονοσειράς του σταθμού;");
+  const ok = __confirmClear("Καθαρισμός Χρονοσειράς Σταθμού (UI)", [
+    "• Θα καθαριστεί η προσωρινή χρονοσειρά (buffer) για τον τρέχοντα σταθμό.",
+    "• Θα μηδενιστούν οι υπολογισμοί ΔP (storm) και R60 στην οθόνη."
+  ]);
   if(!ok) return;
 
   stationSeries = [];
@@ -5818,7 +5871,7 @@ function initSeriesReaderUI(){
   const btnFilt = document.getElementById('btnSeriesFilters');
   const btnClr  = document.getElementById('btnSeriesClearFilters');
 
-  if(btnClr){ btnClr.onclick = (e)=>{ e.preventDefault(); clearSeriesFiltersUI(); }; }
+  if(btnClr){ btnClr.onclick = (e)=>{ e.preventDefault(); confirmAndClearSeriesFiltersUI(); }; }
   const inpLim  = document.getElementById('seriesLimit');
 
   if(btnLoad && !btnLoad.dataset.bound){
@@ -6087,7 +6140,7 @@ function initDbReaderUI(){
   const btnFilt = document.getElementById('btnDbFilters');
   const btnClr  = document.getElementById('btnDbClearFilters');
 
-  if(btnClr){ btnClr.onclick = (e)=>{ e.preventDefault(); clearDbFiltersUI(); }; }
+  if(btnClr){ btnClr.onclick = (e)=>{ e.preventDefault(); confirmAndClearDbFiltersUI(); }; }
 
   if(btnView){ btnView.textContent = (__dbGetViewMode() === 'full') ? 'Προβολή: FULL' : 'Προβολή: BASIC'; }
 
