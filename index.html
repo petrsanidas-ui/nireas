@@ -234,6 +234,17 @@
 
     /* Co‑Hazards contextual box inside Scenario panels */
     .cohazards-context-box{margin:10px 0 12px 0}
+    /* Scenario contextual Co‑Hazards collapsible (like DB History) */
+    .scenario-cohazards-details > summary{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      cursor:pointer;
+      margin-bottom:6px;
+    }
+    .scenario-cohazards-details > summary::marker{ font-size:11px; }
+    .scenario-cohazards-details > summary .cohazards-badges{ margin-left:auto; }
+
     .cohazards-context-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .cohazards-context-title{font-weight:900;color:#1f2a33}
 /* ===== Co‑Hazards (secondary hazards) ===== */
@@ -1481,16 +1492,18 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Βροχή</summary>
 
       <div class="scenario-area-body">
-        <div class="cohazards-context-box">
-          <div class="cohazards-panel-inner">
-            <div class="cohazards-context-head">
-              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
-              <div id="coHazardsBadges_ctx_rain" class="cohazards-badges"></div>
+        <details class="scenario-cohazards-details" open>
+          <summary class="monitor-section-title">
+            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
+            <span id="coHazardsBadges_ctx_rain" class="cohazards-badges"></span>
+          </summary>
+          <div class="cohazards-context-box">
+            <div class="cohazards-panel-inner">
+              <div id="coHazardsMetrics_ctx_rain" class="cohazards-metrics">—</div>
+              <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
             </div>
-            <div id="coHazardsMetrics_ctx_rain" class="cohazards-metrics">—</div>
-            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
           </div>
-        </div>
+        </details>
 
 <div class="grid-2">
         <div class="box" style="background:#fff3cd;border-color:#f1d27a">
@@ -1637,16 +1650,18 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Άνεμος</summary>
 
       <div class="scenario-area-body">
-        <div class="cohazards-context-box">
-          <div class="cohazards-panel-inner">
-            <div class="cohazards-context-head">
-              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
-              <div id="coHazardsBadges_ctx_wind" class="cohazards-badges"></div>
+        <details class="scenario-cohazards-details" open>
+          <summary class="monitor-section-title">
+            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
+            <span id="coHazardsBadges_ctx_wind" class="cohazards-badges"></span>
+          </summary>
+          <div class="cohazards-context-box">
+            <div class="cohazards-panel-inner">
+              <div id="coHazardsMetrics_ctx_wind" class="cohazards-metrics">—</div>
+              <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
             </div>
-            <div id="coHazardsMetrics_ctx_wind" class="cohazards-metrics">—</div>
-            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
           </div>
-        </div>
+        </details>
 
 <div class="grid-2">
     <div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
@@ -1715,16 +1730,18 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Καύσωνας</summary>
 
       <div class="scenario-area-body">
-        <div class="cohazards-context-box">
-          <div class="cohazards-panel-inner">
-            <div class="cohazards-context-head">
-              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
-              <div id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></div>
+        <details class="scenario-cohazards-details" open>
+          <summary class="monitor-section-title">
+            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
+            <span id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></span>
+          </summary>
+          <div class="cohazards-context-box">
+            <div class="cohazards-panel-inner">
+              <div id="coHazardsMetrics_ctx_heatwave" class="cohazards-metrics">—</div>
+              <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
             </div>
-            <div id="coHazardsMetrics_ctx_heatwave" class="cohazards-metrics">—</div>
-            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
           </div>
-        </div>
+        </details>
 
 <div class="grid-2">
     <div class="box" style="background:#fff3cd;border-color:#f1d27a">
@@ -1792,16 +1809,18 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Παγετός / Χιόνια</summary>
 
       <div class="scenario-area-body">
-        <div class="cohazards-context-box">
-          <div class="cohazards-panel-inner">
-            <div class="cohazards-context-head">
-              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
-              <div id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></div>
+        <details class="scenario-cohazards-details" open>
+          <summary class="monitor-section-title">
+            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
+            <span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span>
+          </summary>
+          <div class="cohazards-context-box">
+            <div class="cohazards-panel-inner">
+              <div id="coHazardsMetrics_ctx_frost_snow" class="cohazards-metrics">—</div>
+              <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
             </div>
-            <div id="coHazardsMetrics_ctx_frost_snow" class="cohazards-metrics">—</div>
-            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
           </div>
-        </div>
+        </details>
 
 <div class="grid-2">
     <div class="box" style="background:#e8f4ff;border-color:#bfe4ff">
