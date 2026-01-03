@@ -231,6 +231,11 @@
     }
 
 
+
+    /* Co‑Hazards contextual box inside Scenario panels */
+    .cohazards-context-box{margin:10px 0 12px 0}
+    .cohazards-context-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .cohazards-context-title{font-weight:900;color:#1f2a33}
 /* ===== Co‑Hazards (secondary hazards) ===== */
     /* Standardize Co‑Hazards buttons to match header controls (same size/radius) */
     .cohazards{
@@ -1476,6 +1481,17 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Βροχή</summary>
 
       <div class="scenario-area-body">
+        <div class="cohazards-context-box">
+          <div class="cohazards-panel-inner">
+            <div class="cohazards-context-head">
+              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
+              <div id="coHazardsBadges_ctx_rain" class="cohazards-badges"></div>
+            </div>
+            <div id="coHazardsMetrics_ctx_rain" class="cohazards-metrics">—</div>
+            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+          </div>
+        </div>
+
 <div class="grid-2">
         <div class="box" style="background:#fff3cd;border-color:#f1d27a">
           <h3 id="scenarioTitle">ΣΕΝΑΡΙΟ: Βροχή</h3>
@@ -1621,6 +1637,17 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Άνεμος</summary>
 
       <div class="scenario-area-body">
+        <div class="cohazards-context-box">
+          <div class="cohazards-panel-inner">
+            <div class="cohazards-context-head">
+              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
+              <div id="coHazardsBadges_ctx_wind" class="cohazards-badges"></div>
+            </div>
+            <div id="coHazardsMetrics_ctx_wind" class="cohazards-metrics">—</div>
+            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+          </div>
+        </div>
+
 <div class="grid-2">
     <div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
       <h3>ΣΕΝΑΡΙΟ: Άνεμος</h3>
@@ -1688,6 +1715,17 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Καύσωνας</summary>
 
       <div class="scenario-area-body">
+        <div class="cohazards-context-box">
+          <div class="cohazards-panel-inner">
+            <div class="cohazards-context-head">
+              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
+              <div id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></div>
+            </div>
+            <div id="coHazardsMetrics_ctx_heatwave" class="cohazards-metrics">—</div>
+            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+          </div>
+        </div>
+
 <div class="grid-2">
     <div class="box" style="background:#fff3cd;border-color:#f1d27a">
       <h3>ΣΕΝΑΡΙΟ: Καύσωνας</h3>
@@ -1754,6 +1792,17 @@
       <summary class="monitor-panel-summary" style="cursor:pointer;">Σενάριο: Παγετός / Χιόνια</summary>
 
       <div class="scenario-area-body">
+        <div class="cohazards-context-box">
+          <div class="cohazards-panel-inner">
+            <div class="cohazards-context-head">
+              <div class="cohazards-context-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
+              <div id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></div>
+            </div>
+            <div id="coHazardsMetrics_ctx_frost_snow" class="cohazards-metrics">—</div>
+            <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+          </div>
+        </div>
+
 <div class="grid-2">
     <div class="box" style="background:#e8f4ff;border-color:#bfe4ff">
       <h3>ΣΕΝΑΡΙΟ: Παγετός / Χιόνια</h3>
@@ -7764,7 +7813,22 @@ function bindInputs(){
     });
   }
 
-  function renderCoHazardsGlobal(){
+  
+  function syncCoHazardsContextFromGlobal(){
+    const srcBadges = document.getElementById('coHazardsBadges');
+    const srcMetrics = document.getElementById('coHazardsMetrics');
+    const badgesHTML = srcBadges ? srcBadges.innerHTML : '';
+    const metricsHTML = srcMetrics ? srcMetrics.innerHTML : '—';
+
+    ['rain','wind','heatwave','frost_snow'].forEach(k=>{
+      const b = document.getElementById(`coHazardsBadges_ctx_${k}`);
+      const m = document.getElementById(`coHazardsMetrics_ctx_${k}`);
+      if(b) b.innerHTML = badgesHTML;
+      if(m) m.innerHTML = metricsHTML;
+    });
+  }
+
+function renderCoHazardsGlobal(){
     const box = document.getElementById('coHazardsGlobal');
     const badges = document.getElementById('coHazardsBadges');
     const metrics = document.getElementById('coHazardsMetrics');
@@ -7778,6 +7842,7 @@ function bindInputs(){
     if(!arr.length){
       badges.innerHTML = '';
       metrics.innerHTML = '<span style="color:#6b7a86">Επίλεξε Συνδυαστικά Φαινόμενα (π.χ. +Άνεμος, +Βροχή, +Καύσωνας, +Παγετός) για να εμφανιστούν δείκτες.</span>';
+      syncCoHazardsContextFromGlobal();
       return;
     }
     badges.innerHTML = arr.map(hz=>`<span class="cohazards-badge cohz-badge-${hz}">+ ${hzName(hz)}</span>`).join('');
@@ -7785,6 +7850,7 @@ function bindInputs(){
     const s = getLatestSample();
     if(!s){
       metrics.innerHTML = '<span style="color:#6b7a86">Φόρτωσε (Load) ή ενεργοποίησε Live για να εμφανιστούν δεδομένα.</span>';
+      syncCoHazardsContextFromGlobal();
       return;
     }
 
@@ -7854,7 +7920,9 @@ function bindInputs(){
     });
 
     metrics.innerHTML = `<ul>${lines.join('')}</ul>`;
-  }
+  
+    syncCoHazardsContextFromGlobal();
+}
 
   // exposed API
   window.toggleCoHazard = function(hz){
