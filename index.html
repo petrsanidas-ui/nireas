@@ -3957,8 +3957,11 @@ async function fetchStationDataSingle(url, label, updatePrimary){
           setLatestValuesDisplay(latest, buildLatestLine(latest));
 setStationMsg("Λήψη από Open‑Meteo endpoint.");
 
+          // ΠΑΝΤΑ: κράτα δείγμα για το Monitoring/Scenario ακόμη κι αν δεν υπάρχει RainRate (rr)
+          onNewStationSample(String(ts), ts, (rr!=null ? rr : null), label || 'Open‑Meteo', totalsSeries, latest);
+
+          // Μόνο αν υπάρχει rr έχει νόημα να τρέξει ο υδρολογικός υπολογισμός
           if(rr!=null){
-            onNewStationSample(String(ts), ts, rr, label || 'Open‑Meteo', totalsSeries, latest);
             runMasterCalculation();
           }
         }
@@ -3992,10 +3995,9 @@ setStationMsg("Λήψη από Open‑Meteo endpoint.");
         }
 setStationMsg("Λήψη από endpoint.");
 
-        if(rr!=null){
-          // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
-        }
+        // ΠΑΝΤΑ: κράτα δείγμα για Monitoring/Scenario ακόμη κι αν δεν υπάρχει RainRate (rr)
+        onNewStationSample(String(ts), ts, (rr!=null ? rr : null), label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
+
         runMasterCalculation();
       }
 
