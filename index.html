@@ -1115,6 +1115,8 @@
     .station-pin{width:14px;height:14px;border-radius:50%;background:#1e88e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);}
     .station-pin.primary{width:16px;height:16px;border-radius:2px;background:#e53935;transform:rotate(45deg);}
     .station-pin-wrap{display:flex;align-items:center;justify-content:center;}
+
+    .scenario-area-body{margin-top:6px;}
 </style>
 </head>
 
@@ -1431,9 +1433,11 @@
 <div id="scenarioArea">
 
   <div id="panel_rain" class="scenario-panel">
-<div class="sel-basin">Επιλεγμένη λεκάνη: <span id="selectedBasinName">—</span></div>
-
-      <div class="grid-2">
+  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="rainAreaDetails" open style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedBasinName">—</span></summary>
+      <div class="scenario-area-body">
+<div class="grid-2">
         <div class="box" style="background:#fff3cd;border-color:#f1d27a">
           <h3 id="scenarioTitle">ΣΕΝΑΡΙΟ: Βροχή</h3>
           <div class="row">
@@ -1555,13 +1559,16 @@
           <div class="item"><span class="swatch" style="background:#ffd1d1"></span> Ακραία (≥60 mm)</div>
         </div>
       </div>
-
+      </div>
+    </details>
   </div>
-
+</div>
 <div id="panel_wind" class="scenario-panel">
-  <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></div>
-
-  <div class="grid-2">
+  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="windAreaDetails" open style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></summary>
+      <div class="scenario-area-body">
+<div class="grid-2">
     <div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
       <h3>ΣΕΝΑΡΙΟ: Άνεμος</h3>
       <div class="row"><label>Όριο προειδοποίησης (km/h):</label><input type="number" id="windWarnKmh" value="50" step="1"></div>
@@ -1605,12 +1612,16 @@
       <div class="row"><label>Σχόλιο:</label><input id="windNote" placeholder="σύντομη σημείωση…"></div>
     </div>
   </div>
+      </div>
+    </details>
   </div>
-
-  <div id="panel_heatwave" class="scenario-panel">
-  <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedHeatAreaName">—</span></div>
-
-  <div class="grid-2">
+</div>
+<div id="panel_heatwave" class="scenario-panel">
+  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="heatAreaDetails" open style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedHeatAreaName">—</span></summary>
+      <div class="scenario-area-body">
+<div class="grid-2">
     <div class="box" style="background:#fff3cd;border-color:#f1d27a">
       <h3>ΣΕΝΑΡΙΟ: Καύσωνας</h3>
       <div class="row"><label>Όριο μέτριου κινδύνου (°C HI):</label><input type="number" id="heatWarnHI" value="37" step="0.1"></div>
@@ -1654,12 +1665,16 @@
       <div class="row"><label>Σχόλιο:</label><input id="heatNote" placeholder="σύντομη σημείωση…"></div>
     </div>
   </div>
+      </div>
+    </details>
   </div>
-
-  <div id="panel_frost_snow" class="scenario-panel">
-  <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedFrostAreaName">—</span></div>
-
-  <div class="grid-2">
+</div>
+<div id="panel_frost_snow" class="scenario-panel">
+  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="frostAreaDetails" open style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">Επιλεγμένη περιοχή/ζώνη: <span id="selectedFrostAreaName">—</span></summary>
+      <div class="scenario-area-body">
+<div class="grid-2">
     <div class="box" style="background:#e8f4ff;border-color:#bfe4ff">
       <h3>ΣΕΝΑΡΙΟ: Παγετός / Χιόνια</h3>
       <div class="row"><label>Όριο παγετού (°C):</label><input type="number" id="frostTemp0" value="0" step="0.1"></div>
@@ -1725,7 +1740,10 @@
       </div>
     </div>
     <div id="mapBox"></div>
+      </div>
+    </details>
   </div>
+</div>
 </div>
 
 <script>
