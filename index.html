@@ -242,7 +242,9 @@
       cursor:pointer;
       margin-bottom:6px;
     }
-    .scenario-cohazards-details > summary::marker{ font-size:11px; }
+    .scenario-cohazards-details > summary::-webkit-details-marker{display:none;}
+    .scenario-cohazards-details > summary::marker{font-size:0;}
+    .scenario-cohazards-arrow{display:inline-block;width:14px;font-weight:900;font-size:12px;line-height:1;}
     .scenario-cohazards-details > summary .cohazards-badges{ margin-left:auto; }
 
     .cohazards-context-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -1494,6 +1496,7 @@
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
           <summary class="monitor-section-title">
+            <span class="scenario-cohazards-arrow">▼</span>
             <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
             <span id="coHazardsBadges_ctx_rain" class="cohazards-badges"></span>
           </summary>
@@ -1652,6 +1655,7 @@
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
           <summary class="monitor-section-title">
+            <span class="scenario-cohazards-arrow">▼</span>
             <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
             <span id="coHazardsBadges_ctx_wind" class="cohazards-badges"></span>
           </summary>
@@ -1732,6 +1736,7 @@
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
           <summary class="monitor-section-title">
+            <span class="scenario-cohazards-arrow">▼</span>
             <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
             <span id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></span>
           </summary>
@@ -1811,6 +1816,7 @@
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
           <summary class="monitor-section-title">
+            <span class="scenario-cohazards-arrow">▼</span>
             <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
             <span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span>
           </summary>
@@ -8019,6 +8025,20 @@ function renderCoHazardsGlobal(){
     }
   }
 
+
+  function bindScenarioCoHazardsToggle(){
+    try{
+      document.querySelectorAll('details.scenario-cohazards-details').forEach(d=>{
+        const arrow = d.querySelector('.scenario-cohazards-arrow');
+        const sync = ()=>{ if(arrow) arrow.textContent = d.open ? '▼' : '▶'; };
+        d.addEventListener('toggle', sync);
+        sync();
+      });
+    }catch(e){
+      console.warn('BOOT: bindScenarioCoHazardsToggle failed:', e);
+    }
+  }
+
   function boot(attempt){
     const missing = NEED.filter(n => typeof window[n] !== 'function');
     if(missing.length){
@@ -8038,13 +8058,16 @@ function renderCoHazardsGlobal(){
 
     bindScenarioInputs();
 
+
     // start app
     safeCall('init');
   }
 
   // run after DOM is ready (module scripts execute before DOMContentLoaded)
-  window.addEventListener('DOMContentLoaded', ()=>boot(0));
-})();
+  window.addEventListener('DOMContentLoaded', ()=>{
+    try{ bindScenarioCoHazardsToggle(); }catch(_){ }
+    boot(0);
+  });})();
 </script>
 
 </body>
