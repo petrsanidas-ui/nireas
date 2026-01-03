@@ -235,19 +235,21 @@
     /* Co‑Hazards contextual box inside Scenario panels */
     .cohazards-context-box{margin:10px 0 12px 0}
     /* Scenario contextual Co‑Hazards collapsible (like DB History) */
+    
+    /* Scenario CoHazards (inside Scenario) — match DB collapse look */
     .scenario-cohazards-details > summary{
-      display:flex;
-      align-items:center;
-      gap:10px;
       cursor:pointer;
       margin-bottom:6px;
+      position:relative;
+      padding-right:200px;
     }
-    .scenario-cohazards-details > summary::-webkit-details-marker{display:none;}
-    .scenario-cohazards-details > summary::marker{font-size:0;}
-    .scenario-cohazards-arrow{display:inline-block;width:14px;font-weight:900;font-size:12px;line-height:1;}
-    .scenario-cohazards-details > summary .cohazards-badges{ margin-left:auto; }
-
-    .cohazards-context-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    /* keep the native ▶/▼ marker (do NOT hide it) */
+    .scenario-cohazards-details > summary .cohazards-badges{
+      position:absolute;
+      right:0;
+      top:0;
+    }
+.cohazards-context-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .cohazards-context-title{font-weight:900;color:#1f2a33}
 /* ===== Co‑Hazards (secondary hazards) ===== */
     /* Standardize Co‑Hazards buttons to match header controls (same size/radius) */
@@ -1495,11 +1497,7 @@
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title">
-            <span class="scenario-cohazards-arrow">▼</span>
-            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
-            <span id="coHazardsBadges_ctx_rain" class="cohazards-badges"></span>
-          </summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_rain" class="cohazards-badges"></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_rain" class="cohazards-metrics">—</div>
@@ -1654,11 +1652,7 @@
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title">
-            <span class="scenario-cohazards-arrow">▼</span>
-            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
-            <span id="coHazardsBadges_ctx_wind" class="cohazards-badges"></span>
-          </summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_wind" class="cohazards-badges"></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_wind" class="cohazards-metrics">—</div>
@@ -1735,11 +1729,7 @@
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title">
-            <span class="scenario-cohazards-arrow">▼</span>
-            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
-            <span id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></span>
-          </summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_heatwave" class="cohazards-badges"></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_heatwave" class="cohazards-metrics">—</div>
@@ -1815,11 +1805,7 @@
 
       <div class="scenario-area-body">
         <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title">
-            <span class="scenario-cohazards-arrow">▼</span>
-            <span>Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
-            <span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span>
-          </summary>
+          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">Συνδυαστικά Φαινόμενα (Co‑Hazards) <span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span></summary>
           <div class="cohazards-context-box">
             <div class="cohazards-panel-inner">
               <div id="coHazardsMetrics_ctx_frost_snow" class="cohazards-metrics">—</div>
@@ -8025,20 +8011,6 @@ function renderCoHazardsGlobal(){
     }
   }
 
-
-  function bindScenarioCoHazardsToggle(){
-    try{
-      document.querySelectorAll('details.scenario-cohazards-details').forEach(d=>{
-        const arrow = d.querySelector('.scenario-cohazards-arrow');
-        const sync = ()=>{ if(arrow) arrow.textContent = d.open ? '▼' : '▶'; };
-        d.addEventListener('toggle', sync);
-        sync();
-      });
-    }catch(e){
-      console.warn('BOOT: bindScenarioCoHazardsToggle failed:', e);
-    }
-  }
-
   function boot(attempt){
     const missing = NEED.filter(n => typeof window[n] !== 'function');
     if(missing.length){
@@ -8065,7 +8037,6 @@ function renderCoHazardsGlobal(){
 
   // run after DOM is ready (module scripts execute before DOMContentLoaded)
   window.addEventListener('DOMContentLoaded', ()=>{
-    try{ bindScenarioCoHazardsToggle(); }catch(_){ }
     boot(0);
   });})();
 </script>
