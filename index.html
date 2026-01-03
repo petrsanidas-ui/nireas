@@ -181,6 +181,21 @@
     .monitor-head h3{white-space:nowrap}
     .monitor-head .monitor-controls{margin-left:auto; flex:0 0 auto}
 
+    /* ===== Co‑Hazards (secondary hazards) ===== */
+    .cohazards{display:flex;gap:6px;align-items:center;margin-left:6px;flex:0 0 auto}
+    .cohazards .cohz{background:#ffffff;border:1px solid #cfe0ea;color:#1f2a33;font-weight:800;padding:6px 10px;border-radius:10px;line-height:1;white-space:nowrap}
+    .cohazards .cohz:hover{filter:brightness(0.98)}
+    .cohazards .cohz.cohz-on{background:#eafff1;border-color:#7ad39f;color:#0f4d2b}
+    .cohazards .cohz:disabled{opacity:0.45;cursor:not-allowed}
+    .cohazards-global{margin-top:10px;background:#ffffff;border-color:#dfe7ee}
+    .cohazards-global-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+    .cohazards-global-title{font-weight:900;color:#1f2a33}
+    .cohazards-badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+    .cohazards-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #dfe7ee;border-radius:999px;background:#f8fbff;font-weight:800;color:#24323d;font-size:12px}
+    .cohazards-metrics{font-size:13px;color:#1f2a33}
+    .cohazards-metrics ul{margin:6px 0 0 18px}
+    .cohazards-note{margin-top:6px;font-size:11px;color:#6b7a86}
+
     /* ===== Monitor section titles & freshness indicator ===== */
     .monitor-section-title{
       font-size:11px;
@@ -1142,6 +1157,13 @@
                 <option value="heatwave">Καύσωνας</option>
                 <option value="frost_snow">Παγετός / Χιόνια</option>
               </select>
+              <div id="coHazards" class="cohazards" title="Συνδυαστικά φαινόμενα (δευτερεύοντα). Δεν αλλάζουν τους υπολογισμούς του κύριου σεναρίου.">
+                <button type="button" class="mini-btn hdr-btn cohz" data-hz="wind" onclick="toggleCoHazard('wind')">+Άνεμος</button>
+                <button type="button" class="mini-btn hdr-btn cohz" data-hz="rain" onclick="toggleCoHazard('rain')">+Βροχή</button>
+                <button type="button" class="mini-btn hdr-btn cohz" data-hz="heatwave" onclick="toggleCoHazard('heatwave')">+Καύσωνας</button>
+                <button type="button" class="mini-btn hdr-btn cohz" data-hz="frost_snow" onclick="toggleCoHazard('frost_snow')">+Παγετός</button>
+              </div>
+
               <button id="btnLiveStation" class="mini-btn hdr-btn btn-live-off" onclick="toggleLive()" title="Αυτόματη ανανέωση ανά 90s">Live OFF</button>
               <button id="btnLocalScenario" class="mini-btn hdr-btn btn-local-off" onclick="toggleLocalScenario()" title="Ενεργοποίηση τοπικού σεναρίου">Local Scenario OFF</button>
               <div id="aiTargetGroup" class="ai-dd" title="AI προορισμός (αποθηκεύεται)">
@@ -1390,7 +1412,17 @@
 
   </div>
 
-  <div id="panel_wind" class="scenario-panel">
+  
+  <div id="coHazardsGlobal" class="box cohazards-global" style="display:none">
+    <div class="cohazards-global-head">
+      <div class="cohazards-global-title">Συνδυαστικά Φαινόμενα (Co‑Hazards)</div>
+      <div id="coHazardsBadges" class="cohazards-badges"></div>
+    </div>
+    <div id="coHazardsMetrics" class="cohazards-metrics">—</div>
+    <div class="cohazards-note">*Τα συνδυαστικά είναι συμπληρωματικά. Οι υπολογισμοί/πίνακες κάτω ακολουθούν το <b>Κύριο Σενάριο</b>.</div>
+  </div>
+
+<div id="panel_wind" class="scenario-panel">
   <div class="sel-basin">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></div>
 
   <div class="grid-2">
@@ -7234,15 +7266,269 @@ function bindInputs(){
 
 
 <script>
+/* ===================== CO‑HAZARDS (Primary + Secondary) ===================== */
+(function(){
+  const LS_COH = 'NIREAS_CO_HAZARDS_V1';
+
+  function hzName(hz){
+    const map = { wind:'Άνεμος', rain:'Βροχή', heatwave:'Καύσωνας', frost_snow:'Παγετός' };
+    return map[hz] || hz;
+  }
+
+  function getPrimaryScenario(){
+    try{
+      const sel = document.getElementById('modelScenario');
+      return sel ? String(sel.value || '').trim() : (document.body.dataset.modelScenario || 'rain');
+    }catch(_){ return (document.body.dataset.modelScenario || 'rain'); }
+  }
+
+  function getLatestSample(){
+    try{
+      if(window.stationSeries && Array.isArray(window.stationSeries) && window.stationSeries.length){
+        return window.stationSeries[window.stationSeries.length-1];
+      }
+      // fallback (in case it's not on window)
+      if(typeof stationSeries !== 'undefined' && Array.isArray(stationSeries) && stationSeries.length){
+        return stationSeries[stationSeries.length-1];
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function numFromText(txt){
+    if(txt == null) return null;
+    const s = String(txt).replace(',', '.');
+    const m = s.match(/-?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : null;
+  }
+  function fmt(v, unit=''){
+    if(v==null || !Number.isFinite(v)) return '—';
+    const n = Math.round(v*10)/10;
+    return n.toFixed(1) + unit;
+  }
+
+  // co‑hazards state
+  const coHaz = new Set();
+
+  function loadCoHazards(){
+    try{
+      const raw = localStorage.getItem(LS_COH);
+      if(!raw) return;
+      const arr = JSON.parse(raw);
+      if(Array.isArray(arr)) arr.forEach(x=>coHaz.add(String(x)));
+    }catch(_){}
+  }
+  function saveCoHazards(){
+    try{ localStorage.setItem(LS_COH, JSON.stringify(Array.from(coHaz))); }catch(_){}
+  }
+
+  function syncCoHazardButtons(){
+    const primary = getPrimaryScenario();
+    const btns = document.querySelectorAll('#coHazards .cohz');
+    btns.forEach(btn=>{
+      const hz = btn.getAttribute('data-hz');
+      const isPrimary = (hz === primary);
+      if(isPrimary){
+        coHaz.delete(hz); // never allow primary as secondary
+      }
+      btn.disabled = isPrimary;
+      btn.classList.toggle('cohz-on', coHaz.has(hz));
+    });
+  }
+
+  function renderCoHazardsGlobal(){
+    const box = document.getElementById('coHazardsGlobal');
+    const badges = document.getElementById('coHazardsBadges');
+    const metrics = document.getElementById('coHazardsMetrics');
+    if(!box || !badges || !metrics) return;
+
+    const arr = Array.from(coHaz);
+    if(!arr.length){
+      box.style.display = 'none';
+      badges.innerHTML = '';
+      metrics.innerHTML = '—';
+      return;
+    }
+
+    box.style.display = '';
+    badges.innerHTML = arr.map(hz=>`<span class="cohazards-badge">+ ${hzName(hz)}</span>`).join('');
+
+    const s = getLatestSample();
+    if(!s){
+      metrics.innerHTML = '<span style="color:#6b7a86">Φόρτωσε (Load) ή ενεργοποίησε Live για να εμφανιστούν δεδομένα.</span>';
+      return;
+    }
+
+    // common fields from sample
+    const t = (typeof s.temp === 'number') ? s.temp : ((typeof s.temperature === 'number') ? s.temperature : numFromText(s.temp));
+    const hi = (typeof s.heatIndex === 'number') ? s.heatIndex : ((typeof s.hi === 'number') ? s.hi : numFromText(s.heatIndex));
+    const chill = (typeof s.chill === 'number') ? s.chill : numFromText(s.chill);
+    const rr = (typeof s.rainRate === 'number') ? s.rainRate : ((typeof s.rr === 'number') ? s.rr : numFromText(s.rainRate));
+    const storm = (typeof s.storm === 'number') ? s.storm : numFromText(s.storm);
+    const windTxt = (s.wind != null) ? String(s.wind) : '';
+    const wKmh = (typeof s.windKmh === 'number') ? s.windKmh : ((typeof s.wind_kmh === 'number') ? s.wind_kmh : numFromText(windTxt));
+
+    // derive wind dir (simple parse)
+    let wDir = '—';
+    try{
+      const parts = windTxt.trim().split(/\s+/);
+      const last = parts[parts.length-1];
+      if(last && /[A-ZΑ-Ω]{1,3}/i.test(last)) wDir = last;
+    }catch(_){}
+
+    // risk helpers using existing threshold inputs (if present)
+    function windRisk(){
+      const warnK = Number(document.getElementById('windWarnKmh')?.value);
+      const highK = Number(document.getElementById('windHighKmh')?.value);
+      if(!Number.isFinite(wKmh)) return '—';
+      if(Number.isFinite(highK) && wKmh >= highK) return 'Υψηλός';
+      if(Number.isFinite(warnK) && wKmh >= warnK) return 'Μέτριος';
+      return 'Χαμηλός';
+    }
+    function heatRisk(){
+      const warnHI = Number(document.getElementById('heatWarnHI')?.value);
+      const highHI = Number(document.getElementById('heatHighHI')?.value);
+      const x = Number.isFinite(hi) ? hi : t;
+      if(!Number.isFinite(x)) return '—';
+      if(Number.isFinite(highHI) && x >= highHI) return 'Υψηλός';
+      if(Number.isFinite(warnHI) && x >= warnHI) return 'Μέτριος';
+      return 'Χαμηλός';
+    }
+    function frostRisk(){
+      const t0 = Number(document.getElementById('frostTemp0')?.value);
+      const tHigh = Number(document.getElementById('frostTempHigh')?.value);
+      if(!Number.isFinite(t)) return '—';
+      if(Number.isFinite(tHigh) && t <= tHigh) return 'Υψηλός';
+      if(Number.isFinite(t0) && t <= t0) return 'Μέτριος';
+      if(t <= 2) return 'Χαμηλός';
+      return 'Χαμηλός';
+    }
+    function iceRisk(){
+      if(!Number.isFinite(t)) return '—';
+      if(t <= 0 && Number.isFinite(rr) && rr > 0) return 'Υψηλός';
+      if(t <= 1) return 'Μέτριος';
+      return 'Χαμηλός';
+    }
+
+    const lines = [];
+    arr.forEach(hz=>{
+      if(hz === 'wind'){
+        lines.push(`<li><b>Άνεμος</b>: ${fmt(wKmh,' km/h')} ${wDir !== '—' ? wDir : ''} — <span style="color:#6b7a86">Κίνδυνος:</span> <b>${windRisk()}</b></li>`);
+      }else if(hz === 'rain'){
+        lines.push(`<li><b>Βροχή</b>: ${Number.isFinite(rr) ? fmt(rr,' mm/h') : '—'} — <span style="color:#6b7a86">Storm:</span> ${Number.isFinite(storm) ? fmt(storm,' mm') : '—'}</li>`);
+      }else if(hz === 'heatwave'){
+        const hiTxt = Number.isFinite(hi) ? fmt(hi,' °C') : '—';
+        lines.push(`<li><b>Καύσωνας</b>: T ${fmt(t,' °C')} — HI ${hiTxt} — <span style="color:#6b7a86">Κίνδυνος:</span> <b>${heatRisk()}</b></li>`);
+      }else if(hz === 'frost_snow'){
+        lines.push(`<li><b>Παγετός</b>: T ${fmt(t,' °C')} — Chill ${Number.isFinite(chill) ? fmt(chill,' °C') : '—'} — <span style="color:#6b7a86">Παγετός:</span> <b>${frostRisk()}</b>, <span style="color:#6b7a86">Πάγος:</span> <b>${iceRisk()}</b></li>`);
+      }
+    });
+
+    metrics.innerHTML = `<ul>${lines.join('')}</ul>`;
+  }
+
+  // exposed API
+  window.toggleCoHazard = function(hz){
+    const primary = getPrimaryScenario();
+    const x = String(hz || '').trim();
+    if(!x || x === primary) return;
+    if(coHaz.has(x)) coHaz.delete(x); else coHaz.add(x);
+    saveCoHazards();
+    syncCoHazardButtons();
+    renderCoHazardsGlobal();
+  };
+
+  window.initCoHazardsUI = function(){
+    loadCoHazards();
+    syncCoHazardButtons();
+    renderCoHazardsGlobal();
+
+    // keep UI in sync with primary scenario changes
+    const sel = document.getElementById('modelScenario');
+    if(sel){
+      sel.addEventListener('change', ()=>{
+        syncCoHazardButtons();
+        renderCoHazardsGlobal();
+      });
+    }
+
+    // hook into refreshScenarioPanels if available
+    try{
+      if(typeof window.refreshScenarioPanels === 'function' && !window.__cohazardsWrapped){
+        const orig = window.refreshScenarioPanels;
+        window.refreshScenarioPanels = function(){
+          const r = orig.apply(this, arguments);
+          try{ renderCoHazardsGlobal(); }catch(_){}
+          return r;
+        };
+        window.__cohazardsWrapped = true;
+      }
+    }catch(_){}
+  };
+})();
+</script>
+<script type="module">
 /* ===================== BOOT ===================== */
-initAIAnalysisUI();
-initDbReaderUI();
-initSeriesReaderUI();
-  try{
-    ['windWarnKmh','windHighKmh','heatWarnHI','heatHighHI','frostWarnT','frostHighT']
-      .forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', ()=>{ try{ refreshScenarioPanels(); }catch(_){ } }); });
-  }catch(_){ }
-init();
+/*
+  NOTE:
+  - The Firebase logger/reader is loaded via <script type="module"> earlier in the document and is deferred.
+  - This boot waits until the required global init* functions exist before starting.
+*/
+(function(){
+  const NEED = ['initAIAnalysisUI','initDbReaderUI','initSeriesReaderUI','initCoHazardsUI','init'];
+  const MAX_TRIES = 80;      // 80 * 50ms = 4s worst-case
+  const INTERVAL_MS = 50;
+
+  function safeCall(fnName){
+    try{
+      const fn = window[fnName];
+      if(typeof fn === 'function') fn();
+    }catch(e){
+      console.warn('BOOT:', fnName, 'failed:', e);
+    }
+  }
+
+  function bindScenarioInputs(){
+    try{
+      ['windWarnKmh','windHighKmh','heatWarnHI','heatHighHI','frostWarnT','frostHighT']
+        .forEach(id=>{
+          const el = document.getElementById(id);
+          if(!el) return;
+          el.addEventListener('input', ()=>{
+            try{ window.refreshScenarioPanels && window.refreshScenarioPanels(); }catch(_){}
+          });
+        });
+    }catch(e){
+      console.warn('BOOT: bindScenarioInputs failed:', e);
+    }
+  }
+
+  function boot(attempt){
+    const missing = NEED.filter(n => typeof window[n] !== 'function');
+    if(missing.length){
+      if(attempt < MAX_TRIES){
+        setTimeout(()=>boot(attempt+1), INTERVAL_MS);
+      }else{
+        console.warn('BOOT: missing functions after waiting:', missing);
+      }
+      return;
+    }
+
+    // init UI modules
+    safeCall('initAIAnalysisUI');
+    safeCall('initDbReaderUI');
+    safeCall('initSeriesReaderUI');
+    safeCall('initCoHazardsUI');
+
+    bindScenarioInputs();
+
+    // start app
+    safeCall('init');
+  }
+
+  // run after DOM is ready (module scripts execute before DOMContentLoaded)
+  window.addEventListener('DOMContentLoaded', ()=>boot(0));
+})();
 </script>
 
 </body>
