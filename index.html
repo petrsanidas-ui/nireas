@@ -2258,14 +2258,13 @@ function __riskLabel(level, text){
   return map[level] ? map[level] + (text ? ` <span style="color:#6b7a86;font-weight:700">${text}</span>` : '') : (text || '—');
 }
 function getLatestPrimarySample(){
-  // Prefer the most recent fetched snapshot if available.
-  // This avoids stale scenario panels when a sample is not appended (e.g., rr missing)
-  // or when a dedup prevents adding a new history row for the same timestamp.
+  // Prefer the most recent snapshot (even if the history row was updated in-place).
   try{
     if(window.__PRIMARY_LATEST_SAMPLE && typeof window.__PRIMARY_LATEST_SAMPLE === 'object'){
       return window.__PRIMARY_LATEST_SAMPLE;
     }
   }catch(_){}
+
   try{
     if(typeof stationSeries !== 'undefined' && Array.isArray(stationSeries) && stationSeries.length){
       return stationSeries[stationSeries.length-1];
@@ -3297,122 +3296,6 @@ function debounce(fn, wait=150){
   };
 }
 
-/* ===================== GLOBAL DERIVED REFRESH ===================== */
-/*
-  Goal: Scenario panels must stay synced with ANY meaningful UI/state change.
-  - Uses capture-phase listeners so it still runs even if a component calls stopPropagation().
-  - Debounced to avoid performance issues.
-*/
-(function(){
-  if(window.__GLOBAL_REFRESH_WIRED) return;
-  window.__GLOBAL_REFRESH_WIRED = true;
-
-  // IDs that should trigger a full recalculation (and thus also refresh scenarios)
-  const CALC_IDS = new Set([
-    'area','length','height','coef','rainI','rainD',
-    'drains','drainCap','strWidth','strZ','strDepth','strDrop','nManning',
-    'netSlope','netLength','netHeight', // if present in your UI
-    'strSide','strRough','strManning'   // legacy/alt ids
-  ]);
-
-  // IDs that should trigger only scenario refresh (fast)
-  const SCENARIO_IDS = new Set([
-    'modelScenario',
-    'meteoStationSelect',
-    'windWarnKmh','windHighKmh',
-    'heatWarnHI','heatHighHI',
-    'frostWarnT','frostHighT'
-  ]);
-
-  function clearScenarioPanelsToWaiting(){
-    // When changing primary station (before load), avoid stale "summary"
-    try{
-      ['windNow','windDir','windRisk','heatTempNow','heatIndexNow','heatRisk','frostTempNow','frostChillNow','frostRisk','iceRisk']
-        .forEach(id=>{
-          const el = document.getElementById(id);
-          if(el) el.textContent = '—';
-        });
-    }catch(_){}
-  }
-
-  let t = null;
-  function schedule(kind){
-    if(t) clearTimeout(t);
-    t = setTimeout(()=>{
-      try{
-        if(kind === 'calc' && typeof window.runMasterCalculation === 'function'){
-          window.runMasterCalculation();
-        }else{
-          if(typeof window.refreshScenarioPanels === 'function') window.refreshScenarioPanels();
-        }
-      }catch(e){
-        console.warn('GLOBAL REFRESH failed', e);
-      }
-    }, 80);
-  }
-
-  function handler(e){
-    const target = e && e.target;
-    if(!target) return;
-
-    // only react to real user interactions
-    if(e && e.isTrusted === false) return;
-
-    const id = (target.id || '').trim();
-
-    // When the user changes the primary station dropdown, wipe scenario summary until the next Load
-    if(id === 'meteoStationSelect' && e.type === 'change'){
-      try{ window.__PRIMARY_LATEST_SAMPLE = null; }catch(_){}
-      clearScenarioPanelsToWaiting();
-      schedule('scenario');
-      return;
-    }
-
-    if(id && CALC_IDS.has(id)){
-      schedule('calc');
-      return;
-    }
-
-    if(id && SCENARIO_IDS.has(id)){
-      schedule('scenario');
-      return;
-    }
-
-    // Buttons/toggles that commonly change state (co-hazards, reset, load)
-    if(e.type === 'click'){
-      const btn = target.closest && target.closest('button');
-      if(btn){
-        const bid = (btn.id || '').trim();
-        if(bid === 'btnLiveStation' || bid === 'btnLocalScenario' || bid === 'btnLoadStation' || bid === 'btnClearStation'){
-          schedule('scenario');
-          return;
-        }
-        // co-hazard buttons
-        if(btn.closest && btn.closest('#coHazards')){ schedule('scenario'); return; }
-        // generic: if a button click happens inside scenario block, refresh
-        if(btn.closest && btn.closest('#scenarioArea')){ schedule('scenario'); return; }
-      }
-    }
-
-    // Any input/change within the scenario container should refresh scenarios
-    if((e.type === 'input' || e.type === 'change') && target.closest){
-      if(target.closest('#scenarioArea') || target.closest('#coHazards')){
-        schedule('scenario');
-        return;
-      }
-    }
-  }
-
-  // Capture-phase listeners to avoid stopPropagation issues
-  ['input','change','click'].forEach(evt=>{
-    document.addEventListener(evt, handler, true);
-  });
-
-  // Expose for manual calls
-  window.__scheduleScenarioRefresh = ()=>schedule('scenario');
-  window.__scheduleFullRecalc = ()=>schedule('calc');
-})();
-
 
 /* ===================== GITHUB LOAD ===================== */
 async function init(){
@@ -3474,7 +3357,6 @@ if(!loaded){
 
     updateLocalScenarioBtn();
     startStationFreshnessTimer();
-    try{ window.__scheduleScenarioRefresh && window.__scheduleScenarioRefresh(); }catch(_){ }
 
     // If dropdown has a pending selection (but no ACTIVE yet), show "αναμονή"
     const sel = document.getElementById('meteoStationSelect');
@@ -4751,9 +4633,10 @@ async function fetchStationDataSingle(url, label, updatePrimary){
         setLatestValuesDisplay(latest, buildLatestLine(latest));
         setStationMsg('Λήψη από Open‑Meteo.');
 
-        // Always append/update a sample so scenario panels stay in sync (even if rr is missing)
-        onNewStationSample(String(ts), ts, (rr!=null?rr:null), label || 'Open‑Meteo', totalsSeries, latest);
-        runMasterCalculation();
+        if(rr!=null){
+          onNewStationSample(String(ts), ts, rr, label || 'Open‑Meteo', totalsSeries, latest);
+          runMasterCalculation();
+        }
       }
 
       if(!updatePrimary && rr!=null){
@@ -4856,11 +4739,13 @@ setStationMsg("Λήψη από endpoint.");
         setLatestValuesDisplay((parsed && parsed.latest) ? parsed.latest : null, (parsed && parsed.latestLine) ? parsed.latestLine : '—');
 setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
 
+        // keep a sample for Monitoring/Scenario (primary) even if RainRate is missing
+        onNewStationSample(String(ts), ts, (rr!=null ? rr : null), label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
+
+        // Only if there is a rain rate does the hydrology calculation add value
         if(rr!=null){
-          // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
+          runMasterCalculation();
         }
-        runMasterCalculation();
       }
 
       if(!updatePrimary && rr!=null){
@@ -5344,11 +5229,6 @@ function makeLatestChipItems(lat){
 
 
 function setLatestValuesDisplay(lat, lineText){
-  // Keep a single "latest snapshot" for scenario panels (decoupled from history).
-  try{ window.__PRIMARY_LATEST_SAMPLE = (lat && typeof lat === 'object') ? lat : null; }catch(_){}
-  // Keep scenario mini-panels in sync even if history doesn't append (dedup / rr missing).
-  try{ if(typeof window.refreshScenarioPanels === 'function') window.refreshScenarioPanels(); }catch(_){}
-
   // hidden/plain text (for copy/debug)
   if(lineText != null) setTxt('stationLatestValues', lineText);
   else if(lat) setTxt('stationLatestValues', buildLatestLine(lat) || '—');
@@ -5512,7 +5392,7 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   if(!sampleKey) return;
 
   const series = stationSeriesByKey[key] || [];
-  // allow update-in-place if the same timestamp key arrives again (e.g., fast refresh)
+  // allow update-in-place when the same timestamp key arrives again (e.g. hourly Open‑Meteo refresh)
   const existingIdx = series.findIndex(s => s.key === sampleKey);
   const prev = (existingIdx >= 0)
     ? (existingIdx > 0 ? series[existingIdx-1] : null)
@@ -5530,7 +5410,7 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   const dParsed = parseAnyDateTime(tsText) || new Date();
   const dateMs = dParsed.getTime();
 
-  series.push({
+  const sampleObj = {
     key: sampleKey,
     tsText: tsText || sampleKey,
     tsMs: dateMs,
@@ -5559,7 +5439,13 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
     heat:  isFiniteNumber(l.heat)  ? l.heat  : null,
     sunrise: (typeof l.sunrise === 'string' && l.sunrise.trim()) ? l.sunrise : null,
     sunset:  (typeof l.sunset  === 'string' && l.sunset.trim())  ? l.sunset  : null
-  });
+  };
+
+  if(existingIdx >= 0){
+    series[existingIdx] = Object.assign(series[existingIdx], sampleObj);
+  } else {
+    series.push(sampleObj);
+  }
 
   const __lim = getSeriesLimit();
   if(series.length > __lim){
@@ -5569,7 +5455,15 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
   stationSeriesByKey[key] = series;
   stationLastKeyByKey[key] = sampleKey;
 
+  // keep an always-fresh snapshot for Scenario mini-panels
+  try{
+    if(typeof currentStationKey !== 'undefined' && key === currentStationKey){
+      window.__PRIMARY_LATEST_SAMPLE = (existingIdx >= 0) ? series[existingIdx] : (series.length ? series[series.length-1] : null);
+    }
+  }catch(_){ }
+
   // ---- FIREBASE LOG (non-blocking) ----
+  if(existingIdx < 0){
   try{
     const l = (latest && typeof latest === 'object') ? latest : {};
 
@@ -5624,15 +5518,14 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
     const out = window.fbLogSample?.(key, payload);
     if(out && typeof out.catch === 'function') out.catch(()=>{});
   }catch(e){}
-  // ---- /FIREBASE LOG ----
+    }
+// ---- /FIREBASE LOG ----
 
   // keep globals in sync if this is the active context
   if(key === currentStationKey){
     stationSeries = series;
     stationLastKey = sampleKey;
-    try{ window.__PRIMARY_LATEST_SAMPLE = rec; }catch(_){ }
     if(updateUI !== false) updateStationReadouts();
-    try{ if(typeof window.refreshScenarioPanels === 'function') window.refreshScenarioPanels(); }catch(_){ }
   }
 }
 
@@ -7652,11 +7545,7 @@ function drawBasinPlan(){
   ctx.restore();
 
   drawBasinLegend(ctx, style);
-
-  // Keep scenario panels in sync with any calculation changes
-  try{ if(typeof window.refreshScenarioPanels === 'function') window.refreshScenarioPanels(); }catch(_){ }
 }
-
 
 function basinStyleFromInputs(){
   const Qpeak = 0.278 * getVal('coef') * getVal('rainI') * (getVal('area')/1e6);
@@ -8303,7 +8192,6 @@ function renderCoHazardsGlobal(){
     saveCoHazards();
     syncCoHazardButtons();
     renderCoHazardsGlobal();
-    try{ window.__scheduleScenarioRefresh && window.__scheduleScenarioRefresh(); }catch(_){ }
   };
 // Clear all selected secondary hazards (used by the reset icon)
 window.clearCoHazards = function(){
@@ -8312,7 +8200,6 @@ window.clearCoHazards = function(){
     saveCoHazards();
     syncCoHazardButtons();
     renderCoHazardsGlobal();
-    try{ window.__scheduleScenarioRefresh && window.__scheduleScenarioRefresh(); }catch(_){ }
   }catch(e){
     console.warn('clearCoHazards failed', e);
   }
@@ -8384,6 +8271,46 @@ window.clearCoHazards = function(){
     }
   }
 
+  // Global scenario auto-refresh: update mini-panels on ANY meaningful change (capture phase so it can't be blocked).
+  let __scenarioRefreshTimer = null;
+  function __scheduleScenarioRefresh(){
+    try{
+      if(__scenarioRefreshTimer) clearTimeout(__scenarioRefreshTimer);
+      __scenarioRefreshTimer = setTimeout(()=>{ try{ refreshScenarioPanels(); }catch(_){ } }, 60);
+    }catch(_){}
+  }
+
+  function bindGlobalScenarioAutoRefresh(){
+    try{
+      ['input','change'].forEach(ev=>{
+        document.addEventListener(ev, __scheduleScenarioRefresh, true); // capture-phase
+      });
+
+      // clicks on buttons/selects often trigger state changes (Load, Reset, etc.)
+      document.addEventListener('click', (e)=>{
+        try{
+          const t = e.target;
+          if(!t) return;
+          if(t.matches('button,select,option') || t.closest('button') || t.closest('select')){
+            __scheduleScenarioRefresh();
+          }
+        }catch(_){}
+      }, true);
+    }catch(_){}
+
+    // When switching primary station, clear scenario summary until a new fetch arrives
+    try{
+      const sel = document.getElementById('primaryStation');
+      if(sel){
+        sel.addEventListener('change', ()=>{
+          try{ window.__PRIMARY_LATEST_SAMPLE = null; }catch(_){}
+          try{ setScenarioSummaryPlaceholder(true); }catch(_){}
+          __scheduleScenarioRefresh();
+        }, true);
+      }
+    }catch(_){}
+  }
+
   function boot(attempt){
     const missing = NEED.filter(n => typeof window[n] !== 'function');
     if(missing.length){
@@ -8402,6 +8329,7 @@ window.clearCoHazards = function(){
     safeCall('initCoHazardsUI');
 
     bindScenarioInputs();
+    try{ bindGlobalScenarioAutoRefresh(); }catch(e){ console.warn('BOOT: bindGlobalScenarioAutoRefresh failed:', e); }
 
 
     // start app
