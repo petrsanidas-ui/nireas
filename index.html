@@ -2261,6 +2261,14 @@ function __riskLabel(level, text){
   return map[level] ? map[level] + (text ? ` <span style="color:#6b7a86;font-weight:700">${text}</span>` : '') : (text || '—');
 }
 function getLatestPrimarySample(){
+  // Prefer the most recent *fetched* primary sample (even if it wasn't stored due to dedup rules)
+  try{
+    const k = (typeof currentStationKey !== 'undefined') ? currentStationKey : null;
+    if(window.__PRIMARY_LATEST_SAMPLE && window.__PRIMARY_LATEST_KEY === k){
+      return window.__PRIMARY_LATEST_SAMPLE;
+    }
+  }catch(_){}
+  // Fallback: last stored primary series sample
   try{
     if(typeof stationSeries !== 'undefined' && Array.isArray(stationSeries) && stationSeries.length){
       return stationSeries[stationSeries.length-1];
@@ -3246,6 +3254,12 @@ function getPrimaryStationKey(){
   return `url:${url}`;
 }
 
+function makePrimarySampleKey(tsText){
+  // Avoid dedup collisions when switching stations within the same timestamp (e.g., Open‑Meteo minute resolution)
+  const base = (ACTIVE_PRIMARY_NAME || ACTIVE_PRIMARY_URL || currentStationKey || 'primary');
+  return `${tsText} | ${base}`;
+}
+
 function switchSeriesContext(newKey){
   const key = newKey || 'open-meteo';
 
@@ -3265,6 +3279,11 @@ function switchSeriesContext(newKey){
 
   // refresh readouts + list for the currently selected station
   updateStationReadouts();
+
+  // Clear/refresh scenario mini-panels on station context switch
+  try{ window.__PRIMARY_LATEST_SAMPLE = null; window.__PRIMARY_LATEST_KEY = currentStationKey; }catch(_){ }
+  try{ refreshScenarioPanels(); }catch(_){ }
+
 }
 
 function switchPrimarySeriesContext(){
@@ -4629,10 +4648,16 @@ async function fetchStationDataSingle(url, label, updatePrimary){
         setLatestValuesDisplay(latest, buildLatestLine(latest));
         setStationMsg('Λήψη από Open‑Meteo.');
 
-        if(rr!=null){
-          onNewStationSample(String(ts), ts, rr, label || 'Open‑Meteo', totalsSeries, latest);
-          runMasterCalculation();
-        }
+        // Fallback latest sample for scenarios (wind/heat/frost) even if series storage is skipped
+        try{
+          window.__PRIMARY_LATEST_SAMPLE = Object.assign({ tsText: ts, val: (rr!=null ? rr : null), rainRate: (typeof rr==='number' ? rr : null) }, (latest||{}));
+          window.__PRIMARY_LATEST_KEY = currentStationKey;
+        }catch(_){ }
+
+
+        // Store a sample even if rain rate is missing, so scenario panels (e.g., wind/heat/frost) always refresh
+        onNewStationSample(makePrimarySampleKey(ts), ts, (rr!=null ? rr : null), label || 'Open‑Meteo', totalsSeries, latest);
+        runMasterCalculation();
       }
 
       if(!updatePrimary && rr!=null){
@@ -4664,7 +4689,7 @@ async function fetchStationDataSingle(url, label, updatePrimary){
 setStationMsg("Λήψη από Open‑Meteo endpoint.");
 
           // ΠΑΝΤΑ: κράτα δείγμα για το Monitoring/Scenario ακόμη κι αν δεν υπάρχει RainRate (rr)
-          onNewStationSample(String(ts), ts, (rr!=null ? rr : null), label || 'Open‑Meteo', totalsSeries, latest);
+          onNewStationSample(makePrimarySampleKey(ts), ts, (rr!=null ? rr : null), label || 'Open‑Meteo', totalsSeries, latest);
 
           // Μόνο αν υπάρχει rr έχει νόημα να τρέξει ο υδρολογικός υπολογισμός
           if(rr!=null){
@@ -4701,8 +4726,16 @@ setStationMsg("Λήψη από Open‑Meteo endpoint.");
         }
 setStationMsg("Λήψη από endpoint.");
 
+        // Fallback latest sample for scenarios (wind/heat/frost) even if series storage is skipped
+        try{
+          const _latestObj = (parsed && parsed.latest) ? parsed.latest : null;
+          window.__PRIMARY_LATEST_SAMPLE = Object.assign({ tsText: ts, val: (rr!=null ? rr : null), rainRate: (typeof rr==='number' ? rr : null) }, (_latestObj||{}));
+          window.__PRIMARY_LATEST_KEY = currentStationKey;
+        }catch(_){ }
+
+
         // ΠΑΝΤΑ: κράτα δείγμα για Monitoring/Scenario ακόμη κι αν δεν υπάρχει RainRate (rr)
-        onNewStationSample(String(ts), ts, (rr!=null ? rr : null), label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
+        onNewStationSample(makePrimarySampleKey(ts), ts, (rr!=null ? rr : null), label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
 
         runMasterCalculation();
       }
@@ -4735,10 +4768,8 @@ setStationMsg("Λήψη από endpoint.");
         setLatestValuesDisplay((parsed && parsed.latest) ? parsed.latest : null, (parsed && parsed.latestLine) ? parsed.latestLine : '—');
 setStationMsg("Λήψη μέσω mirror (r.jina.ai).");
 
-        if(rr!=null){
-          // keep a sample for DP/R60 (only for primary)
-          onNewStationSample(String(ts), ts, rr, label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
-        }
+        // Keep a sample for Monitoring/Scenario even if RainRate (rr) is missing
+        onNewStationSample(makePrimarySampleKey(ts), ts, (rr!=null ? rr : null), label || 'Station', totals, (parsed && parsed.latest) ? parsed.latest : null);
         runMasterCalculation();
       }
 
@@ -4943,12 +4974,14 @@ async function fetchLiveMeteo(){
     setLatestValuesDisplay(latest, buildLatestLine(latest));
     updatePrimaryStatus("Κύριος: Λήψη OK", "ok");
 
+    // Store a sample even if rain rate is missing, so scenario panels (e.g., wind/heat/frost) always refresh
+    onNewStationSample(makePrimarySampleKey(ts), ts, (rr!=null ? rr : null), 'Open‑Meteo', totalsSeries, latest);
+    runMasterCalculation();
+
     if(rr!=null){
-      onNewStationSample(String(ts), ts, rr, 'Open‑Meteo', totalsSeries, latest);
       setStationMsg("Live από Open‑Meteo (current + hourly + daily).");
-      runMasterCalculation();
     } else {
-      setStationMsg("Open‑Meteo: δεν υπάρχει διαθέσιμη τιμή βροχόπτωσης.");
+      setStationMsg("Open‑Meteo: δεν υπάρχει διαθέσιμη τιμή βροχόπτωσης (ενημερώθηκαν τα υπόλοιπα πεδία).");
     }
 
   }catch(e){
@@ -5511,6 +5544,15 @@ function storeSampleForKey(seriesKey, sampleKey, tsText, val, label, totals, upd
 
 function onNewStationSample(sampleKey, tsText, val, label, totals, latest) {
   storeSampleForKey(currentStationKey, sampleKey, tsText, val, label, totals, true, latest);
+
+  // Update fallback "latest" for scenarios (in case of dedup or missing series)
+  try{
+    if(window.stationSeries && Array.isArray(window.stationSeries) && window.stationSeries.length){
+      window.__PRIMARY_LATEST_SAMPLE = window.stationSeries[window.stationSeries.length-1];
+      window.__PRIMARY_LATEST_KEY = currentStationKey;
+    }
+  }catch(_){}
+
   // Keep scenario mini-panels in sync with the latest PRIMARY sample
   try{ refreshScenarioPanels(); }catch(_){}
 }
