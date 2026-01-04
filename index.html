@@ -1634,6 +1634,17 @@
           </div>
         </div>
 
+        <div class="box" style="background:#f8fbff;border-color:#d6e6ff">
+          <h3>Σύντομη εκτίμηση</h3>
+          <div class="row"><label>Ένταση i:</label><div class="ro" id="rainSumI">—</div></div>
+          <div class="row"><label>Διάρκεια D (χρησιμοποιούμενη):</label><div class="ro" id="rainSumDused">—</div></div>
+          <div class="row"><label>Συνολικός υετός (mm):</label><div class="ro" id="rainSumP">—</div></div>
+          <div class="row"><label>Qpeak:</label><div class="ro" id="rainSumQpeak">—</div></div>
+          <div class="row"><label>Έλεγχος έναντι Qcap:</label><div class="ro" id="rainSumRisk">—</div></div>
+        </div>
+
+
+
               </div>
 
       <div class="panels-row">
@@ -7483,6 +7494,28 @@ function runMasterCalculation(){
   else if(CapStr>0) adq = "<span class='status-fail'>Μόνο διόδευση</span>";
   else adq = "<span class='status-warn'>Χωρίς Qcap</span>";
   document.getElementById('res-adequacy').innerHTML = adq;
+  // Rain: σύντομη εκτίμηση (μόνο για το σενάριο Βροχή)
+  const _rainSumI = document.getElementById('rainSumI');
+  if(_rainSumI){
+    _rainSumI.textContent = (rainI!=null ? rainI.toFixed(1) : "—") + " mm/h";
+    const _dEl = document.getElementById('rainSumDused');
+    const _pEl = document.getElementById('rainSumP');
+    const _qEl = document.getElementById('rainSumQpeak');
+    const _rEl = document.getElementById('rainSumRisk');
+    if(_dEl) _dEl.textContent = Dused.toFixed(1) + " min";
+    if(_pEl) _pEl.textContent = (rainI * (Dused/60)).toFixed(1) + " mm";
+    if(_qEl) _qEl.textContent = Qsel.toFixed(2) + " m³/s";
+
+    const capMax = Math.max((CapNet||0), (CapStr||0));
+    let rr = "<span style='color:#6b7a86'>—</span>";
+    if(capMax>0){
+      if(Qsel <= capMax*0.85) rr = "<span class='status-ok'>OK</span>";
+      else if(Qsel <= capMax) rr = "<span class='status-warn'>Οριακό</span>";
+      else rr = "<span class='status-fail'>Υπέρβαση</span>";
+    }
+    if(_rEl) _rEl.innerHTML = rr;
+  }
+
 
   // Scenario table
   const tbody = document.getElementById('tableBody');
