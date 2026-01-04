@@ -1420,12 +1420,12 @@
       <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
 
 
-          <details id="monitorPanelDetails" open style="margin:0;">
+          <details id="monitorPanelDetails" style="margin:0;">
             <summary class="monitor-panel-summary" style="cursor:pointer;">
               Μετεωρολογικός Σταθμός (Monitor)
             </summary>
             <div class="monitor-panel-body">
-                    <details id="primaryStationDetails" open style="margin:0;">
+                    <details id="primaryStationDetails" style="margin:0;">
             <summary class="station-summary" id="stationSummary" style="cursor:pointer;margin-bottom:6px;">
               <span class="station-meta-line" id="stationMetaLine">
                 <span class="meta-item name-item"><span id="stationName">—</span><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button><button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetPrimaryStationQuick()" title="Επαναφορά Κύριου Σταθμού">⟲</button></span>
@@ -1468,7 +1468,7 @@
 
           <div id="stationMultiList" style="margin-top:10px; display:none;"></div>
 
-          <details id="seriesDetails" open style="margin-top:10px;">
+          <details id="seriesDetails" style="margin-top:10px;">
             <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
               <span>Ιστορικό Κύριου Σταθμού</span>
               <span id="seriesStationName" style="font-weight:800;color:#b03030;margin-left:6px;">—</span>
@@ -1544,7 +1544,7 @@
   
   
   <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="coHazardsPanelDetails" open style="margin:0;">
+    <details id="coHazardsPanelDetails" style="margin:0;">
       <summary class="monitor-panel-summary" style="cursor:pointer;">
         <span class="summary-flex">
           <span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
@@ -1567,7 +1567,7 @@
 
 
   <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="boundariesPanelDetails" open style="margin:0;">
+    <details id="boundariesPanelDetails" style="margin:0;">
       <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Διοικητικά Όρια: <span id="selectedBoundaryName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedBoundary()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
@@ -1579,7 +1579,7 @@
 
 
   <div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="streamsPanelDetails" open style="margin:0;">
+    <details id="streamsPanelDetails" style="margin:0;">
       <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedStream()" title="Reset">⟲</button></span></span></summary>
       <div class="monitor-panel-body" style="margin-top:0">
         <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
@@ -1589,23 +1589,32 @@
     </details>
   </div>
 
-<div id="scenarioArea">
 
-  <div id="panel_rain" class="scenario-panel">
   <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="rainAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedBasinName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
+    <details id="selectedZoneDetails" style="margin:0;">
+      <summary class="monitor-panel-summary" style="cursor:pointer;">
+        <span class="summary-flex">
+          <span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedBasinName">—</span></span>
+          <span class="summary-right">
+            <button type="button" class="summary-reset-btn no-print"
+                    onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()"
+                    title="Reset">⟲</button>
+          </span>
+        </span>
+      </summary>
       <div class="monitor-panel-body" style="margin-top:0">
-        <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
+        <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
           Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
         </div>
       </div>
-
     </details>
   </div>
 
-  <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="rainScenarioDetails" open style="margin:0;">
+<div id="scenarioArea">
+
+  <div id="panel_rain" class="scenario-panel">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+    <details id="rainScenarioDetails" style="margin:0;">
       <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Βροχή">Βροχή</span></span></span></summary>
 
       <div class="scenario-area-body">
@@ -1757,19 +1766,7 @@
 
 </div>
 <div id="panel_wind" class="scenario-panel">
-  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="windAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedAreaName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
-      <div class="monitor-panel-body" style="margin-top:0">
-        <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
-        </div>
-      </div>
-
-    </details>
-  </div>
-
-  <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="windScenarioDetails" open style="margin:0;">
       <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Άνεμος">Άνεμος</span></span></span></summary>
 
@@ -1833,19 +1830,7 @@
 
 </div>
 <div id="panel_heatwave" class="scenario-panel">
-  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="heatAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedHeatAreaName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
-      <div class="monitor-panel-body" style="margin-top:0">
-        <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
-        </div>
-      </div>
-
-    </details>
-  </div>
-
-  <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
     <details id="heatwaveScenarioDetails" open style="margin:0;">
       <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Καύσωνας">Καύσωνας</span></span></span></summary>
 
@@ -1909,103 +1894,7 @@
 
 </div>
 <div id="panel_frost_snow" class="scenario-panel">
-  <div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="frostAreaDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedFrostAreaName">—</span></span><span class="summary-right"><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset">⟲</button></span></span></summary>
-      <div class="monitor-panel-body" style="margin-top:0">
-        <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
-        </div>
-      </div>
-
-    </details>
-
-  <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
-    <details id="frost_snowScenarioDetails" open style="margin:0;">
-      <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Παγετός / Χιόνια">Παγετός / Χιόνια</span></span></span></summary>
-
-      <div class="scenario-area-body">
-        <details class="scenario-cohazards-details" open>
-          <summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span><span class="summary-right"><span id="coHazardsBadges_ctx_frost_snow" class="cohazards-badges"></span><button type="button" class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών">⟲</button></span></span></summary>
-          <div class="cohazards-context-box">
-            <div class="cohazards-panel-inner">
-              <div id="coHazardsMetrics_ctx_frost_snow" class="cohazards-metrics">—</div>
-              <div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
-            </div>
-          </div>
-        </details>
-
-<div class="grid-2">
-    <div class="box" style="background:#e8f4ff;border-color:#bfe4ff">
-<div class="row"><label>Όριο παγετού (°C):</label><input type="number" id="frostTemp0" value="0" step="0.1"></div>
-      <div class="row"><label>Όριο αυξημένου κινδύνου (°C):</label><input type="number" id="frostTempHigh" value="-2" step="0.1"></div>
-      <div style="font-size:11px;color:#6b7a86;text-align:right;">*Αν υπάρχει υετός με T≤0 → αυξημένος κίνδυνος πάγου</div>
-    </div>
-    <div class="box" style="background:#f8fbff;border-color:#d6e6ff">
-      <h3>Σύντομη εκτίμηση</h3>
-      <div class="row"><label>Θερμοκρασία:</label><div class="ro" id="frostTempNow">—</div></div>
-      <div class="row"><label>Wind Chill:</label><div class="ro" id="frostChillNow">—</div></div>
-      <div class="row"><label>Κίνδυνος παγετού:</label><div class="ro" id="frostRisk">—</div></div>
-      <div class="row"><label>Κίνδυνος πάγου:</label><div class="ro" id="iceRisk">—</div></div>
-    </div>
-  </div>
-
-  <div class="panels-row">
-    <div class="box" style="background:#fff3cd;border-color:#f1d27a">
-      <h3>1. Οδικό δίκτυο προτεραιότητας</h3>
-      <div class="ops-list">
-        <ul>
-          <li>Ανηφόρες/κατηφόρες, γέφυρες, σημεία σκιάς</li>
-          <li>Πρόσβαση σε σχολεία, δομές υγείας, κρίσιμες αρτηρίες</li>
-          <li>Κόμβοι/διασταυρώσεις με ιστορικό ολισθηρότητας</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="box" style="background:#f0fff4;border-color:#c9f2d5">
-      <h3>2. Ετοιμότητα – αλάτι & συνεργεία</h3>
-      <div class="ops-list">
-        <ul>
-          <li>Διαθεσιμότητα αλατιού/διανομή σε ευπαθείς</li>
-          <li>Ετοιμότητα εκχιονιστικών/αλατιέρων & βάρδιες</li>
-          <li>Συντονισμός ενημέρωσης (σχολεία/δημότες)</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
-      <h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
-      <div class="row"><label>Hotspot:</label><input id="frostHotspot" placeholder="π.χ. ανηφόρα, γέφυρα, σκιασμένη οδός…"></div>
-      <div class="row"><label>Σχόλιο:</label><input id="frostNote" placeholder="σύντομη σημείωση…"></div>
-    </div>
-  </div>
-  </div>
-
 </div>
-
-    </div>
-  
-</main>
-
-</div>
-
-<!-- ================= Map Modal ================= -->
-<div id="mapModal" class="no-print">
-  <div id="mapCard">
-    <div id="mapTop">
-      <div>🗺️ Προβολή Χάρτη (πολλαπλά layers)</div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button class="mini-btn btn-gray" onclick="turnAllOff()">Off όλα</button>
-        <button class="mini-btn btn-gray" onclick="closeMapModal()">Κλείσιμο</button>
-      </div>
-    </div>
-    <div id="mapBox"></div>
-      </div>
-        </details>
-  </div>
-
-
-    </div>
   
 </main>
 
