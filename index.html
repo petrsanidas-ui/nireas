@@ -1241,7 +1241,10 @@
     .station-pin-wrap{display:flex;align-items:center;justify-content:center;}
 
     .scenario-area-body{margin-top:6px;}
-</style>
+
+    button:disabled{opacity:.75; cursor:not-allowed; filter:grayscale(.15)}
+
+  </style>
 </head>
 
 <body>
@@ -5843,6 +5846,21 @@ function __aiToast(msg){
 
 
 function runAIAnalysis(ev){
+  const __aiBtn = document.getElementById('btnAIAnalysis');
+  if(__aiBtn){
+    if(__aiBtn.dataset.busy === '1') return; // prevent double-clicks
+    __aiBtn.dataset.busy = '1';
+    __aiBtn.dataset._txt = __aiBtn.textContent;
+    __aiBtn.disabled = true;
+    __aiBtn.textContent = 'AI…';
+  }
+  const __aiRelease = ()=>{
+    if(!__aiBtn) return;
+    __aiBtn.disabled = false;
+    __aiBtn.textContent = __aiBtn.dataset._txt || 'AI analysis';
+    delete __aiBtn.dataset.busy;
+  };
+
   // Shift+Click => EXTRA FULL (more raw page text). Default already includes the full structured data.
   const extraFull = !!(ev && ev.shiftKey);
   const now = new Date();
@@ -6069,7 +6087,7 @@ ${pageText}
     const win = window.open(target.url, "_blank");
     if(!win) __aiShowOpenFallback(target.name, target.url);
     __aiToast(`✅ Prompt αντιγράφηκε (${n.toLocaleString()} chars) [${modeTxt}] → Άνοιγμα: ${target.name}. Κάνε Paste.`);
-    return;
+    __aiRelease(); return;
   }
 
   // 2) Async clipboard fallback
@@ -6082,7 +6100,7 @@ ${pageText}
       __aiShowCopyFallback(prompt, target.name, target.url);
       __aiToast(`⚠️ Αυτόματη αντιγραφή απέτυχε. Άνοιξε το παράθυρο και κάνε χειροκίνητα αντιγραφή. Target: ${target.name} [${modeTxt}]`);
     }
-  });
+  }).finally(__aiRelease);
 }
 /* ===================== /AI ANALYSIS ===================== */
 
@@ -6100,10 +6118,19 @@ function __dbSetStatus(msg, isErr){
 function __setLoadBtnState(btnOrId, state){
   const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
   if(!btn) return;
+
+  const isBusy = (state === 'busy' || state === 'loading');
+
+  // Visual state
   btn.classList.remove('btn-gray','btn-on','btn-warn');
   if(state === 'ok') btn.classList.add('btn-on');
   else if(state === 'warn') btn.classList.add('btn-warn');
-  else btn.classList.add('btn-gray'); // idle
+  else btn.classList.add('btn-gray'); // idle / busy
+
+  // Disable while busy to prevent double-clicks
+  btn.disabled = !!isBusy;
+  btn.style.opacity = isBusy ? '0.75' : '';
+  btn.style.cursor  = isBusy ? 'not-allowed' : '';
 }
 
 function __setFilterBtnStyle(btnOrId, enabled){
@@ -6480,10 +6507,19 @@ function __seriesSetStatus(msg, isErr){
 function __setLoadBtnState(btnOrId, state){
   const btn = (typeof btnOrId === 'string') ? document.getElementById(btnOrId) : btnOrId;
   if(!btn) return;
+
+  const isBusy = (state === 'busy' || state === 'loading');
+
+  // Visual state
   btn.classList.remove('btn-gray','btn-on','btn-warn');
   if(state === 'ok') btn.classList.add('btn-on');
   else if(state === 'warn') btn.classList.add('btn-warn');
-  else btn.classList.add('btn-gray'); // idle
+  else btn.classList.add('btn-gray'); // idle / busy
+
+  // Disable while busy to prevent double-clicks
+  btn.disabled = !!isBusy;
+  btn.style.opacity = isBusy ? '0.75' : '';
+  btn.style.cursor  = isBusy ? 'not-allowed' : '';
 }
 
 function __setFilterBtnStyle(btnOrId, enabled){
@@ -6755,7 +6791,7 @@ function __seriesMergeIncoming(incoming){
 }
 
 async function loadSeriesHistoryFromDb(){
-  __setLoadBtnState('btnSeriesLoad','idle');
+  __setLoadBtnState('btnSeriesLoad','busy');
   if(typeof window.fbFetchRecentSamples !== 'function'){
     __seriesSetStatus('Monitoring DB: δεν είναι διαθέσιμο (Firebase όχι έτοιμο)', true);
     __setLoadBtnState('btnSeriesLoad','warn');
@@ -6904,7 +6940,7 @@ function clearSeriesFiltersUI(){
   window.__seriesLastSamples = [];
 
   // Reset Load button visual state
-  if(typeof __setLoadBtnState === 'function') __setLoadBtnState('btnSeriesLoad', 'idle');
+  if(typeof __setLoadBtnState === 'function') __setLoadBtnState('btnSeriesLoad', 'busy');
 
   // Re-render as empty
   renderSeriesHead();
@@ -7008,7 +7044,7 @@ function initSeriesReaderUI(){
 }
 
 async function loadDbHistory(){
-  __setLoadBtnState('btnDbLoad','idle');
+  __setLoadBtnState('btnDbLoad','busy');
   const name = document.getElementById('stationName')?.innerText?.trim() || '';
   const limEl = document.getElementById('dbLimit');
   const lim = Math.max(1, Math.min(500, Number(limEl?.value || 50)));
@@ -7272,6 +7308,74 @@ function calculateTc(L, H){
   return (!L || !H) ? 10 : 0.0195 * Math.pow(L, 0.77) * Math.pow((H/L), -0.385);
 }
 
+// Pure-ish hydrology core: compute numbers without touching the DOM.
+// (Keeps the UI layer thin and testable.)
+function calculateHydrologyCore(inputs){
+  const area   = Number(inputs.area||0);
+  const length = Number(inputs.length||0);
+  const height = Number(inputs.height||0);
+  const coef   = Number(inputs.coef||0);
+
+  const rainI  = Number(inputs.rainI||0);
+  const rainD  = Number(inputs.rainD||0);
+
+  const drains   = Number(inputs.drains||0);
+  const drainCap = Number(inputs.drainCap||0);
+
+  const strWidth = Number(inputs.strWidth||0);
+  const strZ     = Number(inputs.strZ||0);
+  const strDepth = Number(inputs.strDepth||0);
+  const strDrop  = Number(inputs.strDrop||0);
+  const strLen   = Number(inputs.strLen||0);
+  const strType  = Number(inputs.strType||0);
+
+  const A_km2 = area / 1e6;
+
+  // Basin slope (fallback to 1%)
+  const S = (length>0 && height>0) ? (height/length) : 0.01;
+
+  const Tc = calculateTc(length, height);
+  const Dused = (rainD > 0) ? rainD : Math.max(5.0, Tc);
+
+  // Rational method peak flow
+  const Qsel = 0.278 * coef * rainI * A_km2;
+
+  // Network capacity
+  const CapNet = drains * drainCap;
+
+  // Stream slope (fallback to basin)
+  const sLen = (strLen>0) ? strLen : (length>0 ? length : 0);
+  const sDrop = (strDrop>0) ? strDrop : (height>0 ? height : 0);
+  const sSlope = (sLen>0) ? (sDrop/sLen) : 0;
+
+  // Manning trapezoid capacity + normal depth (bisection)
+  const calcQ = (d) => {
+    if(!(strWidth>0) || !(sSlope>0) || !(strType>0) || d<=0) return 0;
+    const A = (strWidth + strZ*d) * d;
+    const P = strWidth + 2*d*Math.sqrt(1 + Math.pow(strZ,2));
+    return (1/strType) * Math.pow(A, 5/3) * Math.pow(P, -2/3) * Math.sqrt(sSlope);
+  };
+
+  let CapStr = 0;
+  let yAuto = 0;
+
+  if(strWidth>0 && strDepth>0 && sSlope>0){
+    CapStr = calcQ(strDepth);
+
+    if(Qsel>0){
+      let low=0, high=(strDepth*2)||20;
+      for(let i=0;i<22;i++){
+        const mid=(low+high)/2;
+        if(calcQ(mid) < Qsel) low=mid;
+        else high=mid;
+      }
+      yAuto = (low+high)/2;
+    }
+  }
+
+  return { A_km2, S, Tc, Dused, Qsel, CapNet, sSlope, CapStr, yAuto };
+}
+
 function runMasterCalculation(){
   const area   = getVal('area');
   const length = getVal('length');
@@ -7306,45 +7410,18 @@ function runMasterCalculation(){
     return;
   }
 
-  const A_km2 = area / 1e6;
-  const S = (length>0 && height>0) ? (height/length) : 0.01;
-
-  const Tc = calculateTc(length, height);
-  const Dused = (rainD > 0) ? rainD : Math.max(5.0, Tc);
-
-  const Qsel = 0.278 * coef * rainI * A_km2;
-
-  const CapNet = drains * drainCap;
-
-  // Stream slope
-  const sLen = (strLen>0) ? strLen : (length>0 ? length : 0);
-  const sDrop = (strDrop>0) ? strDrop : (height>0 ? height : 0);
-  const sSlope = (sLen>0) ? (sDrop/sLen) : 0;
-
-  // Manning trapezoid capacity + normal depth by bisection
-  let CapStr = 0;
-  let yCalc = 0;
-
-  const calcQ = (d) => {
-    if(!(strWidth>0) || !(sSlope>0) || !(strType>0) || d<=0) return 0;
-    const A = (strWidth + strZ*d) * d;
-    const P = strWidth + 2*d*Math.sqrt(1 + Math.pow(strZ,2));
-    return (1/strType) * Math.pow(A, 5/3) * Math.pow(P, -2/3) * Math.sqrt(sSlope);
-  };
-
-  if(strWidth>0 && strDepth>0 && sSlope>0){
-    CapStr = calcQ(strDepth);
-
-    if(Qsel>0){
-      let low=0, high=(strDepth*2)||20;
-      for(let i=0;i<22;i++){
-        const mid=(low+high)/2;
-        if(calcQ(mid) < Qsel) low=mid;
-        else high=mid;
-      }
-      yCalc = (low+high)/2;
-    }
-  }
+  const core = calculateHydrologyCore({
+    area, length, height, coef, rainI, rainD, drains, drainCap,
+    strWidth, strZ, strDepth, strDrop, strLen, strType
+  });
+  const A_km2 = core.A_km2;
+  const S = core.S;
+  const Tc = core.Tc;
+  const Dused = core.Dused;
+  const Qsel = core.Qsel;
+  const CapNet = core.CapNet;
+  const CapStr = core.CapStr;
+  let yCalc = core.yAuto;
 
   // Manual y logic: if user types, treat as manual until resetStrY()
   if(strYEl && strYEl.dataset.boundManual !== '1'){
