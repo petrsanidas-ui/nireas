@@ -760,15 +760,19 @@ document.addEventListener('DOMContentLoaded', () => {
       border-bottom:1px solid var(--line);
       background:#fbfcfe;
     }
-    .tool-header h1{
-      margin:0;
-      font-size:14px;
-      line-height:1.1;
-      letter-spacing:.2px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
+    .tool-header h1 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.15;
+  letter-spacing: .2px;
+  /* Allow wrapping on small screens to prevent layout break */
+  white-space: normal;
+  overflow: hidden;
+  /* Limit to 2 lines if needed */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
     .print-btn{
       border:none;
       background:#2c3e50;
@@ -3558,12 +3562,17 @@ function parseGreekDateTime(ts){
 }
 
 function ageClassFromTimestamp(tsStr){
-  const dt = parseGreekDateTime(tsStr);
+  // Use parseAnyDateTime instead of strict parseGreekDateTime
+  // This handles Greek formats, ISO, and standard formats robustly.
+  const dt = parseAnyDateTime(tsStr); 
+
   if(!dt) return 'age-unknown';
+
   let diffMin = (Date.now() - dt.getTime()) / 60000;
-  if(diffMin < 0) diffMin = 0;
-  if(diffMin < 5) return 'age-fresh';
-  if(diffMin < 10) return 'age-warn';
+  if(diffMin < 0) diffMin = 0; // Handle slight clock skew
+
+  if(diffMin < 20) return 'age-fresh'; // Increased tolerance to 20m for "Fresh"
+  if(diffMin < 60) return 'age-warn';
   return 'age-stale';
 }
 
@@ -7984,7 +7993,16 @@ function initDbReaderUI(){
 
 /* ===================== CALCULATIONS (ver14-style) ===================== */
 function calculateTc(L, H){
-  return (!L || !H) ? 10 : 0.0195 * Math.pow(L, 0.77) * Math.pow((H/L), -0.385);
+  // Guard: If Length or Height are missing/zero, return default 10 min
+  if(!L || L <= 0 || !H || H <= 0) return 10;
+
+  // Kirpich Formula (SI units): Tc = 0.0195 * (L^0.77) * S^-0.385
+  // Where S = H/L
+  const slope = H / L;
+  // Safety check for very small slope to prevent Infinity
+  if(slope < 0.00001) return 10; 
+
+  return 0.0195 * Math.pow(L, 0.77) * Math.pow(slope, -0.385);
 }
 
 function runMasterCalculation(){
