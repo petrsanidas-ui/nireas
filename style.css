@@ -64,9 +64,9 @@
       width:100%;
     }
     .splash-logo{
-  width:clamp(220px, 28vw, 380px);
-  height:auto;
-  border-radius:14px;
+  width: clamp(300px, 38vw, 520px);
+  height: auto;
+  border-radius: 14px;
     }
     .splash-text-logo{
       font-weight:900;
