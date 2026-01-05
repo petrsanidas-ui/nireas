@@ -280,7 +280,6 @@
       vertical-align:-1px;
     }
 
-    
     .ico-eye{
       font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Segoe UI Symbol";
       font-weight:400;
@@ -295,7 +294,6 @@
       vertical-align:-1px;
     }
 .th-ic{margin-right:6px}
-
 
     /* Station monitor button states */
     .btn-auto-default{background:var(--btn-blue)}
@@ -415,8 +413,6 @@
       border:1px solid rgba(0,0,0,.06);
       border-radius:12px;
     }
-
-
 
     /* Co‑Hazards contextual box inside Scenario panels */
     .cohazards-context-box{margin:10px 0 12px 0}
@@ -624,7 +620,6 @@
     .multi-name.age-warn{  color:#b58900; font-weight:800; }
     .multi-name.age-stale{ color:#b00020; font-weight:800; }
     .multi-name.age-unknown{ color:var(--ink); font-weight:700; }
-
     .monitor-controls{
       display:flex;
       align-items:center;
@@ -657,8 +652,6 @@
     .btn-local-on{background:var(--btn-green)}
 .btn-ai{background:#4b57c2}
 #btnAIAnalysis{display:inline-flex;align-items:center}
-
-/* AI provider toggle (ChatGPT / Gemini) */
 
 /* AI provider dropdown (AI: ChatGPT/Gemini) */
 .ai-dd{
@@ -1152,8 +1145,6 @@
     #primaryStationDetails > summary::marker{ font-size:11px; }
     #dataPanelDetails > summary::marker{ font-size:13px; }
 
-
-
     /* Small icon buttons for station actions (open URL / refresh) */
     .meta-icon-btn{
       border:1px solid rgba(0,0,0,.08);
@@ -1395,9 +1386,7 @@
     .station-pin{width:14px;height:14px;border-radius:50%;background:#1e88e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);}
     .station-pin.primary{width:16px;height:16px;border-radius:2px;background:#e53935;transform:rotate(45deg);}
     .station-pin-wrap{display:flex;align-items:center;justify-content:center;}
-
     .scenario-area-body{margin-top:6px;}
-
 
 /* ============================================================
    Layout update: 3 cards (left) + Data & Scenario (right)
@@ -1436,7 +1425,6 @@
   overflow:hidden;
   border:1px solid rgba(0,0,0,.06);
 }
-
 
 /* When a card body is collapsed, round the header bottom corners too (unified look) */
 .panel-card.is-collapsed .panel-topbar{
@@ -1492,8 +1480,6 @@
   gap:10px;
 }
 .nested-panels .panel-card{ margin:0; }
-
-
 
 /* Intro text inside Data Source */
 #dataSourceBody .source-intro > div{ padding:0 !important; } /* neutralize old inline padding wrappers */
