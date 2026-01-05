@@ -87,7 +87,9 @@
       font-weight:700;
       font-size:14px;
       border-bottom:1px solid rgba(255,255,255,.14);
-    }
+      border-top-left-radius:var(--radius);
+      border-top-right-radius:var(--radius);
+}
     .icon-btn{
       border:none;
       background:rgba(255,255,255,.14);
@@ -145,6 +147,10 @@
       border:none;
       border-radius:4px;
       padding:4px 8px;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
       font-size:11px;
       cursor:pointer;
       color:#fff;
@@ -199,7 +205,13 @@
       font-family:var(--sans);
       letter-spacing:.1px;
     }
-    #filesBody th .th-ic{margin-right:6px}
+    .ico-map{
+      font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Segoe UI Symbol";
+      font-weight:400;
+      line-height:1;
+    }
+
+    .th-ic{margin-right:6px}
 
 
     /* Station monitor button states */
@@ -1392,12 +1404,17 @@
 <aside class="side-panel">
 
 
-<section class="panel-card side-card source-card"><div class="panel-topbar">
-<div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
+<section class="panel-card side-card source-card"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
   Πηγή Δεδομένων : <img alt="ΝΗΡΕΑΣ" class="nireas-logo" onerror="this.outerHTML='&lt;span class=nireas-text-logo&gt;NIREAS&lt;/span&gt;'" src="nireas_logo.png" style="height:22px;padding:1px;border-radius:6px;"/>
-</div>
-<button class="icon-btn" onclick="toggleCollapse('dataSourceBody', this)">−</button>
-</div><div id="dataSourceBody"><div style="padding:10px 12px;font-size:12px;color:#2b3a44;line-height:1.35;">Πηγή: NIREAS (UI) — θα εμπλουτιστεί με επιλογές/μεταδεδομένα πηγών στη συνέχεια.</div></div></section>
+</div></div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('dataSourceBody', this)" style="width:28px;height:24px">−</button>
+    </div>
+  </div>
+  <div class="section-body" id="dataSourceBody"><div style="padding:10px 12px;font-size:12px;color:#2b3a44;line-height:1.35;">Πηγή: NIREAS (UI) — θα εμπλουτιστεί με επιλογές/μεταδεδομένα πηγών στη συνέχεια.</div></div>
+</div></section>
 
 
 <section class="panel-card side-card hr-card"><div class="section">
@@ -1455,7 +1472,7 @@
 <div class="station-row-hdr">
   <div class="station-row-label">Κύριος Σταθμός</div>
   <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
-<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off">🗺 Map</button>
+<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
     <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations-2" onclick="toggleMeteoStationsLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών">👁 Off</button>
   </div>
 </div>
@@ -1474,7 +1491,7 @@
 <div class="station-row-hdr" style="margin-top:10px;">
   <div class="station-row-label">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
   <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
-<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off">🗺 Map</button>
+<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
     <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations" onclick="toggleMeteoStationsLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών">👁 Off</button>
   </div>
 </div>
@@ -1508,8 +1525,8 @@
 
 <section class="panel-card side-card geo-card"><div class="section">
 <div class="panel-topbar">
-<div>📁 Αρχεία Έργου (GeoJSON)</div>
-<button class="icon-btn" onclick="toggleCollapse('filesBody', this)" style="width:28px;height:24px">−</button>
+  <div class="hdr-left">📁 Αρχεία Έργου (GeoJSON)</div>
+  <div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('filesBody', this)" style="width:28px;height:24px">−</button></div>
 </div>
 <div class="section-body" id="filesBody" style="padding:0">
 <div id="loader">Φόρτωση δεδομένων από GitHub…</div>
@@ -1517,16 +1534,15 @@
 <thead>
 <tr>
 <th style="text-align:left;padding-left:10px;"><span class="th-ic">📄</span>Όνομα</th>
-<th style="text-align:right;padding-right:10px;"><span class="th-ic">🗺️</span>Ενέργεια</th>
+<th style="text-align:right;padding-right:10px;"><span class="th-ic ico-map">🗺</span>Ενέργεια</th>
 </tr>
 </thead>
 <tbody id="fileRows"></tbody>
 </table>
 <div class="hint" id="filesHint">
-<b>🗺 Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
+<b><span class="ico-map">🗺</span> Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
 <b>👁 On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
-<b>➕ / 🧹</b> (στην κεφαλίδα κατηγορίας) = προσθήκη/εκκαθάριση επιλογής στο <b>κεντρικό panel</b>,
-με βάση το τελευταίο αρχείο που πάτησες (Map ή On/Off) στην κατηγορία.<br/>
+<b>➕ / 🧹</b> (ανά αρχείο) = προσθήκη/εκκαθάριση επιλογής στο <b>κεντρικό panel</b>.<br/>
 </div>
 <div class="hint" id="filesMsg" style="display:none;margin-top:6px"></div>
 </div>
@@ -1710,7 +1726,7 @@
 <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Διοικητικά Όρια: <span id="selectedBoundaryName">—</span></span><span class="summary-right"><button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedBoundary()" title="Reset" type="button">⟲</button></span></span></summary>
 <div class="monitor-panel-body" style="margin-top:0">
 <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Διάλεξε ένα αρχείο από την ενότητα <b>Διοικητικά Όρια</b> (🗺 Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
+          Διάλεξε ένα αρχείο από την ενότητα <b>Διοικητικά Όρια</b> (<span class="ico-map">🗺</span> Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
         </div>
 </div>
 </details>
@@ -1719,7 +1735,7 @@
 <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></span><span class="summary-right"><button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedStream()" title="Reset" type="button">⟲</button></span></span></summary>
 <div class="monitor-panel-body" style="margin-top:0">
 <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Διάλεξε ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> (🗺 Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
+          Διάλεξε ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> (<span class="ico-map">🗺</span> Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
         </div>
 </div>
 </details>
@@ -1735,7 +1751,7 @@
 </summary>
 <div class="monitor-panel-body" style="margin-top:0">
 <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Διάλεξε ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> (🗺 Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
+          Διάλεξε ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> (<span class="ico-map">🗺</span> Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
         </div>
 </div>
 </details>
@@ -1996,7 +2012,7 @@
 <div class="no-print" id="mapModal">
 <div id="mapCard">
 <div id="mapTop">
-<div>🗺️ Προβολή Χάρτη (πολλαπλά layers)</div>
+<div><span class="ico-map">🗺</span> Προβολή Χάρτη (πολλαπλά layers)</div>
 <div style="display:flex; gap:8px; align-items:center;">
 <button class="mini-btn btn-gray" onclick="turnAllOff()">Off όλα</button>
 <button class="mini-btn btn-gray" onclick="closeMapModal()">Κλείσιμο</button>
@@ -3482,13 +3498,9 @@ function renderFileList(){
     const trHead = document.createElement('tr');
     trHead.className = 'cat-row';
     trHead.innerHTML = `
-      <td colspan="2" style="color:${color}">
+      <td colspan="2" class="cat-row">
         <div class="cat-head">
           <span class="cat-title">${icon} ${title}</span>
-          <span class="cat-actions no-print">
-            <button class="mini-btn btn-on" onclick="geoAddFromCategory('${catKey}')" title="➕ Προσθήκη στο κεντρικό panel">➕</button>
-            <button class="mini-btn btn-gray" onclick="geoClearCategory('${catKey}')" title="🧹 Εκκαθάριση από το κεντρικό panel">🧹</button>
-          </span>
         </div>
       </td>`;
     tbody.appendChild(trHead);
@@ -3501,7 +3513,9 @@ function renderFileList(){
       tr.innerHTML = `
         <td style="text-align:left;padding-left:10px;">${name}</td>
         <td><div class="actions-row">
-          <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')" title="Χάρτης: προεπισκόπηση (zoom) χωρίς αλλαγή On/Off">🗺 Map</button>
+          <button class="mini-btn btn-on" onclick="geoAddFromRow(\'${catKey}\', \'${f.path}\', \'${name}\')" title="➕ Προσθήκη στο κεντρικό panel">➕</button>
+          <button class="mini-btn btn-gray" onclick="geoClearCategory(\'${catKey}\')" title="🧹 Εκκαθάριση από το κεντρικό panel">🧹</button>
+          <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')" title="Χάρτης: προεπισκόπηση (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
           <button class="mini-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
                   onclick="toggleLayer('${f.path}','${name}')">${on ? '👁 On' : '👁 Off'}</button>
         </div></td>
@@ -3769,6 +3783,18 @@ function geoPickFromVisible(cat){
   }catch(_){}
   return null;
 }
+
+// Add a specific GeoJSON file to the main (data) panel (➕ next to each file)
+function geoAddFromRow(cat, path, name){
+  try{
+    // persist "last pick" for consistency with existing logic
+    LAST_GEO_PICK[cat] = { path, name };
+    geoAddFromCategory(cat);
+  }catch(e){
+    console.warn('geoAddFromRow failed', e);
+  }
+}
+
 
 function geoAddFromCategory(cat){
   try{
