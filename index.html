@@ -211,7 +211,13 @@
       line-height:1;
     }
 
-    .th-ic{margin-right:6px}
+    
+    .ico-eye{
+      font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Segoe UI Symbol";
+      font-weight:400;
+      line-height:1;
+    }
+.th-ic{margin-right:6px}
 
 
     /* Station monitor button states */
@@ -1472,8 +1478,8 @@
 <div class="station-row-hdr">
   <div class="station-row-label">Κύριος Σταθμός</div>
   <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
-<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
-    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations-2" onclick="toggleMeteoStationsLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών">👁 Off</button>
+<button class="mini-btn btn-map map-only-btn" onclick="meteoPrimaryMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
+    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations-2" onclick="toggleMeteoPrimaryLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών"><span class="ico-eye">👁</span> Off</button>
   </div>
 </div>
 <div class="station-row-body">
@@ -1491,8 +1497,8 @@
 <div class="station-row-hdr" style="margin-top:10px;">
   <div class="station-row-label">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
   <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
-<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
-    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations" onclick="toggleMeteoStationsLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών">👁 Off</button>
+<button class="mini-btn btn-map map-only-btn" onclick="meteoWatchMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
+    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations" onclick="toggleMeteoWatchLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών"><span class="ico-eye">👁</span> Off</button>
   </div>
 </div>
 <div class="station-row-body">
@@ -1547,7 +1553,7 @@
 <div class="hint" id="filesMsg" style="display:none;margin-top:6px"></div>
 </div>
 </div></section>
-></aside>
+</aside>
 <!-- ================= RIGHT: Σύστημα Παρακολούθησης και Έγκαιρης Προειδοποίησης (Monitoring & Early Warning System) ================= -->
 <main class="main-panel">
 
@@ -2059,7 +2065,8 @@ let PREVIEW_LAYER = null;          // temporary layer for Map button preview
 
 /* ===== Selected Meteo Stations layer (map) ===== */
 const STATIONS_META = new Map();   // url -> {name,url,lat,lon,elev}
-let METEO_STATIONS_VISIBLE = false;
+let METEO_PRIMARY_VISIBLE = false;
+let METEO_WATCH_VISIBLE = false;
 let METEO_STATIONS_LAYER = null;  // persistent selected markers layer
 let METEO_STATIONS_PREVIEW = null;// preview-only layer (Map button)
 const METEO_MARKERS = new Map();  // url -> Leaflet marker (persistent)
@@ -2108,11 +2115,23 @@ function clearMeteoStationsPreview(){
 }
 
 async function refreshSelectedMeteoMarkers(){
-  // build persistent markers map based on current selection
-  const urls = getSelectedStationUrls();
+  // Build / update persistent marker cache for:
+  // - Primary station (if selected)
+  // - Watchlist stations
+  const primaryUrl = (getPrimaryStationUrl ? getPrimaryStationUrl() : '') || '';
+
+  // Watchlist URLs (exclude primary if duplicated)
+  let watchUrls = [];
+  try{
+    if(watchlist && watchlist.size){
+      watchUrls = Array.from(watchlist.keys()).filter(u => u && u !== primaryUrl);
+    }
+  }catch(_){}
+
+  const urls = Array.from(new Set([ ...(primaryUrl ? [primaryUrl] : []), ...watchUrls ]));
   const keep = new Set(urls);
 
-  // remove stale
+  // remove stale markers from cache + layer
   for(const [u, mk] of Array.from(METEO_MARKERS.entries())){
     if(!keep.has(u)){
       try{ ensureMeteoStationsLayer().removeLayer(mk); }catch(_){}
@@ -2121,9 +2140,8 @@ async function refreshSelectedMeteoMarkers(){
   }
 
   const icons = meteoIcons();
-  const primaryUrl = (getPrimaryStationUrl ? getPrimaryStationUrl() : '') || '';
 
-  // add missing
+  // add missing markers to cache (NOT necessarily visible)
   for(const u of urls){
     if(METEO_MARKERS.has(u)) continue;
 
@@ -2141,44 +2159,158 @@ async function refreshSelectedMeteoMarkers(){
     mk.bindPopup(`<b>${meta.name || 'Σταθμός'}</b><br/>Υψόμετρο: ${elevTxt}<br/><a href="${meta.url === OPEN_METEO_TOKEN ? '#' : meta.url}" target="_blank">Άνοιγμα link</a>`);
 
     METEO_MARKERS.set(u, mk);
-    try{ ensureMeteoStationsLayer().addLayer(mk); }catch(_){}
   }
 
-  // if map open and layer should be visible, add to map
+  // sync marker membership inside the persistent layer (based on independent On/Off)
+  const layer = ensureMeteoStationsLayer();
+  for(const [u, mk] of METEO_MARKERS.entries()){
+    const isPrimary = (primaryUrl && u === primaryUrl);
+    const shouldShow = isPrimary ? !!METEO_PRIMARY_VISIBLE : !!METEO_WATCH_VISIBLE;
+    try{
+      if(shouldShow){
+        if(!layer.hasLayer(mk)) layer.addLayer(mk);
+      }else{
+        if(layer.hasLayer(mk)) layer.removeLayer(mk);
+      }
+    }catch(_){}
+  }
+
+  // if map open, add/remove whole layer depending on any visibility
   if(map){
-    if(METEO_STATIONS_VISIBLE){
-      const layer = ensureMeteoStationsLayer();
+    const anyVisible = !!METEO_PRIMARY_VISIBLE || !!METEO_WATCH_VISIBLE;
+    if(anyVisible){
       if(!map.hasLayer(layer)) layer.addTo(map);
     }else{
-      const layer = ensureMeteoStationsLayer();
       if(map.hasLayer(layer)) map.removeLayer(layer);
     }
   }
 }
 
-function updateMeteoStationsRowButton(){
-  const btns = [
-    document.getElementById('btn-onoff-meteoStations'),
-    document.getElementById('btn-onoff-meteoStations-2')
-  ].filter(Boolean);
-  if(!btns.length) return;
-  for(const btn of btns){
-    btn.textContent = METEO_STATIONS_VISIBLE ? '👁 On' : '👁 Off';
-    btn.classList.toggle('btn-on', METEO_STATIONS_VISIBLE);
-    btn.classList.toggle('btn-off', !METEO_STATIONS_VISIBLE);
-  }
+
+function setOnOffBtn(btn, on){
+  if(!btn) return;
+  btn.innerHTML = `<span class="ico-eye">👁</span> ${on ? "On" : "Off"}`;
+  btn.classList.toggle("btn-on", !!on);
+  btn.classList.toggle("btn-off", !on);
+  btn.classList.add("map-only-btn");
 }
 
-function toggleMeteoStationsLayer(){
-  METEO_STATIONS_VISIBLE = !METEO_STATIONS_VISIBLE;
-  updateMeteoStationsRowButton();
-  if(map) refreshSelectedMeteoMarkers(); // will add/remove layer
+
+  function updateMeteoPrimaryOnOffBtn(){
+  const btn = document.getElementById('btn-onoff-meteoStations-2');
+  if(btn) setOnOffBtn(btn, !!METEO_PRIMARY_VISIBLE);
+}
+function updateMeteoWatchOnOffBtn(){
+  const btn = document.getElementById('btn-onoff-meteoStations');
+  if(btn) setOnOffBtn(btn, !!METEO_WATCH_VISIBLE);
+}
+
+// Backward-compatible helper name used elsewhere
+function updateMeteoStationsRowButton(){
+  updateMeteoPrimaryOnOffBtn();
+  updateMeteoWatchOnOffBtn();
+}
+
+function toggleMeteoPrimaryLayer(){
+  METEO_PRIMARY_VISIBLE = !METEO_PRIMARY_VISIBLE;
+  updateMeteoPrimaryOnOffBtn();
+  if(map) refreshSelectedMeteoMarkers();
+  if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
+}
+
+function toggleMeteoWatchLayer(){
+  METEO_WATCH_VISIBLE = !METEO_WATCH_VISIBLE;
+  updateMeteoWatchOnOffBtn();
+  if(map) refreshSelectedMeteoMarkers();
   if(typeof scheduleSaveUiState==='function') scheduleSaveUiState();
 }
 
 async function meteoStationsLoad(){
   // Refresh markers cache; do not open map, do not change On/Off
   await refreshSelectedMeteoMarkers();
+}
+
+async function meteoPrimaryMap(){
+  // Preview PRIMARY station on map WITHOUT changing On/Off
+  openMapModal();
+  clearMeteoStationsPreview();
+
+  const primaryUrl = (getPrimaryStationUrl ? getPrimaryStationUrl() : '') || '';
+  if(!primaryUrl){
+    try{ setStationMsg('Κύριος: (δεν έχει επιλεγεί)'); }catch(_){}
+    return;
+  }
+
+  const icons = meteoIcons();
+  const grp = L.layerGroup();
+  const pts = [];
+
+  let meta = STATIONS_META.get(primaryUrl);
+  if(!meta && primaryUrl === OPEN_METEO_TOKEN){
+    meta = { name:'Open‑Meteo (Χαλάνδρι)', url:primaryUrl, lat:38.0237, lon:23.8007, elev:null };
+  }
+
+  if(meta && meta.lat != null && meta.lon != null){
+    const mk = L.marker([meta.lat, meta.lon], { icon: icons.primary });
+    const elevTxt = (meta.elev != null && !Number.isNaN(meta.elev)) ? `${meta.elev} m` : '—';
+    mk.bindPopup(`<b>${meta.name || 'Κύριος Σταθμός'}</b><br/>Υψόμετρο: ${elevTxt}`);
+    mk.addTo(grp);
+    pts.push([meta.lat, meta.lon]);
+  }
+
+  METEO_STATIONS_PREVIEW = grp.addTo(map);
+
+  if(map && pts.length){
+    try{
+      map.setView([pts[0][0], pts[0][1]], 13);
+    }catch(_){}
+  }
+}
+
+async function meteoWatchMap(){
+  // Preview WATCHLIST stations on map WITHOUT changing On/Off
+  openMapModal();
+  clearMeteoStationsPreview();
+
+  const primaryUrl = (getPrimaryStationUrl ? getPrimaryStationUrl() : '') || '';
+  let urls = [];
+  try{
+    if(watchlist && watchlist.size){
+      urls = Array.from(watchlist.keys()).filter(u => u && u !== primaryUrl);
+    }
+  }catch(_){}
+
+  if(!urls.length){
+    try{ setStationMsg('Επιπλέον: (κανένας επιλεγμένος)'); }catch(_){}
+    return;
+  }
+
+  const icons = meteoIcons();
+  const grp = L.layerGroup();
+  const pts = [];
+
+  for(const u of urls){
+    let meta = STATIONS_META.get(u);
+    if(!meta && u === OPEN_METEO_TOKEN){
+      meta = { name:'Open‑Meteo (Χαλάνδρι)', url:u, lat:38.0237, lon:23.8007, elev:null };
+    }
+    if(!meta || meta.lat == null || meta.lon == null) continue;
+
+    const mk = L.marker([meta.lat, meta.lon], { icon: icons.extra });
+    const elevTxt = (meta.elev != null && !Number.isNaN(meta.elev)) ? `${meta.elev} m` : '—';
+    mk.bindPopup(`<b>${meta.name || 'Σταθμός'}</b><br/>Υψόμετρο: ${elevTxt}`);
+    mk.addTo(grp);
+    pts.push([meta.lat, meta.lon]);
+  }
+
+  METEO_STATIONS_PREVIEW = grp.addTo(map);
+
+  if(map && pts.length){
+    try{
+      const b = L.latLngBounds(pts.map(p=>L.latLng(p[0], p[1])));
+      map.fitBounds(b, { padding:[20,20] });
+    }catch(_){}
+  }
 }
 
 async function meteoStationsMap(){
@@ -2799,7 +2931,10 @@ function saveUiStateNow(){
     state.__selectedBasinKey = SELECTED_BASIN_KEY || null;
     state.__selectedBasinName = document.getElementById('selectedBasinName')?.innerText || null;
     state.__visiblePaths = Array.from(VISIBLE || []);
-    state.__meteoStationsVisible = !!METEO_STATIONS_VISIBLE;
+    state.__meteoPrimaryVisible = !!METEO_PRIMARY_VISIBLE;
+    state.__meteoWatchVisible = !!METEO_WATCH_VISIBLE;
+    // backward compatibility (older single-toggle state)
+    state.__meteoStationsVisible = !!(METEO_PRIMARY_VISIBLE || METEO_WATCH_VISIBLE);
 
 
     localStorage.setItem(LS_UI_STATE_KEY, JSON.stringify(state));
@@ -2817,11 +2952,15 @@ function restoreUiStateEarly(){
       st.__visiblePaths.forEach(p => { if(p) VISIBLE.add(String(p)); });
     }catch(_){}
   }
-  // restore selected meteo stations layer state
-  if(typeof st.__meteoStationsVisible === 'boolean'){
-    METEO_STATIONS_VISIBLE = !!st.__meteoStationsVisible;
-  }
+  // restore meteo layer states (independent)
+  if(typeof st.__meteoPrimaryVisible === 'boolean') METEO_PRIMARY_VISIBLE = !!st.__meteoPrimaryVisible;
+  if(typeof st.__meteoWatchVisible === 'boolean') METEO_WATCH_VISIBLE = !!st.__meteoWatchVisible;
 
+  // backward compatibility: older single toggle
+  if(typeof st.__meteoPrimaryVisible !== 'boolean' && typeof st.__meteoWatchVisible !== 'boolean' && typeof st.__meteoStationsVisible === 'boolean'){
+    METEO_PRIMARY_VISIBLE = !!st.__meteoStationsVisible;
+    METEO_WATCH_VISIBLE = !!st.__meteoStationsVisible;
+  }
 }
 
 function restoreUiFieldsFromState(st){
@@ -3516,8 +3655,8 @@ function renderFileList(){
           <button class="mini-btn btn-on" onclick="geoAddFromRow(\'${catKey}\', \'${f.path}\', \'${name}\')" title="➕ Προσθήκη στο κεντρικό panel">➕</button>
           <button class="mini-btn btn-gray" onclick="geoClearCategory(\'${catKey}\')" title="🧹 Εκκαθάριση από το κεντρικό panel">🧹</button>
           <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')" title="Χάρτης: προεπισκόπηση (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
-          <button class="mini-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
-                  onclick="toggleLayer('${f.path}','${name}')">${on ? '👁 On' : '👁 Off'}</button>
+          <button class="mini-btn map-only-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
+                  onclick="toggleLayer('${f.path}','${name}')"><span class="ico-eye">👁</span> ${on ? 'On' : 'Off'}</button>
         </div></td>
       `;
       tbody.appendChild(tr);
@@ -3694,9 +3833,7 @@ async function toggleLayer(path, name){
   else VISIBLE.delete(path);
 
   if(btn){
-    btn.textContent = turningOn ? '👁 On' : '👁 Off';
-    btn.classList.toggle('btn-on', turningOn);
-    btn.classList.toggle('btn-off', !turningOn);
+    setOnOffBtn(btn, turningOn);
   }
 
   // only update map if already open
@@ -3708,15 +3845,14 @@ async function toggleLayer(path, name){
 // Turn everything off
 function turnAllOff(){
   VISIBLE.clear();
-  METEO_STATIONS_VISIBLE = false;
+  METEO_PRIMARY_VISIBLE = false;
+  METEO_WATCH_VISIBLE = false;
   updateMeteoStationsRowButton();
   clearMeteoStationsPreview();
 
   // update buttons
   document.querySelectorAll('button[id^="btn-onoff-"]').forEach(b=>{
-    b.textContent = '👁 Off';
-    b.classList.remove('btn-on');
-    b.classList.add('btn-off');
+    setOnOffBtn(b, false);
   });
   if(map) syncVisibleLayersToMap();
 }
@@ -6084,9 +6220,8 @@ function runAIAnalysis(ev){
   // Layer flags (if exist)
   let meteoLayer = '—';
   try{
-    if(typeof METEO_STATIONS_VISIBLE !== 'undefined') meteoLayer = METEO_STATIONS_VISIBLE ? 'ON' : 'OFF';
-  }catch(_){}
-
+    meteoLayer = `Κύριος:${METEO_PRIMARY_VISIBLE ? 'ON' : 'OFF'} | Παρακολούθηση:${METEO_WATCH_VISIBLE ? 'ON' : 'OFF'}`;
+  }catch(_){ }
   // Visible GeoJSON layers (if exist)
   let visibleLayers = [];
   try{
