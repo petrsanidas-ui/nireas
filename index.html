@@ -9,7 +9,15 @@
 <link href="nireas_logo.png" rel="icon" type="image/png"/>
 <!-- Leaflet -->
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+// Ensure collapsed cards have unified rounded headers
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.section-body.collapsed').forEach(body => {
+    const card = body.closest('.panel-card');
+    if(card) card.classList.add('is-collapsed');
+  });
+});
+</script>
 <style>
     :root{
       --bg:#eef2f5;
@@ -47,11 +55,12 @@
     /* ====== Layout (side-by-side, no overlap) ====== */
     .app-shell{
       display:flex;
+      flex-wrap:nowrap;
       gap:14px;
       padding:14px;
       align-items:flex-start;
     }
-    @media (max-width: 1100px){
+    @media (max-width: 760px){
       .app-shell{flex-direction:column}
     }
 
@@ -65,8 +74,8 @@
       border:1px solid rgba(0,0,0,.06);
     }
     .main-panel{
-      flex:1;
-      min-width:380px;
+      flex:1 1 0;
+      min-width:320px;
       background:var(--panel);
       border-radius:var(--radius);
       box-shadow:var(--shadow);
@@ -172,6 +181,7 @@
       justify-content:space-between;
       gap:8px;
       margin:2px 0 6px;
+      min-width:0;
     }
     .station-row-label{
       font-size:11px;
@@ -181,6 +191,10 @@
       align-items:center;
       gap:6px;
       white-space:nowrap;
+      flex:1 1 auto;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .station-row-body{
       display:flex;
@@ -195,11 +209,15 @@
       gap:6px;
       flex-wrap:nowrap;
       white-space:nowrap;
-      overflow-x:auto;
-      -webkit-overflow-scrolling:touch;
+      overflow:visible; /* avoid horizontal auto-scroll jump on click */
     }
-    .map-btns::-webkit-scrollbar{height:6px}
-    .map-btns::-webkit-scrollbar-thumb{background:rgba(0,0,0,.22);border-radius:6px}
+
+    /* prevent tiny layout shifts when labels toggle (Off/On) */
+    .map-btns .mini-btn{flex:0 0 auto; justify-content:center;}
+    .map-btns .mini-btn.btn-map.map-only-btn{min-width:76px;}
+    .map-btns .mini-btn.btn-off.map-only-btn,
+    .map-btns .mini-btn.btn-on.map-only-btn{min-width:72px;}
+
     .map-only-btn{
       font-weight:900;
       font-family:var(--sans);
@@ -209,6 +227,14 @@
       font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Segoe UI Symbol";
       font-weight:400;
       line-height:1;
+      font-size:13px;
+      width:14px;
+      height:14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 14px;
+      vertical-align:-1px;
     }
 
     
@@ -216,6 +242,14 @@
       font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Segoe UI Symbol";
       font-weight:400;
       line-height:1;
+      font-size:13px;
+      width:14px;
+      height:14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 14px;
+      vertical-align:-1px;
     }
 .th-ic{margin-right:6px}
 
@@ -1345,6 +1379,13 @@
   border:1px solid rgba(0,0,0,.06);
 }
 
+
+/* When a card body is collapsed, round the header bottom corners too (unified look) */
+.panel-card.is-collapsed .panel-topbar{
+  border-bottom-left-radius:var(--radius);
+  border-bottom-right-radius:var(--radius);
+  border-bottom:none;
+}
 /* Card bodies */
 #mainDataBody, #scenarioCardBody{
   padding:12px;
@@ -1380,6 +1421,25 @@
 /* Make nested .section behave nicely inside cards */
 .side-card .section{border-top:none}
 .side-card .panel-topbar{border-bottom:1px solid rgba(255,255,255,.12)}
+
+/* Side panels: standardize table typography to match other menus */
+.side-card table{font-size:12px;}
+.side-card table th,.side-card table td{font-size:12px; padding:7px 8px;}
+/* Data Source contains nested sub-menus */
+#dataSourceBody{ padding:10px; }
+#dataSourceBody > .nested-panels{ margin-top:10px; }
+.nested-panels{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.nested-panels .panel-card{ margin:0; }
+
+
+
+/* Intro text inside Data Source */
+#dataSourceBody .source-intro > div{ padding:0 !important; } /* neutralize old inline padding wrappers */
+#dataSourceBody .source-intro{ font-size:12px; color:#2b3a44; line-height:1.35; margin-bottom:6px; }
 </style>
 </head>
 <body>
@@ -1409,7 +1469,6 @@
 <!-- ================= LEFT: GitHub Data panel ================= -->
 <aside class="side-panel">
 
-
 <section class="panel-card side-card source-card"><div class="section">
   <div class="panel-topbar">
     <div class="hdr-left"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
@@ -1419,11 +1478,10 @@
       <button class="icon-btn" onclick="toggleCollapse('dataSourceBody', this)" style="width:28px;height:24px">−</button>
     </div>
   </div>
-  <div class="section-body" id="dataSourceBody"><div style="padding:10px 12px;font-size:12px;color:#2b3a44;line-height:1.35;">Πηγή: NIREAS (UI) — θα εμπλουτιστεί με επιλογές/μεταδεδομένα πηγών στη συνέχεια.</div></div>
-</div></section>
+  <div class="section-body" id="dataSourceBody"><div class="source-intro"><div style="padding:10px 12px;font-size:12px;color:#2b3a44;line-height:1.35;">Πηγή: NIREAS (UI) — θα εμπλουτιστεί με επιλογές/μεταδεδομένα πηγών στη συνέχεια.</div></div>
 
-
-<section class="panel-card side-card hr-card"><div class="section">
+<div class="nested-panels">
+<section class="panel-card side-card nested-card hr-card"><div class="section">
   <div class="panel-topbar">
     <div class="hdr-left">👥 Ανθρώπινο Δυναμικό</div>
     <div class="hdr-right">
@@ -1438,7 +1496,7 @@
 </div></section>
 
 
-<section class="panel-card side-card vehicles-card"><div class="section">
+<section class="panel-card side-card nested-card vehicles-card"><div class="section">
   <div class="panel-topbar">
     <div class="hdr-left">🚚 Τεχνικά Μέσα / Οχήματα</div>
     <div class="hdr-right">
@@ -1453,7 +1511,7 @@
 </div></section>
 
 
-<section class="panel-card side-card materials-card"><div class="section">
+<section class="panel-card side-card nested-card materials-card"><div class="section">
   <div class="panel-topbar">
     <div class="hdr-left">🧰 Τεχνικά Μέσα / Υλικά</div>
     <div class="hdr-right">
@@ -1467,7 +1525,7 @@
   </div>
 </div></section>
 
-<section class="panel-card side-card meteo-card"><div class="section">
+<section class="panel-card side-card nested-card meteo-card"><div class="section">
 <div class="panel-topbar">
 <div class="hdr-left">📡 Μετεωρολογικοί Σταθμοί</div>
 <div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('meteoBody', this)" style="width:28px;height:24px">−</button>
@@ -1526,15 +1584,14 @@
 <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
 </div>
 </div>
-</div></section
+</div></section>
 
-
-<section class="panel-card side-card geo-card"><div class="section">
+<section class=\"panel-card side-card nested-card geo-card is-collapsed"><div class="section">
 <div class="panel-topbar">
   <div class="hdr-left">📁 Αρχεία Έργου (GeoJSON)</div>
-  <div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('filesBody', this)" style="width:28px;height:24px">−</button></div>
+  <div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('filesBody', this)" style="width:28px;height:24px">+</button></div>
 </div>
-<div class="section-body" id="filesBody" style="padding:0">
+<div class="section-body collapsed" id="filesBody" style="padding:0">
 <div id="loader">Φόρτωση δεδομένων από GitHub…</div>
 <table>
 <thead>
@@ -1551,6 +1608,9 @@
 <b>➕ / 🧹</b> (ανά αρχείο) = προσθήκη/εκκαθάριση επιλογής στο <b>κεντρικό panel</b>.<br/>
 </div>
 <div class="hint" id="filesMsg" style="display:none;margin-top:6px"></div>
+</div>
+</div></section>
+</div>
 </div>
 </div></section>
 </aside>
@@ -3317,9 +3377,19 @@ window.addEventListener('unhandledrejection', (event) => {
 function toggleCollapse(id, btn){
   const el = document.getElementById(id);
   if(!el) return;
+
   const isHidden = el.classList.toggle('collapsed');
+
+  // Update the +/- glyph
   if(btn) btn.textContent = isHidden ? '+' : '−';
+
+  // Unified rounded-corner look when collapsed
+  const card = (btn && btn.closest('.panel-card')) || el.closest('.panel-card');
+  if(card){
+    card.classList.toggle('is-collapsed', isHidden);
+  }
 }
+
 
 function setStatusById(id, msg, level='neutral'){
   const el = document.getElementById(id);
@@ -8674,6 +8744,19 @@ window.clearCoHazards = function(){
   window.addEventListener('DOMContentLoaded', ()=>{
     boot(0);
   });})();
+
+function initCollapsedCards(){
+  // Ensure cards that start with a collapsed body also get rounded header corners
+  document.querySelectorAll('.section-body.collapsed').forEach(body => {
+    const card = body.closest('.panel-card');
+    if(card) card.classList.add('is-collapsed');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initCollapsedCards();
+});
+
 </script>
 </body>
 </html>
