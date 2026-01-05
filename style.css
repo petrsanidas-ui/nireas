@@ -32,53 +32,68 @@
     }
 
     /* ====== Startup logo splash (optional) ====== */
-    .splash-overlay{
-      position:fixed;
-      inset:0;
-      z-index:9999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:rgba(238,242,245,.92);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      opacity:1;
-      transition: opacity .35s ease;
-    }
-    .splash-overlay.is-hidden{
-      opacity:0;
-      pointer-events:none;
-    }
-    .splash-card{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:12px;
-      padding:18px 22px;
-      border-radius:16px;
-      background:rgba(255,255,255,.86);
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:var(--shadow);
-      max-width:520px;
-      width:100%;
-    }
-    .splash-logo{
+    /* ===== Splash (Logo) ===== */
+.splash-overlay{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+
+  /* ΓΑΛΑΖΙΟ / CYAN gradient (πιο έντονο) */
+  background: linear-gradient(135deg,
+    rgba(0, 210, 255, .55),
+    rgba(160, 245, 255, .32)
+  );
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity:1;
+  transition: opacity .35s ease;
+}
+
+.splash-overlay.is-hidden{
+  opacity:0;
+  pointer-events:none;
+}
+
+.splash-card{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  padding:18px 22px;
+  border-radius:16px;
+
+  /* Cool white κάρτα για αντίθεση με το logo */
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(0, 210, 255, .18);
+  box-shadow: 0 12px 40px rgba(0, 120, 160, .18);
+
+  max-width:520px;
+  width:100%;
+}
+
+.splash-logo{
   width: clamp(300px, 38vw, 520px);
   height: auto;
   border-radius: 14px;
-    }
-    .splash-text-logo{
-      font-weight:900;
-      letter-spacing:2px;
-      font-size:26px;
-      color:var(--ink);
-    }
-    .splash-hint{
-      font-size:12px;
-      color:var(--muted);
-      text-align:center;
-    }
+}
+
+.splash-text-logo{
+  font-weight:900;
+  letter-spacing:2px;
+  font-size:26px;
+  color:var(--ink);
+}
+
+.splash-hint{
+  font-size:12px;
+  color:var(--muted);
+  text-align:center;
+}
 
     /* ====== Layout (side-by-side, no overlap) ====== */
     .app-shell{
