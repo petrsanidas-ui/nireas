@@ -297,6 +297,8 @@
   position: relative;
   padding-right: 44px; /* space for reset button */
 }
+.param-summary.has-actions{ padding-right: 44px !important; }
+
 .param-summary .param-title{
   display:inline-block;
 }
@@ -1442,12 +1444,13 @@
 
 details { position: relative; }
 
-summary.has-actions { padding-right: 180px !important; }
+summary.has-actions { position: relative; padding-right: 180px !important; }
 
 .summary-actions{
   position: absolute;
   right: 10px;
-  top: 8px; /* aligns with most summary paddings */
+  top: 50%;
+  transform: translateY(-50%); /* aligns with most summary paddings */
   display: flex;
   gap: 6px;
   align-items: center;
@@ -1457,5 +1460,5 @@ summary.has-actions { padding-right: 180px !important; }
 /* When the summary is taller (some panels), keep actions vertically aligned */
 @media (max-width: 420px){
   summary.has-actions { padding-right: 165px !important; }
-  .summary-actions{ right: 8px; top: 7px; gap: 5px; }
+  .summary-actions{ right: 8px; top: 50%; transform: translateY(-50%); gap: 5px; }
 }
