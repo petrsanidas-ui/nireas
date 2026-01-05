@@ -159,6 +159,49 @@
     .btn-off{background:var(--btn-gray)}
     .btn-warn{background:var(--btn-yellow); color:#1f2a33}
 
+    /* ====== Map-only action groups (side panel + GeoJSON) ====== */
+    .station-row-hdr{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin:2px 0 6px;
+    }
+    .station-row-label{
+      font-size:11px;
+      color:#6b7a86;
+      font-weight:900;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+    }
+    .station-row-body{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .map-btns{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:6px;
+      flex-wrap:nowrap;
+      white-space:nowrap;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+    .map-btns::-webkit-scrollbar{height:6px}
+    .map-btns::-webkit-scrollbar-thumb{background:rgba(0,0,0,.22);border-radius:6px}
+    .map-only-btn{
+      font-weight:900;
+      font-family:var(--sans);
+      letter-spacing:.1px;
+    }
+    #filesBody th .th-ic{margin-right:6px}
+
+
     /* Station monitor button states */
     .btn-auto-default{background:var(--btn-blue)}
     .btn-auto-live{background:var(--btn-green)}
@@ -612,6 +655,10 @@
       padding:7px 10px;
       border-bottom:1px solid #dfe7ee;
     }
+    .cat-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .cat-actions{display:flex;align-items:center;gap:6px;}
+    .cat-actions .mini-btn{padding:3px 7px;font-size:11px;border-radius:4px;}
+    .cat-title{display:flex;align-items:center;gap:6px;}
     .type-cell{
       color:var(--muted);
       font-size:11px;
@@ -1400,34 +1447,44 @@
 <section class="panel-card side-card meteo-card"><div class="section">
 <div class="panel-topbar">
 <div class="hdr-left">📡 Μετεωρολογικοί Σταθμοί</div>
-<div class="hdr-right">
-<button class="mini-btn btn-load" onclick="meteoStationsLoad()" title="Φόρτωση markers επιλεγμένων σταθμών (cache)">Load</button>
-<button class="mini-btn btn-map" onclick="meteoStationsMap()" title="Προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off">Map</button>
-<button class="mini-btn btn-off" id="btn-onoff-meteoStations" onclick="toggleMeteoStationsLayer()" title="On/Off markers επιλεγμένων σταθμών">Off</button>
-<button class="icon-btn" onclick="toggleCollapse('meteoBody', this)" style="width:28px;height:24px">−</button>
+<div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('meteoBody', this)" style="width:28px;height:24px">−</button>
 </div>
 </div>
 <div class="section-body" id="meteoBody">
-<div style="font-size:11px;color:#6b7a86;margin-bottom:4px;">Κύριος Σταθμός</div>
-<div style="display:flex; gap:8px; align-items:center;">
-<select id="meteoStationSelect" style="flex:1">
-<option value="">Επιλογή κύριου σταθμού...</option>
-</select>
-<button class="mini-btn btn-on" onclick="setPrimaryStation()" title="Ορισμός ως Κύριος Σταθμός &amp; άμεση λήψη">➕</button>
-<button class="mini-btn btn-gray" onclick="clearPrimaryStation()" title="Διαγραφή κύριου σταθμού">🧹</button>
-<button class="mini-btn btn-map" onclick="openPrimaryWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
+
+<div class="station-row-hdr">
+  <div class="station-row-label">Κύριος Σταθμός</div>
+  <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
+<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off">🗺 Map</button>
+    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations-2" onclick="toggleMeteoStationsLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών">👁 Off</button>
+  </div>
+</div>
+<div class="station-row-body">
+  <select id="meteoStationSelect" style="flex:1">
+    <option value="">Επιλογή κύριου σταθμού...</option>
+  </select>
+  <button class="mini-btn btn-on" onclick="setPrimaryStation()" title="Ορισμός ως Κύριος Σταθμός &amp; άμεση λήψη">➕</button>
+  <button class="mini-btn btn-gray" onclick="clearPrimaryStation()" title="Διαγραφή κύριου σταθμού">🧹</button>
+  <button class="mini-btn btn-map" onclick="openPrimaryWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
 </div>
 <div class="status-stack" id="primaryStatusWrap" style="margin-top:2px;">
 <div class="status-pill status-neutral" id="primaryStatus">Κύριος: Αναμονή…</div>
 </div>
-<div style="font-size:11px;color:#6b7a86;margin:10px 0 4px;">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
-<div style="display:flex; gap:8px; align-items:center;">
-<select id="monitorStationSelect" style="flex:1">
-<option value="">Επιλογή σταθμού παρακολούθησης...</option>
-</select>
-<button class="mini-btn btn-on" onclick="addToWatchlistFromMonitor()" title="Προσθήκη στους Επιπλέον σταθμούς &amp; άμεση λήψη">➕</button>
-<button class="mini-btn btn-gray" onclick="clearWatchlist()" title="Καθαρισμός παρακολούθησης">🧹</button>
-<button class="mini-btn btn-map" onclick="openMonitorWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
+
+<div class="station-row-hdr" style="margin-top:10px;">
+  <div class="station-row-label">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
+  <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
+<button class="mini-btn btn-map map-only-btn" onclick="meteoStationsMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off">🗺 Map</button>
+    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations" onclick="toggleMeteoStationsLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών">👁 Off</button>
+  </div>
+</div>
+<div class="station-row-body">
+  <select id="monitorStationSelect" style="flex:1">
+    <option value="">Επιλογή σταθμού παρακολούθησης...</option>
+  </select>
+  <button class="mini-btn btn-on" onclick="addToWatchlistFromMonitor()" title="Προσθήκη στους Επιπλέον σταθμούς &amp; άμεση λήψη">➕</button>
+  <button class="mini-btn btn-gray" onclick="clearWatchlist()" title="Καθαρισμός παρακολούθησης">🧹</button>
+  <button class="mini-btn btn-map" onclick="openMonitorWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
 </div>
 <div class="status-stack" id="meteoStatusWrap" style="margin-top:2px;">
 <div class="status-pill status-neutral" id="extrasStatus">Επιπλέον: Αναμονή…</div>
@@ -1446,7 +1503,7 @@
 <div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
 </div>
 </div>
-</div></section>
+</div></section
 
 
 <section class="panel-card side-card geo-card"><div class="section">
@@ -1459,17 +1516,19 @@
 <table>
 <thead>
 <tr>
-<th style="text-align:left;padding-left:10px;">Όνομα</th>
-<th style="text-align:right;padding-right:10px;">Ενέργεια</th>
+<th style="text-align:left;padding-left:10px;"><span class="th-ic">📄</span>Όνομα</th>
+<th style="text-align:right;padding-right:10px;"><span class="th-ic">🗺️</span>Ενέργεια</th>
 </tr>
 </thead>
 <tbody id="fileRows"></tbody>
 </table>
 <div class="hint" id="filesHint">
-<b>Load</b> = φορτώνει δεδομένα στο κύριο εργαλείο (π.χ. λεκάνη).<br/>
-<b>Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
-<b>On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
+<b>🗺 Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
+<b>👁 On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
+<b>➕ / 🧹</b> (στην κεφαλίδα κατηγορίας) = προσθήκη/εκκαθάριση επιλογής στο <b>κεντρικό panel</b>,
+με βάση το τελευταίο αρχείο που πάτησες (Map ή On/Off) στην κατηγορία.<br/>
 </div>
+<div class="hint" id="filesMsg" style="display:none;margin-top:6px"></div>
 </div>
 </div></section>
 ></aside>
@@ -1651,7 +1710,7 @@
 <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Διοικητικά Όρια: <span id="selectedBoundaryName">—</span></span><span class="summary-right"><button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedBoundary()" title="Reset" type="button">⟲</button></span></span></summary>
 <div class="monitor-panel-body" style="margin-top:0">
 <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Διοικητικά Όρια</b> για να ενημερωθεί η επιλογή.
+          Διάλεξε ένα αρχείο από την ενότητα <b>Διοικητικά Όρια</b> (🗺 Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
         </div>
 </div>
 </details>
@@ -1660,7 +1719,7 @@
 <summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></span><span class="summary-right"><button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedStream()" title="Reset" type="button">⟲</button></span></span></summary>
 <div class="monitor-panel-body" style="margin-top:0">
 <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> για να ενημερωθεί η επιλογή.
+          Διάλεξε ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> (🗺 Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
         </div>
 </div>
 </details>
@@ -1676,7 +1735,7 @@
 </summary>
 <div class="monitor-panel-body" style="margin-top:0">
 <div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
-          Φόρτωσε (Load) ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> για να ενημερωθεί η επιλογή.
+          Διάλεξε ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> (🗺 Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
         </div>
 </div>
 </details>
@@ -2082,11 +2141,16 @@ async function refreshSelectedMeteoMarkers(){
 }
 
 function updateMeteoStationsRowButton(){
-  const btn = document.getElementById('btn-onoff-meteoStations');
-  if(!btn) return;
-  btn.textContent = METEO_STATIONS_VISIBLE ? 'On' : 'Off';
-  btn.classList.toggle('btn-on', METEO_STATIONS_VISIBLE);
-  btn.classList.toggle('btn-off', !METEO_STATIONS_VISIBLE);
+  const btns = [
+    document.getElementById('btn-onoff-meteoStations'),
+    document.getElementById('btn-onoff-meteoStations-2')
+  ].filter(Boolean);
+  if(!btns.length) return;
+  for(const btn of btns){
+    btn.textContent = METEO_STATIONS_VISIBLE ? '👁 On' : '👁 Off';
+    btn.classList.toggle('btn-on', METEO_STATIONS_VISIBLE);
+    btn.classList.toggle('btn-off', !METEO_STATIONS_VISIBLE);
+  }
 }
 
 function toggleMeteoStationsLayer(){
@@ -3414,10 +3478,19 @@ if(!loaded){
 function renderFileList(){
   const tbody = document.getElementById('fileRows');
   tbody.innerHTML = '';
-  const addCategory = (title, list, icon, color) => {
+  const addCategory = (catKey, title, list, icon, color) => {
     const trHead = document.createElement('tr');
     trHead.className = 'cat-row';
-    trHead.innerHTML = `<td colspan="2" style="color:${color}">${icon} ${title}</td>`;
+    trHead.innerHTML = `
+      <td colspan="2" style="color:${color}">
+        <div class="cat-head">
+          <span class="cat-title">${icon} ${title}</span>
+          <span class="cat-actions no-print">
+            <button class="mini-btn btn-on" onclick="geoAddFromCategory('${catKey}')" title="➕ Προσθήκη στο κεντρικό panel">➕</button>
+            <button class="mini-btn btn-gray" onclick="geoClearCategory('${catKey}')" title="🧹 Εκκαθάριση από το κεντρικό panel">🧹</button>
+          </span>
+        </div>
+      </td>`;
     tbody.appendChild(trHead);
 
     list.forEach(f=>{
@@ -3428,10 +3501,9 @@ function renderFileList(){
       tr.innerHTML = `
         <td style="text-align:left;padding-left:10px;">${name}</td>
         <td><div class="actions-row">
-          <button class="mini-btn btn-load" onclick="loadToTool('${f.path}','${name}')">Load</button>
-          <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')">Map</button>
+          <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')" title="Χάρτης: προεπισκόπηση (zoom) χωρίς αλλαγή On/Off">🗺 Map</button>
           <button class="mini-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
-                  onclick="toggleLayer('${f.path}','${name}')">${on ? 'On' : 'Off'}</button>
+                  onclick="toggleLayer('${f.path}','${name}')">${on ? '👁 On' : '👁 Off'}</button>
         </div></td>
       `;
       tbody.appendChild(tr);
@@ -3439,9 +3511,9 @@ function renderFileList(){
   };
 
   // ORDER REQUESTED: boundaries -> streams -> basins
-  addCategory("Διοικητικά Όρια", DATA_GROUPS.boundaries, "🏳️", "#0f0f0f");
-  addCategory("💧 Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#0f0f0f");
-  addCategory("Λεκάνες Απορροής", DATA_GROUPS.basins, "🏞️", "#0f0f0f");
+  addCategory("boundaries", "Διοικητικά Όρια", DATA_GROUPS.boundaries, "🏳️", "#0f0f0f");
+  addCategory("streams", "Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#0f0f0f");
+  addCategory("basins", "Λεκάνες Απορροής", DATA_GROUPS.basins, "🏞️", "#0f0f0f");
 }
 
 function cssSafe(s){
@@ -3571,6 +3643,7 @@ async function loadToTool(path, name){
 // Map preview: opens map, zooms to that layer, WITHOUT changing On/Off
 async function previewOnMap(path, name){
   try{
+    noteGeoPick(path, name);
     openMapModal();
     const gj = await fetchGeoJSON(path);
 
@@ -3599,6 +3672,7 @@ async function previewOnMap(path, name){
 
 // On/Off toggle: NO map open; NO zoom; just state + map update if map is open
 async function toggleLayer(path, name){
+  try{ noteGeoPick(path, name); }catch(_){ }
   const btn = document.getElementById('btn-onoff-' + cssSafe(path));
   const turningOn = !VISIBLE.has(path);
 
@@ -3606,7 +3680,7 @@ async function toggleLayer(path, name){
   else VISIBLE.delete(path);
 
   if(btn){
-    btn.textContent = turningOn ? 'On' : 'Off';
+    btn.textContent = turningOn ? '👁 On' : '👁 Off';
     btn.classList.toggle('btn-on', turningOn);
     btn.classList.toggle('btn-off', !turningOn);
   }
@@ -3626,7 +3700,7 @@ function turnAllOff(){
 
   // update buttons
   document.querySelectorAll('button[id^="btn-onoff-"]').forEach(b=>{
-    b.textContent = 'Off';
+    b.textContent = '👁 Off';
     b.classList.remove('btn-on');
     b.classList.add('btn-off');
   });
@@ -3664,6 +3738,76 @@ function categoryFromPath(path){
   if(path.includes('data/boundaries/')) return 'boundaries';
   if(path.includes('data/streams/') || path.includes('streams/geojson/')) return 'streams';
   return 'basins';
+}
+
+const LAST_GEO_PICK = { boundaries: null, streams: null, basins: null };
+
+function noteGeoPick(path, name){
+  try{
+    const cat = categoryFromPath(path);
+    if(!cat) return;
+    LAST_GEO_PICK[cat] = { path, name, ts: Date.now() };
+  }catch(_){}
+}
+
+function flashFilesMsg(text){
+  try{
+    const el = document.getElementById('filesMsg');
+    if(!el) return;
+    el.textContent = text;
+    el.style.display = 'block';
+    clearTimeout(window.__filesMsgT);
+    window.__filesMsgT = setTimeout(()=>{ try{ el.style.display='none'; }catch(_){} }, 2600);
+  }catch(_){}
+}
+
+function geoPickFromVisible(cat){
+  try{
+    for(const p of VISIBLE){
+      if(categoryFromPath(p) === cat) return p;
+    }
+  }catch(_){}
+  return null;
+}
+
+function geoAddFromCategory(cat){
+  try{
+    const last = LAST_GEO_PICK[cat];
+    let path = last && last.path;
+    let name = last && last.name;
+
+    if(!path){
+      const p = geoPickFromVisible(cat);
+      if(p){
+        path = p;
+        name = p.split('/').pop().replace('.geojson','');
+      }
+    }
+
+    if(!path){
+      const label = (cat==='boundaries') ? 'Διοικητικά Όρια' : (cat==='streams' ? 'Υδρογραφικό Δίκτυο' : 'Λεκάνες Απορροής');
+      flashFilesMsg(`Δεν έχει επιλεγεί αρχείο για ${label}. Πάτησε 🗺 Map ή 👁 On σε ένα αρχείο πρώτα.`);
+      return;
+    }
+
+    loadToTool(path, name);
+    flashFilesMsg(`➕ Προστέθηκε στο κεντρικό panel: ${name}`);
+  }catch(e){
+    console.warn('geoAddFromCategory failed', e);
+  }
+}
+
+function geoClearCategory(cat){
+  try{
+    if(cat === 'boundaries') resetSelectedBoundary();
+    else if(cat === 'streams') resetSelectedStream();
+    else resetSelectedZone();
+
+    const label = (cat==='boundaries') ? 'Διοικητικά Όρια' : (cat==='streams' ? 'Υδρογραφικό Δίκτυο' : 'Λεκάνες Απορροής');
+    flashFilesMsg(`🧹 Εκκαθάριση επιλογής: ${label}`);
+  }catch(e){
+    console.warn('geoClearCategory failed', e);
+  }
 }
 
 function styleForCategory(cat, preview=false){
