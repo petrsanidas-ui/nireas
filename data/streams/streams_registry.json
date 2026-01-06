@@ -1,0 +1,5 @@
+[
+  {"type":"stream","stream_id":"kleisthenous","name":"Κλεισθένους","file":"data/streams/geojson/kleisthenous.geojson"},
+  {"type":"stream","stream_id":"rema","name":"Ρέμα","file":"data/streams/geojson/rema.geojson"},
+  {"type":"stream","stream_id":"vrilissos","name":"Βριλησσός","file":"data/streams/geojson/vrilissos.geojson"}
+]

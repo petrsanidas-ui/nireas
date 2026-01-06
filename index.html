@@ -263,10 +263,25 @@
 
 <section class="panel-card side-card nested-card geo-card is-collapsed"><div class="section">
 <div class="panel-topbar">
-  <div class="hdr-left">📁 Αρχεία Έργου (GeoJSON)</div>
+  <div class="hdr-left">🗺️ Χωρικά Στρώματα & Ζώνες (GeoJSON)</div>
   <div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('filesBody', this)" style="width:28px;height:24px">+</button></div>
 </div>
 <div class="section-body collapsed" id="filesBody" style="padding:0">
+<div class="geo-controls no-print">
+  <button class="mini-btn btn-load" id="btnGeoReload" type="button" onclick="geoReload()">Load</button>
+  <label class="geo-chip" title="Φίλτρο βάσει Περιοχής Ενδιαφέροντος (μόνο για στρώματα που έχουν δηλωμένη κάλυψη στο registry)">
+    <input type="checkbox" id="geoUseAOI" checked> AOI
+  </label>
+  <select id="geoCategory" class="mini-btn btn-gray" aria-label="geoCategory" title="Κατηγορία">
+    <option value="all">Όλες οι κατηγορίες</option>
+    <option value="streams">Υδρογραφικό Δίκτυο</option>
+    <option value="basins">Λεκάνες Απορροής</option>
+  </select>
+  <input class="geo-search" id="geoSearch" type="search" placeholder="Αναζήτηση στρώματος…" aria-label="geoSearch"/>
+  <button class="mini-btn btn-gray" type="button" onclick="geoClearFilters()" title="Καθαρισμός φίλτρων">🧹</button>
+</div>
+<div class="geo-summary" id="geoSummary">Στρώματα: —</div>
+
 <div id="loader">Φόρτωση δεδομένων από GitHub…</div>
 <table>
 <thead>
@@ -278,6 +293,10 @@
 <tbody id="fileRows"></tbody>
 </table>
 <div class="hint" id="filesHint">
+<div style="margin-bottom:6px">
+  Στρώματα GeoJSON που χρησιμοποιούνται για χάρτη/ανάλυση (π.χ. ρέματα, λεκάνες, ζώνες). <b>Δεν</b> είναι τα διοικητικά όρια (αυτά είναι στο AOI/Διοικητικά).
+</div>
+
 <b><span class="ico-map">🗺</span> Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
 <b>👁 On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
 <b>➕ / 🧹</b> (ανά αρχείο) = προσθήκη/εκκαθάριση επιλογής στο <b>κεντρικό panel</b>.<br/>

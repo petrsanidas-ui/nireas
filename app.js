@@ -84,12 +84,25 @@ const GH_BRANCH = 'main';
 const API_TREE  = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/trees/${GH_BRANCH}?recursive=1`;
 const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/`;
 
+// Data loading mode:
+// - 'local' : load from local "data/" folder (works on localhost and GitHub Pages; supports offline local server)
+// - 'github': auto-discover files via GitHub API tree (requires internet and is rate-limited)
+const DATA_MODE = 'local';
+
+const DATA_BASE = (DATA_MODE === 'github') ? RAW_URL : '';
+
 let DATA_GROUPS = { boundaries: [], streams: [], basins: [] }; // NOTE ORDER
 
 // Admin areas registry (for AOI & boundaries typing)
 let ADMIN_AREAS_REGISTRY = [];
 let ADMIN_AREAS_BY_KEY = new Map();
 let ADMIN_AREAS_BY_FILE = new Map();
+
+// Project GeoJSON layers registry (optional): data/geo/project_layers_registry.json
+let PROJECT_LAYERS_REGISTRY = [];
+let PROJECT_LAYERS_BY_FILE = new Map();
+let GEO_FILTER = { useAOI: true, category: 'all', q: '' };
+
 
 let SELECTED_GEO = null;
 let SELECTED_BASIN_KEY = null;
@@ -1649,86 +1662,160 @@ function debounce(fn, wait=150){
 
 
 /* ===================== GITHUB LOAD ===================== */
+
+/* ===================== DATA BOOTSTRAP ===================== */
+async function buildLocalFilesIndex(){
+  const files = [];
+  const seen = new Set();
+  const add = (p)=>{
+    p = String(p||'').trim();
+    if(!p) return;
+    if(seen.has(p)) return;
+    seen.add(p);
+    files.push({path:p});
+  };
+
+  // core files
+  add('data/boundaries/admin_areas_registry.json');
+  add('data/geo/project_layers_registry.json');
+  add('data/forecast/forecast.txt');
+  add('data/WaterLevelSensors/WaterLevelSensors.txt');
+  add('data/resources/human_resources.json');
+  add('data/resources/vehicles.json');
+  add('data/resources/materials.json');
+  add('data/meteostations/api/stations.txt');
+  add('data/meteostations/weblinks/stations.txt');
+
+  // defaults (if no registry JSON exists)
+  const defaultStreams = [
+    'data/streams/geojson/kleisthenous.geojson',
+    'data/streams/geojson/rema.geojson',
+    'data/streams/geojson/vrilissos.geojson'
+  ];
+  const defaultBasins = [
+    'data/basins/map_2.geojson',
+    'data/basins/vrilissos.geojson'
+  ];
+
+  async function tryLoadRegistry(path){
+    try{
+      const resp = await fetch(DATA_BASE + path, { cache: 'no-store' });
+      if(!resp.ok) return null;
+      const json = await resp.json();
+      if(!Array.isArray(json)) return null;
+      return json;
+    }catch(_){
+      return null;
+    }
+  }
+
+  const streamsReg = await tryLoadRegistry('data/streams/streams_registry.json');
+  const basinsReg  = await tryLoadRegistry('data/basins/basins_registry.json');
+
+  const streamPaths = (streamsReg && streamsReg.length)
+    ? streamsReg.map(e=>String(e?.file||'').trim()).filter(Boolean)
+    : defaultStreams.slice();
+
+  const basinPaths = (basinsReg && basinsReg.length)
+    ? basinsReg.map(e=>String(e?.file||'').trim()).filter(Boolean)
+    : defaultBasins.slice();
+
+  DATA_GROUPS.streams = streamPaths.map(p=>({path:p}));
+  DATA_GROUPS.basins  = basinPaths.map(p=>({path:p}));
+
+  streamPaths.forEach(add);
+  basinPaths.forEach(add);
+
+  // boundaries are filled AFTER admin_areas_registry is loaded
+  return files;
+}
+
+async function buildGithubFilesIndex(){
+  const resp = await fetch(API_TREE, { cache: 'no-store' });
+  const data = await resp.json();
+  if(data.message) throw new Error(data.message);
+
+  const files = data.tree || [];
+
+  DATA_GROUPS.boundaries = files.filter(f => f.path.includes('data/boundaries/') && f.path.endsWith('.geojson'));
+  DATA_GROUPS.streams    = files.filter(f => (f.path.includes('data/streams/') || f.path.includes('streams/geojson/')) && f.path.endsWith('.geojson'));
+  DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/') && f.path.endsWith('.geojson'));
+
+  return files;
+}
+
+/* ===================== APP INIT ===================== */
 async function init(){
   document.getElementById('loader').style.display = 'block';
   try{
-    const resp = await fetch(API_TREE);
-    const data = await resp.json();
-    if(data.message) throw new Error(data.message);
-
-    const files = data.tree || [];
-
-    // IMPORTANT: paths based on your current repo layout (from previous versions)
-    // data/boundaries, data/streams, data/basins
-    DATA_GROUPS.boundaries = files.filter(f => f.path.includes('data/boundaries/') && f.path.endsWith('.geojson'));
-    DATA_GROUPS.streams    = files.filter(f => (f.path.includes('data/streams/') || f.path.includes('streams/geojson/')) && f.path.endsWith('.geojson'));
-    DATA_GROUPS.basins     = files.filter(f => f.path.includes('data/basins/')     && f.path.endsWith('.geojson'));
+    // IMPORTANT: if opened from file://, fetch() of local files is blocked by the browser.
+    if(location.protocol === 'file:'){
+      updateMeteoStatus('⚠️ Άνοιγμα ως file://: ο browser μπλοκάρει τη φόρτωση αρχείων (fetch). Άνοιξε με local server (π.χ. python -m http.server).');
+    }
 
     restoreUiStateEarly();
     initAIAnalysisUI();
     updateMeteoStationsRowButton();
-    renderFileList();
+
+    const files = (DATA_MODE === 'github')
+      ? await buildGithubFilesIndex()
+      : await buildLocalFilesIndex();
+
+    // Registries
     await loadAdminAreasRegistryFromTree(files);
-    // upgrade older AOI saves (paths -> ids) once registry is available
-    try{ upgradeLegacyAoiPathsToSelected(); computeAoiDerived(); }catch(_){ }
-    renderBoundariesList();
-    try{ renderAOIList(); }catch(_){ }
-    try{ updateAOIUI(); }catch(_){ }
-
-    // AOI type filter
-    try{
-      const el = document.getElementById('aoiType');
-      if(el && !el.dataset.bound){
-        el.addEventListener('change', ()=>{ renderAOIList(); });
-        el.dataset.bound = 'true';
-      }
-    }catch(_){ }
+    // boundaries list: only entries that have a concrete GeoJSON file
+    DATA_GROUPS.boundaries = (ADMIN_AREAS_REGISTRY || []).filter(e=>e && e.file).map(e=>({path:String(e.file).trim()}));
 
 
-    // Forecast sources (web links) from repo folder: data/forecast/forecast.txt
-    try{ await loadForecastSourcesFromTree(files); }catch(e){ console.warn('Forecast Source load failed:', e); }
+    // AOI: render early so you always see choices even if other parts fail
+    try{ bindAOITypeChangeOnce(); }catch(e){ console.warn("bindAOITypeChangeOnce failed", e); }
+    try{ renderAOIList(); }catch(e){ console.warn("renderAOIList failed", e); }
+    try{ updateAOIUI(); }catch(e){ console.warn("updateAOIUI failed", e); }
 
-    // Water level sensors (web links) from repo folder: data/WaterLevelSensors/WaterLevelSensors.txt
-    try{ await loadWaterLevelSourcesFromTree(files); }catch(e){ console.warn('Water Level Sensors load failed:', e); }
+    await loadProjectLayersRegistryFromTree(files);
 
-    // Human Resources (JSON) from repo folder: data/resources/human_resources.json
-    try{ await loadHumanResourcesFromTree(files); }catch(e){ console.warn('HR load failed:', e); }
-    try{ bindHumanResourcesUI(); }catch(_){ }
+    // UI binds
+    bindGeoFilesUI();
 
-    // Vehicles (JSON) from repo folder: data/resources/vehicles.json
-    try{ await loadVehiclesFromTree(files); }catch(e){ console.warn('Vehicles load failed:', e); }
-    try{ bindVehiclesUI(); }catch(_){ }
+    // Upgrade legacy AOI selections (paths) -> ids (once registry exists)
+    try{ upgradeLegacyAoiPathsToSelected(); computeAoiDerived(); computeAoiExpanded(); }catch(_){ }
+    // Render lists (never break init)
+    try{ renderFileList(); }catch(e){ console.warn("renderFileList failed", e); }
+    try{ renderBoundariesList(); }catch(e){ console.warn("renderBoundariesList failed", e); }
+    try{ renderAOIList(); }catch(e){ console.warn("renderAOIList failed", e); }
+    try{ updateAOIUI(); }catch(e){ console.warn("updateAOIUI failed", e); }
 
-    // Materials (JSON) from repo folder: data/resources/materials.json
-    try{ await loadMaterialsFromTree(files); }catch(e){ console.warn('Materials load failed:', e); }
-    try{ bindMaterialsUI(); }catch(_){ }
+    // keep AOI type choice consistent with selected entries
+    try{ loadPersistedAOIType(); }catch(_){ }
 
-    // Auto-populate stations dropdown from folder structure:
-// - data/meteostations/api/*.txt      -> API / JSON
-// - data/meteostations/weblinks/*.txt -> Web Links
-const loaded = await fetchStationsFromFolders(files);
+    // Forecast / water level sources
+    try{ await loadForecastSourcesFromTree(files); }catch(e){ console.warn('Forecast sources load failed', e); }
+    try{ await loadWaterLevelSourcesFromTree(files); }catch(e){ console.warn('Water level sources load failed', e); }
 
-if(!loaded){
-  // Backward-compatible fallback (older layouts)
-  const stationFile =
-    files.find(f => f.path === 'data/meteostations/weblinks/stations.txt') ||
-    files.find(f => f.path.endsWith('/stations.txt') || f.path.endsWith('stations.txt')) ||
-    files.find(f => f.path.endsWith('openmeteo.txt')) ||
-    files.find(f => f.path.endsWith('ecmwf.txt'));
+    // HR / Vehicles / Materials
+    try{ await loadHumanResourcesFromTree(files); }catch(e){ console.warn('HR load failed', e); }
+    try{ await loadVehiclesFromTree(files); }catch(e){ console.warn('Vehicles load failed', e); }
+    try{ await loadMaterialsFromTree(files); }catch(e){ console.warn('Materials load failed', e); }
 
-  if(stationFile) await fetchStations(stationFile.path);
-  else {
-    updateMeteoStatus("Δεν βρέθηκαν αρχεία σταθμών (.txt) σε data/meteostations/api ή data/meteostations/weblinks");
-    // safe fallback: keep dropdown empty
-  }
-}
+    // Stations (from folders) — resilient to either {path} objects or plain strings
+    const loadedStations = await fetchStationsFromFolders(files);
+    if(!loadedStations){
+      // fallback: try the legacy single-file loader (if files exist)
+      try{
+        const respWeb = await fetch(DATA_BASE + 'data/meteostations/weblinks/stations.txt', { cache: 'no-store' });
+        if(respWeb.ok){
+          await fetchStations('data/meteostations/weblinks/stations.txt');
+        }else{
+          const respApi = await fetch(DATA_BASE + 'data/meteostations/api/stations.txt', { cache: 'no-store' });
+          if(respApi.ok) await fetchStations('data/meteostations/api/stations.txt');
+        }
+      }catch(_){ }
+    }
 
-    // Restore local custom stations + watchlist (no coding required)
     loadCustomStationsIntoSelect();
     loadWatchlist();
     renderWatchlist();
 
-    // Keep values + selected GeoJSON after refresh
     bindPersistenceOnce();
     await restoreUiStateLate();
 
@@ -1736,18 +1823,24 @@ if(!loaded){
     runMasterCalculation();
     updateStationButtons();
     initMonitorContentToggle();
+
     loadScenarioState();
-    try{ applyScenarioUI(MODEL_SCENARIO || (document.getElementById('modelScenario')?.value) || ''); }catch(_){}
-    try{ refreshScenarioPanels(); }catch(_){}
+
+    // auto-run scenario when it was saved
+    try{
+      const savedScenarioType = getStored(LS_SCENARIO_TYPE) || '';
+      const s = SCENARIO_LIBRARY[savedScenarioType];
+      if(savedScenarioType && s){
+        applyScenarioUI(savedScenarioType, s);
+        refreshScenarioPanels();
+      }
+    }catch(e){ console.warn('Scenario load error', e); }
 
     updateLocalScenarioBtn();
     startStationFreshnessTimer();
 
-    // If dropdown has a pending selection (but no ACTIVE yet), show "αναμονή"
-    const sel = document.getElementById('meteoStationSelect');
-    if(sel && sel.value && !getPrimaryStationUrl()){
-      updatePrimaryStatus('Κύριος: Αναμονή…', 'neutral');
-    } else if(!getPrimaryStationUrl()){
+    // Status line
+    if(!getPrimaryStationUrl()){
       updatePrimaryStatus('Κύριος: (δεν έχει επιλεγεί)', 'warn');
     }
 
@@ -1758,7 +1851,10 @@ if(!loaded){
 
   }catch(e){
     console.error(e);
-    updateMeteoStatus("Σφάλμα GitHub: " + e.message);
+    const msg = (DATA_MODE === 'github')
+      ? ('Σφάλμα GitHub: ' + (e?.message || e))
+      : ('Σφάλμα φόρτωσης τοπικών δεδομένων: ' + (e?.message || e));
+    updateMeteoStatus(msg);
   }finally{
     document.getElementById('loader').style.display = 'none';
   }
@@ -1806,6 +1902,32 @@ function normalizeAdminAreaType(t){
   if(s === 'pref_unit' || s === 'municipality' || s === 'region') return s;
   return s;
 }
+
+function bindAOITypeChangeOnce(){
+  const sel = document.getElementById('aoiType');
+  if(!sel || sel.dataset.bound === '1') return;
+  sel.dataset.bound = '1';
+
+  sel.addEventListener('change', ()=>{
+    const newType = normalizeAdminAreaType(sel.value || 'municipality');
+
+    // Reset selection on type change to avoid mixing incompatible ids
+    AOI_STATE = AOI_STATE || {};
+    AOI_STATE.type = newType;
+    AOI_STATE.selected = emptyAoiSelected();
+    AOI_STATE.expanded = emptyAoiSelected();
+    AOI_STATE.items = [];
+    AOI_STATE.names = [];
+    AOI_STATE.paths = [];
+
+    try{ renderAOIList(); }catch(e){ console.warn('renderAOIList failed', e); }
+    try{ updateAOIUI(); }catch(e){ console.warn('updateAOIUI failed', e); }
+    try{ syncAoiLayerToMap(); }catch(_){ }
+    try{ renderHumanResources(); }catch(_){ }
+    try{ renderVehicles(); }catch(_){ }
+    try{ renderMaterials(); }catch(_){ }
+  });
+}
 function adminAreaIdFromEntry(e){
   const type = normalizeAdminAreaType(e?.type);
   if(type === 'municipality') return String(e?.municipality_id || '');
@@ -1844,7 +1966,7 @@ async function loadAdminAreasRegistryFromTree(files){
       return;
     }
 
-    const resp = await fetch(RAW_URL + f.path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης admin_areas_registry.json (HTTP ' + resp.status + ')');
 
     const json = await resp.json();
@@ -1889,6 +2011,45 @@ async function loadAdminAreasRegistryFromTree(files){
     buildAdminAreasMaps();
   }
 }
+
+async function loadProjectLayersRegistryFromTree(files){
+  try{
+    const f =
+      (files||[]).find(x => x.path === 'data/geo/project_layers_registry.json') ||
+      (files||[]).find(x => x.path === 'data/geo/geo_layers_registry.json') ||
+      (files||[]).find(x => x.path.endsWith('/project_layers_registry.json')) ||
+      (files||[]).find(x => x.path.endsWith('/geo_layers_registry.json'));
+
+    if(!f){
+      PROJECT_LAYERS_REGISTRY = [];
+      PROJECT_LAYERS_BY_FILE = new Map();
+      return;
+    }
+
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
+    if(!resp.ok) throw new Error('Αποτυχία λήψης project_layers_registry.json (HTTP ' + resp.status + ')');
+
+    const json = await resp.json();
+    if(!Array.isArray(json)) throw new Error('Το project_layers_registry.json πρέπει να είναι JSON array');
+
+    PROJECT_LAYERS_REGISTRY = json.map(raw=>{
+      const file = String(raw.file||'').trim();
+      const name = String(raw.name||'').trim();
+      const category = String(raw.category||'').trim(); // streams|basins|...
+      const municipality_ids = Array.isArray(raw.municipality_ids) ? raw.municipality_ids.map(String).map(s=>s.trim()).filter(Boolean) : [];
+      const tags = Array.isArray(raw.tags) ? raw.tags.map(String).map(s=>s.trim()).filter(Boolean) : [];
+      return { file, name, category, municipality_ids, tags };
+    }).filter(e => e.file);
+
+    PROJECT_LAYERS_BY_FILE = new Map(PROJECT_LAYERS_REGISTRY.map(e=>[e.file, e]));
+  }catch(e){
+    console.warn('Project layers registry load failed:', e);
+    PROJECT_LAYERS_REGISTRY = [];
+    PROJECT_LAYERS_BY_FILE = new Map();
+  }
+}
+
+
 
 function emptyAoiSelected(){
   return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
@@ -2344,10 +2505,136 @@ function restoreAOIFromSavedState(st){
 /* =================== /AOI =================== */
 
 
+
+
+function bindGeoFilesUI(){
+  try{
+    const cat = document.getElementById('geoCategory');
+    const q = document.getElementById('geoSearch');
+    const useAOI = document.getElementById('geoUseAOI');
+
+    if(cat && !cat.dataset.bound){
+      cat.addEventListener('change', ()=>{ GEO_FILTER.category = cat.value || 'all'; renderFileList(); });
+      cat.dataset.bound = 'true';
+    }
+    if(useAOI && !useAOI.dataset.bound){
+      useAOI.addEventListener('change', ()=>{ GEO_FILTER.useAOI = !!useAOI.checked; renderFileList(); });
+      useAOI.dataset.bound = 'true';
+    }
+    if(q && !q.dataset.bound){
+      q.addEventListener('input', debounce(()=>{ GEO_FILTER.q = q.value || ''; renderFileList(); }, 120));
+      q.dataset.bound = 'true';
+    }
+  }catch(_){}
+}
+
+function geoClearFilters(){
+  try{
+    const cat = document.getElementById('geoCategory');
+    const q = document.getElementById('geoSearch');
+    const useAOI = document.getElementById('geoUseAOI');
+
+    if(cat) cat.value = 'all';
+    if(q) q.value = '';
+    if(useAOI) useAOI.checked = true;
+
+    GEO_FILTER = { useAOI: true, category: 'all', q: '' };
+    renderFileList();
+  }catch(_){}
+}
+
+async function geoReload(){
+  const loader = document.getElementById('loader');
+  if(loader) loader.style.display = 'block';
+  try{
+    let files = [];
+    if(DATA_MODE === 'github'){
+      files = await buildGithubFilesIndex();
+    }else{
+      files = await buildLocalFilesIndex();
+    }
+
+    await loadAdminAreasRegistryFromTree(files);
+    DATA_GROUPS.boundaries = (ADMIN_AREAS_REGISTRY || []).filter(e=>e && e.file).map(e=>({path:String(e.file).trim()}));
+
+
+    // AOI: render early so you always see choices even if other parts fail
+    try{ bindAOITypeChangeOnce(); }catch(e){ console.warn("bindAOITypeChangeOnce failed", e); }
+    try{ renderAOIList(); }catch(e){ console.warn("renderAOIList failed", e); }
+    try{ updateAOIUI(); }catch(e){ console.warn("updateAOIUI failed", e); }
+
+    await loadProjectLayersRegistryFromTree(files);
+
+    try{ upgradeLegacyAoiPathsToSelected(); computeAoiDerived(); computeAoiExpanded(); }catch(_){}
+    renderFileList();
+    try{ renderBoundariesList(); }catch(_){}
+    try{ renderAOIList(); updateAOIUI(); }catch(_){}
+  }catch(e){
+    console.warn('geoReload failed:', e);
+    const msg = document.getElementById('filesMsg');
+    if(msg){
+      msg.style.display = 'block';
+      msg.textContent = 'Σφάλμα επαναφόρτωσης: ' + (e?.message || e);
+    }
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
+
 function renderFileList(){
   const tbody = document.getElementById('fileRows');
+  if(!tbody) return;
+
   tbody.innerHTML = '';
-  const addCategory = (catKey, title, list, icon, color) => {
+
+  // read latest UI values (in case called before bind)
+  try{
+    const cat = document.getElementById('geoCategory');
+    const q = document.getElementById('geoSearch');
+    const useAOI = document.getElementById('geoUseAOI');
+
+    if(cat) GEO_FILTER.category = cat.value || GEO_FILTER.category || 'all';
+    if(q)   GEO_FILTER.q = q.value || '';
+    if(useAOI) GEO_FILTER.useAOI = !!useAOI.checked;
+  }catch(_){}
+
+  const q = (GEO_FILTER.q || '').trim().toLowerCase();
+  const wantCat = GEO_FILTER.category || 'all';
+  const useAOI = !!GEO_FILTER.useAOI;
+
+  const expanded = AOI_STATE?.expanded?.municipality_ids || [];
+  const expandedSet = new Set(expanded.map(String));
+
+  const stats = { total: 0, shown: 0, on: 0, streams: 0, basins: 0 };
+
+  const addCategory = (catKey, title, list, icon) => {
+    if(wantCat !== 'all' && wantCat !== catKey) return;
+
+    const rows = (list || []).filter(f=>{
+      // Name for search
+      const meta = PROJECT_LAYERS_BY_FILE.get(f.path);
+      const nameFromMeta = meta?.name ? meta.name : '';
+      const nameFallback = f.path.split('/').pop().replace('.geojson','');
+      const name = (nameFromMeta || nameFallback || '').toLowerCase();
+
+      if(q && !name.includes(q)) return false;
+
+      // Optional AOI filter (applies only when a layer has declared municipality_ids in registry)
+      if(useAOI && expandedSet.size){
+        const mu = meta?.municipality_ids || [];
+        if(mu.length){
+          for(const id of mu){
+            if(expandedSet.has(String(id))) return true;
+          }
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if(!rows.length) return;
+
     const trHead = document.createElement('tr');
     trHead.className = 'cat-row';
     trHead.innerHTML = `
@@ -2358,29 +2645,55 @@ function renderFileList(){
       </td>`;
     tbody.appendChild(trHead);
 
-    list.forEach(f=>{
-      const reg = ADMIN_AREAS_BY_FILE.get(f.path);
-    const name = reg ? reg.name : f.path.split('/').pop().replace('.geojson','');
-      const tr = document.createElement('tr');
+    rows.forEach(f=>{
+      const meta = PROJECT_LAYERS_BY_FILE.get(f.path);
+      const reg = ADMIN_AREAS_BY_FILE.get(f.path); // kept for backward-compat (names)
+      const name = (meta?.name || reg?.name || f.path.split('/').pop().replace('.geojson','')).trim();
+
       const on = VISIBLE.has(f.path);
+
+      // meta line
+      const tags = (meta?.tags || []).slice(0,4);
+      const cov = (meta?.municipality_ids || []).length ? `Κάλυψη: ${(meta.municipality_ids||[]).length} δήμοι` : 'Κάλυψη: —';
+      const metaLine = `${title}${tags.length ? ' • ' + tags.join(', ') : ''} • ${cov}`;
+
+      const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="text-align:left;padding-left:10px;">${name}</td>
-        <td><div class="actions-row">
-          <button class="mini-btn btn-on" onclick="geoAddFromRow('${catKey}','${f.path}','${name}')" title="➕ Προσθήκη στο κεντρικό panel">➕</button>
-          <button class="mini-btn btn-gray" onclick="geoClearCategory('${catKey}')" title="🧹 Εκκαθάριση από το κεντρικό panel">🧹</button>
-          <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${name}')" title="Προεπισκόπηση στον χάρτη (zoom), χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
-          <button class="mini-btn map-only-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
-                  onclick="toggleLayer('${f.path}','${name}')"><span class="ico-eye">👁</span> ${on ? 'On' : 'Off'}</button>
-        </div></td>
+        <td style="text-align:left;padding-left:10px;">
+          <div class="geo-name">${escapeHtml(name)}</div>
+          <div class="geo-meta">${escapeHtml(metaLine)}</div>
+        </td>
+        <td>
+          <div class="actions-row">
+            <button class="mini-btn btn-on" onclick="geoAddFromRow('${f.path}','${escapeHtmlAttr(name)}')" title="➕ Προσθήκη στο κεντρικό panel">➕</button>
+            <button class="mini-btn btn-gray" onclick="geoClearCategory('${catKey}')" title="🧹 Εκκαθάριση από το κεντρικό panel">🧹</button>
+            <button class="mini-btn btn-map" onclick="previewOnMap('${f.path}','${escapeHtmlAttr(name)}')" title="Προεπισκόπηση στον χάρτη χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
+            <button class="mini-btn map-only-btn ${on ? 'btn-on' : 'btn-off'}" id="btn-onoff-${cssSafe(f.path)}"
+                    onclick="toggleLayer('${f.path}','${escapeHtmlAttr(name)}')"><span class="ico-eye">👁</span> ${on ? 'On' : 'Off'}</button>
+          </div>
+        </td>
       `;
+
       tbody.appendChild(tr);
+
+      stats.total += 1;
+      stats.shown += 1;
+      if(on) stats.on += 1;
+      if(catKey === 'streams') stats.streams += 1;
+      if(catKey === 'basins') stats.basins += 1;
     });
   };
 
-  // Streams + Basins stay in "Αρχεία Έργου (GeoJSON)"
-  addCategory("streams", "Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧", "#0f0f0f");
-  addCategory("basins", "Λεκάνες Απορροής", DATA_GROUPS.basins, "🏞️", "#0f0f0f");
+  addCategory("streams", "Υδρογραφικό Δίκτυο", DATA_GROUPS.streams, "💧");
+  addCategory("basins", "Λεκάνες Απορροής", DATA_GROUPS.basins, "🏞️");
+
+  const sum = document.getElementById('geoSummary');
+  if(sum){
+    sum.textContent = `Στρώματα: ${stats.shown}  |  On: ${stats.on}`;
+  }
 }
+
+
 
 function cssSafe(s){
   return btoa(unescape(encodeURIComponent(s))).replace(/=+/g,'').replace(/[+/]/g,'_');
@@ -2471,7 +2784,7 @@ async function loadForecastSourcesFromTree(treeFiles){
 
     if(!f) throw new Error('Δεν βρέθηκε το data/forecast/forecast.txt στο repo.');
 
-    const resp = await fetch(RAW_URL + f.path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης forecast.txt (HTTP ' + resp.status + ')');
 
     const text = await resp.text();
@@ -2582,7 +2895,7 @@ async function loadWaterLevelSourcesFromTree(treeFiles){
 
     if(!f) throw new Error('Δεν βρέθηκε το data/WaterLevelSensors/WaterLevelSensors.txt στο repo.');
 
-    const resp = await fetch(RAW_URL + f.path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης WaterLevelSensors.txt (HTTP ' + resp.status + ')');
 
     const text = await resp.text();
@@ -2703,7 +3016,7 @@ async function hrReload(){
 
   const path = HR_LAST_LOADED_PATH || HR_DEFAULT_PATH;
   try{
-    const resp = await fetch(RAW_URL + path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης HR JSON (HTTP ' + resp.status + ')');
     const json = await resp.json();
     if(!Array.isArray(json)) throw new Error('Το human_resources.json πρέπει να είναι JSON array');
@@ -2739,7 +3052,7 @@ async function loadHumanResourcesFromTree(treeFiles){
 
     HR_LAST_LOADED_PATH = f.path;
 
-    const resp = await fetch(RAW_URL + f.path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης HR JSON (HTTP ' + resp.status + ')');
 
     const json = await resp.json();
@@ -2957,7 +3270,7 @@ async function vehReload(){
 
   const path = VEH_LAST_LOADED_PATH || VEH_DEFAULT_PATH;
   try{
-    const resp = await fetch(RAW_URL + path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης Vehicles JSON (HTTP ' + resp.status + ')');
     const json = await resp.json();
     if(!Array.isArray(json)) throw new Error('Το vehicles.json πρέπει να είναι JSON array');
@@ -2993,7 +3306,7 @@ async function loadVehiclesFromTree(treeFiles){
 
     VEH_LAST_LOADED_PATH = f.path;
 
-    const resp = await fetch(RAW_URL + f.path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης Vehicles JSON (HTTP ' + resp.status + ')');
 
     const json = await resp.json();
@@ -3247,7 +3560,7 @@ async function matReload(){
 
   const path = MAT_LAST_LOADED_PATH || MAT_DEFAULT_PATH;
   try{
-    const resp = await fetch(RAW_URL + path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης Materials JSON (HTTP ' + resp.status + ')');
     const json = await resp.json();
     if(!Array.isArray(json)) throw new Error('Το materials.json πρέπει να είναι JSON array');
@@ -3281,7 +3594,7 @@ async function loadMaterialsFromTree(treeFiles){
 
     MAT_LAST_LOADED_PATH = f.path;
 
-    const resp = await fetch(RAW_URL + f.path, { cache: 'no-store' });
+    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
     if(!resp.ok) throw new Error('Αποτυχία λήψης Materials JSON (HTTP ' + resp.status + ')');
 
     const json = await resp.json();
@@ -3431,7 +3744,7 @@ function bindMaterialsUI(){
 
 async function fetchGeoJSON(path){
   if(GEO_CACHE.has(path)) return GEO_CACHE.get(path);
-  const resp = await fetch(RAW_URL + path);
+  const resp = await fetch(DATA_BASE + path);
   if(!resp.ok) throw new Error("Δεν βρέθηκε: " + path);
   const json = await resp.json();
   GEO_CACHE.set(path, json);
@@ -4268,7 +4581,7 @@ const rows = rest.map(r=>{
 
 
 async function readStationsFromTxt(path){
-  const resp = await fetch(RAW_URL + path, { cache: 'no-store' });
+  const resp = await fetch(DATA_BASE + path, { cache: 'no-store' });
   if(!resp.ok) throw new Error(`Δεν φορτώθηκε: ${path}`);
   const text = await resp.text();
   return parseStationsText(text, path);
@@ -4315,8 +4628,9 @@ function bindMonitorSelect(){
 // New loader: populate dropdown from folder structure
 async function fetchStationsFromFolders(files){
   try{
-    const apiTxt = (files||[]).filter(p=>p.startsWith('data/meteostations/api/'));
-    const webTxt = (files||[]).filter(p=>p.startsWith('data/meteostations/weblinks/'));
+    const paths = (files||[]).map(x => (typeof x === "string") ? x : (x && x.path ? x.path : "")).filter(Boolean);
+    const apiTxt = paths.filter(p=>p.startsWith("data/meteostations/api/"));
+    const webTxt = paths.filter(p=>p.startsWith("data/meteostations/weblinks/"));
     if(apiTxt.length===0 && webTxt.length===0) return false;
 
     const apiItems = [];
@@ -4420,7 +4734,7 @@ async function fetchStationsFromFolders(files){
 
 async function fetchStations(path){
   try{
-    const resp = await fetch(RAW_URL + path);
+    const resp = await fetch(DATA_BASE + path);
     const text = await resp.text();
     const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
 
