@@ -1,0 +1,65 @@
+[
+  {
+    "item_id": "sandbags",
+    "name": "Σάκοι άμμου",
+    "category": "Πλημμύρες",
+    "unit": "τεμ",
+    "quantity": 850,
+    "min_quantity": 500,
+    "location": "Αποθήκη ΠΠ (Χαλάνδρι)",
+    "municipality_id": "chalandri",
+    "notes": "Για άμεση διάθεση σε σημεία υψηλού κινδύνου"
+  },
+  {
+    "item_id": "road_cones",
+    "name": "Κώνοι σήμανσης",
+    "category": "Κυκλοφοριακές Ρυθμίσεις",
+    "unit": "τεμ",
+    "quantity": 120,
+    "min_quantity": 80,
+    "location": "Αποθήκη ΠΠ (Χαλάνδρι)",
+    "municipality_id": "chalandri"
+  },
+  {
+    "item_id": "warning_tape",
+    "name": "Κορδέλα σήμανσης (warning tape)",
+    "category": "Κυκλοφοριακές Ρυθμίσεις",
+    "unit": "ρολά",
+    "quantity": 24,
+    "min_quantity": 12,
+    "location": "Αποθήκη ΠΠ (Χαλάνδρι)",
+    "municipality_id": "chalandri"
+  },
+  {
+    "item_id": "portable_pump_2in",
+    "name": "Φορητή αντλία 2\"",
+    "category": "Πλημμύρες",
+    "unit": "τεμ",
+    "quantity": 3,
+    "min_quantity": 2,
+    "location": "Συνεργείο Δήμου (Χαλάνδρι)",
+    "municipality_id": "chalandri",
+    "notes": "Με σωλήνες αναρρόφησης/κατάθλιψης"
+  },
+  {
+    "item_id": "salt_25kg",
+    "name": "Αλάτι αποχιονισμού (σακί 25kg)",
+    "category": "Χιονιάς/Παγετός",
+    "unit": "σακιά",
+    "quantity": 35,
+    "min_quantity": 50,
+    "location": "Αμαξοστάσιο (Χαλάνδρι)",
+    "municipality_id": "chalandri",
+    "notes": "ΧΑΜΗΛΟ απόθεμα"
+  },
+  {
+    "item_id": "reflective_vests",
+    "name": "Ανακλαστικά γιλέκα",
+    "category": "Ατομικός Εξοπλισμός",
+    "unit": "τεμ",
+    "quantity": 42,
+    "min_quantity": 30,
+    "location": "Αποθήκη ΠΠ (Χαλάνδρι)",
+    "municipality_id": "chalandri"
+  }
+]
