@@ -1618,3 +1618,174 @@ summary.has-actions { position: relative; padding-right: 180px !important; }
 #aoiBody > .nested-panels{ margin-top:10px; }
 #resourcesBody > .nested-panels{ margin-top:0; }
 
+
+/* ===================== Human Resources (HR) ===================== */
+.hr-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.hr-controls .hr-chip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:900;
+  color:#2b3a44;
+  background:#eef4f7;
+  border:1px solid #dfe7ee;
+  padding:4px 8px;
+  border-radius:999px;
+}
+.hr-controls .hr-chip input{ margin:0; }
+.hr-search{
+  flex:1 1 220px;
+  min-width:180px;
+  padding:7px 10px;
+  border:1px solid #dfe7ee;
+  border-radius:12px;
+  font-size:12px;
+}
+.hr-summary{
+  margin-top:8px;
+  font-size:12px;
+  color:#2b3a44;
+  font-weight:900;
+}
+.hr-table-wrap{
+  margin-top:8px;
+  border:1px solid rgba(0,0,0,.06);
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+}
+.hr-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid rgba(0,0,0,.08);
+}
+.hr-status.ok{ background:#e9f7ef; }
+.hr-status.warn{ background:#fff7e6; }
+.hr-status.off{ background:#f3f4f6; color:#6b7280; }
+.hr-coverage{ font-size:11px; color:#44525d; font-weight:800; }
+
+
+/* ===================== Vehicles (Technical Means) ===================== */
+.veh-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.veh-controls .veh-chip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:900;
+  color:#2b3a44;
+  background:#eef4f7;
+  border:1px solid #dfe7ee;
+  padding:4px 8px;
+  border-radius:999px;
+}
+.veh-controls .veh-chip input{ margin:0; }
+.veh-search{
+  flex:1 1 220px;
+  min-width:180px;
+  padding:7px 10px;
+  border:1px solid #dfe7ee;
+  border-radius:12px;
+  font-size:12px;
+}
+.veh-summary{
+  margin-top:8px;
+  font-size:12px;
+  color:#2b3a44;
+  font-weight:900;
+}
+.veh-table-wrap{
+  margin-top:8px;
+  border:1px solid rgba(0,0,0,.06);
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+}
+.veh-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid rgba(0,0,0,.08);
+}
+.veh-status.ok{ background:#e9f7ef; }
+.veh-status.warn{ background:#fff7e6; }
+.veh-status.maint{ background:#eef2ff; }
+.veh-status.off{ background:#f3f4f6; color:#6b7280; }
+.veh-caps{ font-size:11px; color:#44525d; font-weight:800; }
+
+
+/* ===================== Materials (Supplies/Stock) ===================== */
+.mat-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.mat-controls .mat-chip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:900;
+  color:#2b3a44;
+  background:#eef4f7;
+  border:1px solid #dfe7ee;
+  padding:4px 8px;
+  border-radius:999px;
+}
+.mat-controls .mat-chip input{ margin:0; }
+.mat-search{
+  flex:1 1 220px;
+  min-width:180px;
+  padding:7px 10px;
+  border:1px solid #dfe7ee;
+  border-radius:12px;
+  font-size:12px;
+}
+.mat-summary{
+  margin-top:8px;
+  font-size:12px;
+  color:#2b3a44;
+  font-weight:900;
+}
+.mat-table-wrap{
+  margin-top:8px;
+  border:1px solid rgba(0,0,0,.06);
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+}
+.mat-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid rgba(0,0,0,.08);
+}
+.mat-status.ok{ background:#e9f7ef; }
+.mat-status.warn{ background:#fff7e6; }
+.mat-status.off{ background:#f3f4f6; color:#6b7280; }
+.mat-loc{ font-size:11px; color:#6b7a86; font-weight:800; }

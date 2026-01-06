@@ -148,8 +148,30 @@
     </div>
   </div>
   <div class="section-body collapsed" id="hrBody">
-    <div style="font-size:12px;color:#2b3a44;line-height:1.35;">
-      (Προσωρινό) Θα προστεθούν αργότερα στοιχεία/φόρμες για ανθρώπινο δυναμικό.
+    <div class="hr-controls no-print">
+      <button class="mini-btn btn-load" id="btnHrLoad" onclick="hrReload()" type="button">Load</button>
+      <label class="hr-chip"><input type="checkbox" id="hrUseAOI" checked> AOI</label>
+      <label class="hr-chip"><input type="checkbox" id="hrOnlyAvailable"> Διαθέσιμοι</label>
+      <input class="hr-search" id="hrSearch" type="search" placeholder="Αναζήτηση (όνομα/ρόλος/δεξιότητες)…" aria-label="hrSearch"/>
+      <button class="mini-btn btn-gray" onclick="hrClearFilters()" title="Καθαρισμός φίλτρων" type="button">🧹</button>
+    </div>
+
+    <div class="hr-summary" id="hrSummary">HR: —</div>
+    <div id="hrMsg" class="hint" style="display:none;margin:8px 0 0 0;border-radius:10px;"></div>
+    <div id="hrLoader" class="hint" style="margin:8px 0 0 0;border-radius:10px;display:none;">Φόρτωση ανθρώπινου δυναμικού…</div>
+
+    <div class="hr-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">👤 Όνομα</th>
+            <th style="text-align:left;">Ρόλος</th>
+            <th style="text-align:left;">Κατάσταση</th>
+            <th style="text-align:left;">Κάλυψη</th>
+          </tr>
+        </thead>
+        <tbody id="hrRows"></tbody>
+      </table>
     </div>
   </div>
 </div></section>
@@ -161,8 +183,38 @@
     </div>
   </div>
   <div class="section-body collapsed" id="vehiclesBody">
-    <div style="font-size:12px;color:#2b3a44;line-height:1.35;">
-      (Προσωρινό) Θα προστεθούν αργότερα καταγραφές/πίνακες για οχήματα και τεχνικά μέσα.
+    <div class="veh-controls no-print">
+      <button class="mini-btn btn-load" id="btnVehLoad" onclick="vehReload()" type="button">Load</button>
+      <label class="veh-chip"><input type="checkbox" id="vehUseAOI" checked> AOI</label>
+      <label class="veh-chip"><input type="checkbox" id="vehOnlyAvailable"> Διαθέσιμα</label>
+      <select id="vehStatus" class="mini-btn btn-gray" title="Κατάσταση" aria-label="vehStatus">
+        <option value="">Όλες οι καταστάσεις</option>
+        <option value="available">Διαθέσιμο</option>
+        <option value="standby">Επιφυλακή</option>
+        <option value="assigned">Σε αποστολή</option>
+        <option value="maintenance">Συντήρηση</option>
+        <option value="unavailable">Μη διαθέσιμο</option>
+      </select>
+      <input class="veh-search" id="vehSearch" type="search" placeholder="Αναζήτηση (πινακίδα/τύπος/ικανότητες)…" aria-label="vehSearch"/>
+      <button class="mini-btn btn-gray" onclick="vehClearFilters()" title="Καθαρισμός φίλτρων" type="button">🧹</button>
+    </div>
+
+    <div class="veh-summary" id="vehSummary">Οχήματα: —</div>
+    <div id="vehMsg" class="hint" style="display:none;margin:8px 0 0 0;border-radius:10px;"></div>
+    <div id="vehLoader" class="hint" style="margin:8px 0 0 0;border-radius:10px;display:none;">Φόρτωση οχημάτων…</div>
+
+    <div class="veh-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">🚚 Όχημα</th>
+            <th style="text-align:left;">Τύπος</th>
+            <th style="text-align:left;">Κατάσταση</th>
+            <th style="text-align:left;">Κάλυψη</th>
+          </tr>
+        </thead>
+        <tbody id="vehRows"></tbody>
+      </table>
     </div>
   </div>
 </div></section>
@@ -174,8 +226,34 @@
     </div>
   </div>
   <div class="section-body collapsed" id="materialsBody">
-    <div style="font-size:12px;color:#2b3a44;line-height:1.35;">
-      (Προσωρινό) Θα προστεθούν αργότερα καταγραφές/πίνακες για υλικά και αποθέματα.
+    <div class="mat-controls no-print">
+      <button class="mini-btn btn-load" id="btnMatLoad" onclick="matReload()" type="button">Load</button>
+      <label class="mat-chip"><input type="checkbox" id="matUseAOI" checked> AOI</label>
+      <label class="mat-chip"><input type="checkbox" id="matOnlyInStock"> Σε απόθεμα</label>
+      <label class="mat-chip"><input type="checkbox" id="matOnlyLowStock"> Χαμηλό απόθεμα</label>
+      <select id="matCategory" class="mini-btn btn-gray" title="Κατηγορία" aria-label="matCategory">
+        <option value="">Όλες οι κατηγορίες</option>
+      </select>
+      <input class="mat-search" id="matSearch" type="search" placeholder="Αναζήτηση (είδος/κατηγορία/αποθήκη)…" aria-label="matSearch"/>
+      <button class="mini-btn btn-gray" onclick="matClearFilters()" title="Καθαρισμός φίλτρων" type="button">🧹</button>
+    </div>
+
+    <div class="mat-summary" id="matSummary">Υλικά: —</div>
+    <div id="matMsg" class="hint" style="display:none;margin:8px 0 0 0;border-radius:10px;"></div>
+    <div id="matLoader" class="hint" style="margin:8px 0 0 0;border-radius:10px;display:none;">Φόρτωση υλικών…</div>
+
+    <div class="mat-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">🧰 Είδος</th>
+            <th style="text-align:left;">Κατηγορία</th>
+            <th style="text-align:left;">Απόθεμα</th>
+            <th style="text-align:left;">Κάλυψη</th>
+          </tr>
+        </thead>
+        <tbody id="matRows"></tbody>
+      </table>
     </div>
   </div>
 </div></section>
