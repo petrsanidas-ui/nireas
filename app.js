@@ -4186,6 +4186,27 @@ function escapeHtml(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 }
 
+// Safe for embedding text inside inline JS string literals in HTML attributes.
+// Pattern used in this app: onclick="fn('path','NAME')" (NAME wrapped in single quotes).
+// 1) JS-escape (\\, ', newlines) so it can't break the JS string.
+// 2) HTML-escape only characters that break HTML parsing (&, <, >, ").
+function escapeHtmlAttr(s){
+  const js = String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
+  return js.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+// Tiny safe wrappers for localStorage.
+function getStored(key){
+  try{ return localStorage.getItem(String(key)); }catch(_){ return null; }
+}
+function setStored(key, value){
+  try{ localStorage.setItem(String(key), String(value ?? '')); }catch(_){ }
+}
+
 /* ===================== DATETIME: 24h formatting ===================== */
 function pad2(n){ return String(n).padStart(2,'0'); }
 
