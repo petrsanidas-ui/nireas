@@ -1,1 +1,60 @@
 []
+[
+  {
+    "file": "data/streams/geojson/kleisthenous.geojson",
+    "name": "Ρέμα Κλεισθένους",
+    "category": "streams",
+    "municipality_ids": [
+      "chalandri"
+    ],
+    "tags": [
+      "Χαλάνδρι"
+    ]
+  },
+  {
+    "file": "data/streams/geojson/rema.geojson",
+    "name": "Ρέμα Ρέα",
+    "category": "streams",
+    "municipality_ids": [
+      "chalandri"
+    ],
+    "tags": [
+      "Χαλάνδρι"
+    ]
+  },
+  {
+    "file": "data/streams/geojson/vrilissos.geojson",
+    "name": "Ρέμα Βριλησσός",
+    "category": "streams",
+    "municipality_ids": [
+      "chalandri"
+    ],
+    "tags": [
+      "Χαλάνδρι"
+    ]
+  },
+  {
+    "file": "data/basins/kleisthenous.geojson",
+    "name": "Λεκάνη Ρέματος Κλεισθένους",
+    "category": "basins",
+    "municipality_ids": [
+      "chalandri"
+    ],
+    "tags": [
+      "Χαλάνδρι",
+      "IDF"
+    ]
+  },
+  {
+    "file": "data/basins/vrilissos.geojson",
+    "name": "Λεκάνη Βριλησσού",
+    "category": "basins",
+    "municipality_ids": [
+      "chalandri"
+    ],
+    "tags": [
+      "Χαλάνδρι",
+      "IDF"
+    ]
+  }
+]
