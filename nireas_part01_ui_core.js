@@ -86,6 +86,10 @@ const GH_BRANCH = 'main';
 const API_TREE  = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/trees/${GH_BRANCH}?recursive=1`;
 const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/`;
 
+function emptyAoiSelected(){
+  return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
+}
+
 // Data loading mode:
 // - 'local' : load from local "data/" folder (works on localhost and GitHub Pages; supports offline local server)
 // - 'github': auto-discover files via GitHub API tree (requires internet and is rate-limited)
