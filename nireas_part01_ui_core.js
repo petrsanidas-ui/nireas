@@ -63,6 +63,7 @@ function initStartupSplash(){
   splash.addEventListener('click', close, { passive: true });
   window.addEventListener('keydown', close, { once: true });
   window.__closeStartupSplash = close;
+  setTimeout(close, 2000);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
