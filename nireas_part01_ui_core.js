@@ -62,6 +62,7 @@ function initStartupSplash(){
 
   splash.addEventListener('click', close, { passive: true });
   window.addEventListener('keydown', close, { once: true });
+  window.__closeStartupSplash = close;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -87,12 +88,12 @@ const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_
 // Data loading mode:
 // - 'local' : load from local "data/" folder (works on localhost and GitHub Pages; supports offline local server)
 // - 'github': auto-discover files via GitHub API tree (requires internet and is rate-limited)
-const DATA_MODE = 'local';
+
 const DEFAULT_DATA_MODE = 'local';
 const FORCE_RAW_ON_FILE = (location.protocol === 'file:');
 let DATA_MODE = DEFAULT_DATA_MODE;
 
-const DATA_BASE = (DATA_MODE === 'github') ? RAW_URL : '';
+
 let DATA_BASE = (DATA_MODE === 'github') ? RAW_URL : '';
 if(FORCE_RAW_ON_FILE){
   DATA_BASE = RAW_URL;
