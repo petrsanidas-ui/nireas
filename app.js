@@ -1709,8 +1709,24 @@ async function buildLocalFilesIndex(){
     }
   }
 
+    function registerLayerMetaFromRegistry(list, fallbackType){
+      try{
+        if(!(PROJECT_LAYERS_BY_FILE instanceof Map)) PROJECT_LAYERS_BY_FILE = new Map();
+        if(!Array.isArray(list)) return;
+        list.forEach(e => {
+          if(!e || !e.file) return;
+          const prev = PROJECT_LAYERS_BY_FILE.get(e.file) || {};
+          const type = e.type || fallbackType || prev.type;
+          PROJECT_LAYERS_BY_FILE.set(e.file, { ...prev, ...e, type });
+        });
+      }catch(_){}
+    }
+
+
   const streamsReg = await tryLoadRegistry('data/streams/streams_registry.json');
-  const basinsReg  = await tryLoadRegistry('data/basins/basins_registry.json');
+  
+    registerLayerMetaFromRegistry(streamsReg,'stream');
+const basinsReg  = await tryLoadRegistry('data/basins/basins_registry.json');
 
   const streamPaths = (streamsReg && streamsReg.length)
     ? streamsReg.map(e=>String(e?.file||'').trim()).filter(Boolean)
@@ -2013,41 +2029,50 @@ async function loadAdminAreasRegistryFromTree(files){
 }
 
 async function loadProjectLayersRegistryFromTree(files){
-  try{
-    const f =
-      (files||[]).find(x => x.path === 'data/geo/project_layers_registry.json') ||
-      (files||[]).find(x => x.path === 'data/geo/geo_layers_registry.json') ||
-      (files||[]).find(x => x.path.endsWith('/project_layers_registry.json')) ||
-      (files||[]).find(x => x.path.endsWith('/geo_layers_registry.json'));
+  // This registry provides stable layer names + AOI tags (municipality_ids) for GeoJSON filtering.
+  // IMPORTANT: In DATA_MODE === 'local', the GitHub tree list may be unavailable, so we also try direct fetch.
+  const candidates = [
+    files?.find(f => (f?.path || '').endsWith('data/geo/project_layers_registry.json'))?.path,
+    files?.find(f => (f?.path || '').endsWith('data/geo/geo_layers_registry.json'))?.path,
+    'data/geo/project_layers_registry.json',
+    'data/geo/geo_layers_registry.json'
+  ].filter(Boolean);
 
-    if(!f){
-      PROJECT_LAYERS_REGISTRY = [];
-      PROJECT_LAYERS_BY_FILE = new Map();
-      return;
+  async function tryFetchJson(relPath){
+    try{
+      const url = (DATA_BASE || '') + relPath;
+      const res = await fetch(url, { cache: 'no-store' });
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(_){
+      return null;
     }
-
-    const resp = await fetch(DATA_BASE + f.path, { cache: 'no-store' });
-    if(!resp.ok) throw new Error('Αποτυχία λήψης project_layers_registry.json (HTTP ' + resp.status + ')');
-
-    const json = await resp.json();
-    if(!Array.isArray(json)) throw new Error('Το project_layers_registry.json πρέπει να είναι JSON array');
-
-    PROJECT_LAYERS_REGISTRY = json.map(raw=>{
-      const file = String(raw.file||'').trim();
-      const name = String(raw.name||'').trim();
-      const category = String(raw.category||'').trim(); // streams|basins|...
-      const municipality_ids = Array.isArray(raw.municipality_ids) ? raw.municipality_ids.map(String).map(s=>s.trim()).filter(Boolean) : [];
-      const tags = Array.isArray(raw.tags) ? raw.tags.map(String).map(s=>s.trim()).filter(Boolean) : [];
-      return { file, name, category, municipality_ids, tags };
-    }).filter(e => e.file);
-
-    PROJECT_LAYERS_BY_FILE = new Map(PROJECT_LAYERS_REGISTRY.map(e=>[e.file, e]));
-  }catch(e){
-    console.warn('Project layers registry load failed:', e);
-    PROJECT_LAYERS_REGISTRY = [];
-    PROJECT_LAYERS_BY_FILE = new Map();
   }
+
+  let reg = null;
+  for(const p of candidates){
+    reg = await tryFetchJson(p);
+    if(Array.isArray(reg) && reg.length) break;
+  }
+
+  // If nothing found, DO NOT wipe any already-registered metadata (streams/basins registries may have filled it).
+  if(!Array.isArray(reg) || !reg.length){
+    if(!Array.isArray(PROJECT_LAYERS_REGISTRY)) PROJECT_LAYERS_REGISTRY = [];
+    return;
+  }
+
+  PROJECT_LAYERS_REGISTRY = reg;
+
+  // Merge (registry overrides existing by file key)
+  const merged = (PROJECT_LAYERS_BY_FILE instanceof Map) ? new Map(PROJECT_LAYERS_BY_FILE) : new Map();
+  for(const e of reg){
+    if(!e || !e.file) continue;
+    const prev = merged.get(e.file) || {};
+    merged.set(e.file, { ...prev, ...e });
+  }
+  PROJECT_LAYERS_BY_FILE = merged;
 }
+
 
 
 
@@ -2382,7 +2407,8 @@ function setAOIFromChecked(){
   try{ renderHumanResources(); }catch(_){}
   try{ renderVehicles(); }catch(_){}
   try{ renderMaterials(); }catch(_){}
-  // Update GeoJSON file list after AOI change
+
+  // === Refresh GeoJSON list (AOI filter) ===
   try{ renderFileList(); }catch(e){ console.warn(e); }
 
 }
@@ -2400,7 +2426,8 @@ function clearAOI(){
   try{ renderHumanResources(); }catch(_){}
   try{ renderVehicles(); }catch(_){}
   try{ renderMaterials(); }catch(_){}
-  // Update GeoJSON file list after AOI change
+
+  // === Refresh GeoJSON list (AOI filter) ===
   try{ renderFileList(); }catch(e){ console.warn(e); }
 
 }
