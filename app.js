@@ -1773,8 +1773,7 @@ async function init(){
     try{ updateAOIUI(); }catch(e){ console.warn("updateAOIUI failed", e); }
 
     await loadProjectLayersRegistryFromTree(files);
-
-    
+    await loadCategoryRegistriesIntoProjectMeta();
 
     await loadCategoryRegistriesIntoProjectMeta();
 
@@ -2053,7 +2052,8 @@ async function loadProjectLayersRegistryFromTree(files){
   }
 }
 
-// Merge per-category registries (streams/basins) into PROJECT_LAYERS_BY_FILE so AOI filtering works
+// Merge per-category registries (streams/basins) into PROJECT_LAYERS_BY_FILE so AOI filtering works.
+// This lets AOI work even if project_layers_registry.json is missing or incomplete.
 async function loadCategoryRegistriesIntoProjectMeta(){
   try{
     const mergeOne = async (path, category)=>{
@@ -2069,23 +2069,22 @@ async function loadCategoryRegistriesIntoProjectMeta(){
 
           // Normalize municipality_ids
           let mu = [];
-          if(Array.isArray(raw?.municipality_ids)) mu = raw.municipality_ids.map(String).filter(Boolean);
+          if(Array.isArray(raw?.municipality_ids)) mu = raw.municipality_ids.map(String).map(s=>s.trim()).filter(Boolean);
           else if(typeof raw?.municipality_id === 'string' && raw.municipality_id.trim()) mu = [raw.municipality_id.trim()];
 
           const prev = PROJECT_LAYERS_BY_FILE.get(file) || {};
           const next = { ...prev };
 
           // Fill (do not clobber explicit values already defined in project_layers_registry)
-          if(!next.name && raw?.name) next.name = String(raw.name);
+          if(!next.name && raw?.name) next.name = String(raw.name).trim();
           if(!next.category && category) next.category = category;
-
           if((!Array.isArray(next.municipality_ids) || !next.municipality_ids.length) && mu.length){
             next.municipality_ids = mu;
           }
 
           // Merge tags (optional)
-          const tagsPrev = Array.isArray(next.tags) ? next.tags.map(String) : [];
-          const tagsRaw  = Array.isArray(raw?.tags) ? raw.tags.map(String) : [];
+          const tagsPrev = Array.isArray(next.tags) ? next.tags.map(String).map(s=>s.trim()).filter(Boolean) : [];
+          const tagsRaw  = Array.isArray(raw?.tags) ? raw.tags.map(String).map(s=>s.trim()).filter(Boolean) : [];
           const mergedTags = Array.from(new Set([...tagsPrev, ...tagsRaw].filter(Boolean)));
           if(mergedTags.length) next.tags = mergedTags;
 
