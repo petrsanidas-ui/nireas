@@ -1,21 +1,16 @@
 <!DOCTYPE html>
-
 <html lang="el">
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>NIREAS</title>
 <link href="nireas_logo.png" rel="icon" type="image/png"/>
-<!-- Leaflet -->
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
 
-  <!-- ===================== STARTUP LOGO (optional) ===================== -->
-  <!-- Μικρό "logo splash" στην εκκίνηση: κλείνει αυτόματα ή με κλικ/πλήκτρο. -->
   <div class="splash-overlay no-print" id="startupSplash" aria-label="Εκκίνηση NIREAS" role="dialog">
     <div class="splash-card" role="document">
       <img
@@ -29,22 +24,6 @@
     </div>
   </div>
 
-<!--
-===================== NIREAS (Readable copy) =====================
-Στόχος: ευκολότερη πλοήγηση/βελτιώσεις. Το υπόλοιπο αρχείο είναι ίδιο (δεν άλλαξαν λογικές/τιμές).
-
-Γρήγορη πλοήγηση (Ctrl+F):
-  [LAYOUT/CSS]     :root  | .app-shell | .side-panel | .main-panel | .panel-topbar | .tool-header
-  [LEFT PANEL]     id="sideBody" | id="meteoBody" | id="filesBody" | id="fileRows"
-  [STATIONS/UI]    meteoStationSelect | monitorStationSelect | watchlist | stationMultiList
-  [MAP]            mapModal | mapBox | openMapModal() | Leaflet (L.map)
-  [CALC ENGINE]    runMasterCalculation() | kirpich | qpeak | qcap
-  [LIVE]           toggleLive() | fetchStationData()
-  [AI ANALYSIS]    initAIAnalysisUI() | buildAIPrompt() | btnAIAnalysis
-  [FIREBASE LOG]   fbLogSample() | fbFetchRecentSamples() | fbFetchRecentSamplesAll()
-  [DB READER]      dbTable | btnDbLoad | btnDbImport | btnDbExport | filters
-===============================================================
--->
 <div class="tool-header global-topbar">
 <div class="brand">
 <img alt="ΝΗΡΕΑΣ" class="nireas-logo" onerror="this.outerHTML='&lt;span class=nireas-text-logo&gt;NIREAS&lt;/span&gt;'" src="nireas_logo.png"/>
@@ -52,7 +31,6 @@
 </div>
 <button class="print-btn no-print" onclick="window.print()">ΕΚΤΥΠΩΣΗ</button>
 </div><div class="app-shell">
-<!-- ================= LEFT: GitHub Data panel ================= -->
 <aside class="side-panel">
 
 <section class="panel-card side-card aoi-card is-collapsed"><div class="section">
@@ -443,7 +421,6 @@
 </div></section>
 
 </aside>
-<!-- ================= RIGHT: Σύστημα Παρακολούθησης και Έγκαιρης Προειδοποίησης (Monitoring & Early Warning System) ================= -->
 <main class="main-panel">
 
 <section class="panel-card main-data-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Δεδομένα</div><button class="icon-btn" onclick="toggleCollapse('mainDataBody', this)">+</button></div><div id="mainDataBody" class="collapsed"><div class="tool-wrap">
@@ -942,7 +919,6 @@
 </div><div class="scenario-panel" id="panel_frost_snow">
 </div></div></section></main>
 </div>
-<!-- ================= Map Modal ================= -->
 <div class="no-print" id="mapModal">
 <div id="mapCard">
 <div id="mapTop">
@@ -957,7 +933,6 @@
 
 </div>
 
-<!-- ===================== FIREBASE LOGGER (FINAL) ===================== -->
 <script src="app.js"></script>
 
 <script type="module">
@@ -1139,7 +1114,5 @@
 
   console.log("Firebase logger ready ✅");
 </script>
-<!-- ===================== /FIREBASE LOGGER ===================== -->
-
 </body>
 </html>
