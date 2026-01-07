@@ -4,20 +4,26 @@
     "stream_id": "kleisthenous",
     "name": "Κλεισθένος",
     "file": "data/streams/geojson/kleisthenous.geojson",
-    "municipality_ids": ["chalandri"]
+    "municipality_ids": [
+      "chalandri"
+    ]
   },
   {
     "type": "stream",
     "stream_id": "rema",
     "name": "Ρέα",
     "file": "data/streams/geojson/rema.geojson",
-    "municipality_ids": ["chalandri"]
+    "municipality_ids": [
+      "chalandri"
+    ]
   },
   {
     "type": "stream",
     "stream_id": "vrilissos",
     "name": "Βριλησσός",
     "file": "data/streams/geojson/vrilissos.geojson",
-    "municipality_ids": ["chalandri"]
+    "municipality_ids": [
+      "chalandri"
+    ]
   }
 ]
