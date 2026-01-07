@@ -1,5 +1,14 @@
-
 [
-  {"type":"basin","basin_id":"map_2","name":"Λεκάνη map_2","file":"data/basins/map_2.geojson","municipality_ids":["chalandri"]},
-  {"type":"basin","basin_id":"vrilissos","name":"Λεκάνη Βριλησσού","file":"data/basins/vrilissos.geojson","municipality_ids":["chalandri"]}
+  {
+    "type": "basin",
+    "basin_id": "kleisthenous",
+    "name": "Λεκάνη Ρέματος Κλεισθένους",
+    "file": "data/basins/kleisthenous.geojson"
+  },
+  {
+    "type": "basin",
+    "basin_id": "vrilissos",
+    "name": "Λεκάνη Βριλησσού",
+    "file": "data/basins/vrilissos.geojson"
+  }
 ]
