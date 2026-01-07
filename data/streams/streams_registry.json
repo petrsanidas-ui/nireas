@@ -11,7 +11,7 @@
   {
     "type": "stream",
     "stream_id": "rema",
-    "name": "Ρέα",
+    "name": "Ρέμα",
     "file": "data/streams/geojson/rema.geojson",
     "municipality_ids": [
       "chalandri"
