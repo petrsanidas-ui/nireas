@@ -96,6 +96,10 @@ function emptyAoiSelected(){
   return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
 }
 
+function emptyAoiSelected(){
+  return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
+}
+
 // Data loading mode:
 // - 'local' : load from local "data/" folder (works on localhost and GitHub Pages; supports offline local server)
 // - 'github': auto-discover files via GitHub API tree (requires internet and is rate-limited)
