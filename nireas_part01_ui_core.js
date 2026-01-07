@@ -92,6 +92,10 @@ function emptyAoiSelected(){
   return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
 }
 
+function emptyAoiSelected(){
+  return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
+}
+
 // Data loading mode:
 // - 'local' : load from local "data/" folder (works on localhost and GitHub Pages; supports offline local server)
 // - 'github': auto-discover files via GitHub API tree (requires internet and is rate-limited)
@@ -150,10 +154,10 @@ let PREVIEW_LAYER = null;          // temporary layer for Map button preview
 
 /* ===== Selected Meteo Stations layer (map) ===== */
 const STATIONS_META = new Map();   // url -> {name,url,lat,lon,elev}
-let METEO_PRIMARY_VISIBLE = false;
-let METEO_WATCH_VISIBLE = false;
-let METEO_STATIONS_LAYER = null;  // persistent selected markers layer
-let METEO_STATIONS_PREVIEW = null;// preview-only layer (Map button)
+var METEO_PRIMARY_VISIBLE = false;
+var METEO_WATCH_VISIBLE = false;
+var METEO_STATIONS_LAYER = null;  // persistent selected markers layer
+var METEO_STATIONS_PREVIEW = null;// preview-only layer (Map button)
 const METEO_MARKERS = new Map();  // url -> Leaflet marker (persistent)
 
 function getSelectedStationUrls(){
