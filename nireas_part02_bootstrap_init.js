@@ -103,6 +103,7 @@ async function init(){
   try{
     // IMPORTANT: if opened from file://, fetch() of local files is blocked by the browser.
     if(location.protocol === 'file:'){
+      updateMeteoStatus('⚠️ Άνοιγμα ως file://: ο browser μπλοκάρει τη φόρτωση αρχείων (fetch). Άνοιξε με local server (π.χ. python -m http.server).');
       const modeNote = (DATA_BASE === RAW_URL)
         ? 'Φόρτωση από GitHub (RAW) ώστε να λειτουργήσει εκτός server.'
         : 'Άνοιξε με local server (π.χ. python -m http.server).';
