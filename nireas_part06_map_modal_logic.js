@@ -388,10 +388,19 @@ function parseStationsText(text, sourcePath){
     let name = '';
     let url  = line;
 
+    let lat = null;
+    let lon = null;
+    let elev = null;
+
     if(line.includes('|')){
-      const parts = line.split('|');
+      const parts = line.split('|').map(p=>String(p ?? '').trim());
       name = (parts.shift() || '').trim();
-      url  = parts.join('|').trim();
+      url  = (parts.shift() || '').trim();
+      if(parts.length){
+        lat  = parts[0] ? parseFloat(parts[0].replace(',', '.')) : null;
+        lon  = parts[1] ? parseFloat(parts[1].replace(',', '.')) : null;
+        elev = parts[2] ? parseFloat(parts[2].replace(',', '.')) : null;
+      }
     }else{
       name = url.replace(/^https?:\/\//i,'').slice(0, 60);
     }
@@ -400,7 +409,7 @@ function parseStationsText(text, sourcePath){
     if(!url) continue;
     if(!name) name = url.replace(/^https?:\/\//i,'').slice(0, 60);
 
-    entries.push({ name, url, from: sourcePath || '' });
+    entries.push({ name, url, from: sourcePath || '', lat, lon, elev });
   }
   return entries;
 }
@@ -887,17 +896,33 @@ async function fetchStationsFromFolders(files){
         if(!url) continue;
         if(seen.has(url)) continue;
         seen.add(url);
+        const latOk = Number.isFinite(it.lat);
+        const lonOk = Number.isFinite(it.lon);
+        const elevOk = Number.isFinite(it.elev);
+        const prev = STATIONS_META.get(url);
+        const prevHasCoords = prev && Number.isFinite(prev.lat) && Number.isFinite(prev.lon);
+        if(!prev || (latOk && lonOk) || !prevHasCoords){
+          STATIONS_META.set(url, {
+            name: (it.name || url).trim(),
+            url,
+            lat: (latOk ? it.lat : (prev ? prev.lat : null)),
+            lon: (lonOk ? it.lon : (prev ? prev.lon : null)),
+            elev: (elevOk ? Math.round(it.elev) : (prev ? prev.elev : null))
+          });
+        }else if(it.name && prev && !prev.name){
+          prev.name = it.name;
+        }
         into.push({ name: (it.name||url).trim(), url, from: it.from || '' });
       }
     };
 
     for(const p of apiTxt){
       const items = await readStationsFromTxt(p);
-      addItems(items.map(x=>({name:x.name,url:x.url,from:p})), apiItems);
+      addItems(items.map(x=>({name:x.name,url:x.url,from:p,lat:x.lat,lon:x.lon,elev:x.elev})), apiItems);
     }
     for(const p of webTxt){
       const items = await readStationsFromTxt(p);
-      addItems(items.map(x=>({name:x.name,url:x.url,from:p})), webItems);
+      addItems(items.map(x=>({name:x.name,url:x.url,from:p,lat:x.lat,lon:x.lon,elev:x.elev})), webItems);
     }
 
     const fill = (sel, placeholder)=>{
