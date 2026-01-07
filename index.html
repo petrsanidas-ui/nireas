@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>NIREAS</title>
+<link href="nireas_logo.png" rel="icon" type="image/png"/>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="splash-overlay no-print" id="startupSplash" aria-label="Εκκίνηση NIREAS" role="dialog">
+    <div class="splash-card" role="document">
+      <img
+        class="splash-logo"
+        src="nireas_logo.png"
+        alt="NIREAS"
+        onerror="this.style.display='none';document.getElementById('splashTextLogo').style.display='block';"
+      />
+      <div class="splash-text-logo" id="splashTextLogo" style="display:none;">NIREAS</div>
+      <div class="splash-hint">Κλικ ή οποιοδήποτε πλήκτρο για συνέχεια</div>
+    </div>
+  </div>
+
+<div class="tool-header global-topbar">
+<div class="brand">
+<img alt="ΝΗΡΕΑΣ" class="nireas-logo" onerror="this.outerHTML='&lt;span class=nireas-text-logo&gt;NIREAS&lt;/span&gt;'" src="nireas_logo.png"/>
+<h1>Σύστημα Παρακολούθησης και Έγκαιρης Προειδοποίησης (Monitoring &amp; Early Warning System)</h1>
+</div>
+<button class="print-btn no-print" onclick="window.print()">ΕΚΤΥΠΩΣΗ</button>
+</div><div class="app-shell">
+<aside class="side-panel">
+
+<section class="panel-card side-card aoi-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">
+      <div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">
+        🧭 Περιοχή Ενδιαφέροντος (AOI)
+        <span class="aoi-chip" id="aoiChip">AOI: —</span>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('aoiBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+
+  <div class="section-body collapsed" id="aoiBody">
+    <div class="source-intro">
+      <div style="padding:0;font-size:12px;color:#2b3a44;line-height:1.35;">
+        Πηγή: NIREAS (UI) — ορίστε την <b>Περιοχή Ενδιαφέροντος (AOI)</b> για να δουλεύετε επιχειρησιακά πάνω σε μία/πολλές διοικητικές περιοχές.
+      </div>
+    </div>
+
+    <div class="aoi-active-row">
+      <span class="aoi-active-label">Ενεργό AOI:</span>
+      <span class="aoi-active-value" id="aoiActiveText">—</span>
+    </div>
+
+    <div class="aoi-controls">
+      <select id="aoiType" class="mini-btn btn-gray" title="Τύπος AOI" aria-label="aoiType">
+        <option value="municipality">Δήμος</option>
+        <option value="pref_unit">Περιφερειακή Ενότητα (Π.Ε.)</option>
+        <option value="region">Περιφέρεια</option>
+        <option value="multi">Πολλαπλές Περιοχές</option>
+      </select>
+      <button class="mini-btn btn-load" id="btnAoiSet" onclick="setAOIFromChecked()" type="button">✅ Ορισμός</button>
+      <button class="mini-btn btn-gray" id="btnAoiClear" onclick="clearAOI()" type="button">🧹 Clear</button>
+      <button class="mini-btn btn-map" id="btnAoiZoom" onclick="zoomToAOI()" type="button">🗺 Map</button>
+    </div>
+
+    <div class="aoi-list-wrap">
+      <div class="hint" style="margin:6px 0 6px 0;border-radius:10px;">
+        <b>Επιλογή ορίων για AOI:</b> Τσέκαρε 1+ διοικητικά όρια παρακάτω και πάτα <b>✅ Ορισμός</b>.
+      </div>
+      <div id="aoiList" class="aoi-list">Φόρτωση ορίων…</div>
+    </div>
+
+    <div class="nested-panels" style="margin-top:10px;">
+<section class="panel-card side-card nested-card boundaries-card"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">🏳️ Διοικητικά Όρια</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('adminBoundsBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="adminBoundsBody" style="padding:0">
+    <div class="hint" style="margin:10px 10px 6px 10px;">
+      <b><span class="ico-map">🗺</span> Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
+      <b>👁 On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
+      <b>➕ / 🧹</b> = ενημέρωση/εκκαθάριση επιλογής στο κεντρικό panel «Διοικητικά Όρια».
+    </div>
+
+    <div id="adminBoundsLoader" style="padding:10px;">Φόρτωση δεδομένων…</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;padding-left:10px;"><span class="th-ic">📄</span>Όνομα</th>
+          <th style="text-align:right;padding-right:10px;"><span class="th-ic ico-map">🗺</span>Ενέργεια</th>
+        </tr>
+      </thead>
+      <tbody id="boundaryRows"></tbody>
+    </table>
+  </div>
+</div></section>
+    </div>
+  </div>
+</div></section>
+
+<section class="panel-card side-card resources-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">👥🚚 Πόροι (Resources)</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('resourcesBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="resourcesBody">
+    <div class="nested-panels">
+<section class="panel-card side-card nested-card hr-card"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">👥 Ανθρώπινο Δυναμικό</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('hrBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="hrBody">
+    <div class="hr-controls no-print">
+      <button class="mini-btn btn-load" id="btnHrLoad" onclick="hrReload()" type="button">Load</button>
+      <label class="hr-chip"><input type="checkbox" id="hrUseAOI" checked> AOI</label>
+      <label class="hr-chip"><input type="checkbox" id="hrOnlyAvailable"> Διαθέσιμοι</label>
+      <input class="hr-search" id="hrSearch" type="search" placeholder="Αναζήτηση (όνομα/ρόλος/δεξιότητες)…" aria-label="hrSearch"/>
+      <button class="mini-btn btn-gray" onclick="hrClearFilters()" title="Καθαρισμός φίλτρων" type="button">🧹</button>
+    </div>
+
+    <div class="hr-summary" id="hrSummary">HR: —</div>
+    <div id="hrMsg" class="hint" style="display:none;margin:8px 0 0 0;border-radius:10px;"></div>
+    <div id="hrLoader" class="hint" style="margin:8px 0 0 0;border-radius:10px;display:none;">Φόρτωση ανθρώπινου δυναμικού…</div>
+
+    <div class="hr-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">👤 Όνομα</th>
+            <th style="text-align:left;">Ρόλος</th>
+            <th style="text-align:left;">Κατάσταση</th>
+            <th style="text-align:left;">Κάλυψη</th>
+          </tr>
+        </thead>
+        <tbody id="hrRows"></tbody>
+      </table>
+    </div>
+  </div>
+</div></section>
+<section class="panel-card side-card nested-card vehicles-card"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">🚚 Τεχνικά Μέσα / Οχήματα</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('vehiclesBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="vehiclesBody">
+    <div class="veh-controls no-print">
+      <button class="mini-btn btn-load" id="btnVehLoad" onclick="vehReload()" type="button">Load</button>
+      <label class="veh-chip"><input type="checkbox" id="vehUseAOI" checked> AOI</label>
+      <label class="veh-chip"><input type="checkbox" id="vehOnlyAvailable"> Διαθέσιμα</label>
+      <select id="vehStatus" class="mini-btn btn-gray" title="Κατάσταση" aria-label="vehStatus">
+        <option value="">Όλες οι καταστάσεις</option>
+        <option value="available">Διαθέσιμο</option>
+        <option value="standby">Επιφυλακή</option>
+        <option value="assigned">Σε αποστολή</option>
+        <option value="maintenance">Συντήρηση</option>
+        <option value="unavailable">Μη διαθέσιμο</option>
+      </select>
+      <input class="veh-search" id="vehSearch" type="search" placeholder="Αναζήτηση (πινακίδα/τύπος/ικανότητες)…" aria-label="vehSearch"/>
+      <button class="mini-btn btn-gray" onclick="vehClearFilters()" title="Καθαρισμός φίλτρων" type="button">🧹</button>
+    </div>
+
+    <div class="veh-summary" id="vehSummary">Οχήματα: —</div>
+    <div id="vehMsg" class="hint" style="display:none;margin:8px 0 0 0;border-radius:10px;"></div>
+    <div id="vehLoader" class="hint" style="margin:8px 0 0 0;border-radius:10px;display:none;">Φόρτωση οχημάτων…</div>
+
+    <div class="veh-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">🚚 Όχημα</th>
+            <th style="text-align:left;">Τύπος</th>
+            <th style="text-align:left;">Κατάσταση</th>
+            <th style="text-align:left;">Κάλυψη</th>
+          </tr>
+        </thead>
+        <tbody id="vehRows"></tbody>
+      </table>
+    </div>
+  </div>
+</div></section>
+<section class="panel-card side-card nested-card materials-card"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">🧰 Τεχνικά Μέσα / Υλικά</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('materialsBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="materialsBody">
+    <div class="mat-controls no-print">
+      <button class="mini-btn btn-load" id="btnMatLoad" onclick="matReload()" type="button">Load</button>
+      <label class="mat-chip"><input type="checkbox" id="matUseAOI" checked> AOI</label>
+      <label class="mat-chip"><input type="checkbox" id="matOnlyInStock"> Σε απόθεμα</label>
+      <label class="mat-chip"><input type="checkbox" id="matOnlyLowStock"> Χαμηλό απόθεμα</label>
+      <select id="matCategory" class="mini-btn btn-gray" title="Κατηγορία" aria-label="matCategory">
+        <option value="">Όλες οι κατηγορίες</option>
+      </select>
+      <input class="mat-search" id="matSearch" type="search" placeholder="Αναζήτηση (είδος/κατηγορία/αποθήκη)…" aria-label="matSearch"/>
+      <button class="mini-btn btn-gray" onclick="matClearFilters()" title="Καθαρισμός φίλτρων" type="button">🧹</button>
+    </div>
+
+    <div class="mat-summary" id="matSummary">Υλικά: —</div>
+    <div id="matMsg" class="hint" style="display:none;margin:8px 0 0 0;border-radius:10px;"></div>
+    <div id="matLoader" class="hint" style="margin:8px 0 0 0;border-radius:10px;display:none;">Φόρτωση υλικών…</div>
+
+    <div class="mat-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">🧰 Είδος</th>
+            <th style="text-align:left;">Κατηγορία</th>
+            <th style="text-align:left;">Απόθεμα</th>
+            <th style="text-align:left;">Κάλυψη</th>
+          </tr>
+        </thead>
+        <tbody id="matRows"></tbody>
+      </table>
+    </div>
+  </div>
+</div></section>
+    </div>
+  </div>
+</div></section>
+
+<section class="panel-card side-card nested-card geo-card is-collapsed"><div class="section">
+<div class="panel-topbar">
+  <div class="hdr-left">🗺️ Χωρικά Στρώματα & Ζώνες (GeoJSON)</div>
+  <div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('filesBody', this)" style="width:28px;height:24px">+</button></div>
+</div>
+<div class="section-body collapsed" id="filesBody" style="padding:0">
+<div class="geo-controls no-print">
+  <button class="mini-btn btn-load" id="btnGeoReload" type="button" onclick="geoReload()">Load</button>
+  <label class="geo-chip" title="Φίλτρο βάσει Περιοχής Ενδιαφέροντος (μόνο για στρώματα που έχουν δηλωμένη κάλυψη στο registry)">
+    <input type="checkbox" id="geoUseAOI" checked> AOI
+  </label>
+  <select id="geoCategory" class="mini-btn btn-gray" aria-label="geoCategory" title="Κατηγορία">
+    <option value="all">Όλες οι κατηγορίες</option>
+    <option value="streams">Υδρογραφικό Δίκτυο</option>
+    <option value="basins">Λεκάνες Απορροής</option>
+  </select>
+  <input class="geo-search" id="geoSearch" type="search" placeholder="Αναζήτηση στρώματος…" aria-label="geoSearch"/>
+  <button class="mini-btn btn-gray" type="button" onclick="geoClearFilters()" title="Καθαρισμός φίλτρων">🧹</button>
+</div>
+<div class="geo-summary" id="geoSummary">Στρώματα: —</div>
+
+<div id="loader">Φόρτωση δεδομένων από GitHub…</div>
+<table>
+<thead>
+<tr>
+<th style="text-align:left;padding-left:10px;"><span class="th-ic">📄</span>Όνομα</th>
+<th style="text-align:right;padding-right:10px;"><span class="th-ic ico-map">🗺</span>Ενέργεια</th>
+</tr>
+</thead>
+<tbody id="fileRows"></tbody>
+</table>
+<div class="hint" id="filesHint">
+<div style="margin-bottom:6px">
+  Στρώματα GeoJSON που χρησιμοποιούνται για χάρτη/ανάλυση (π.χ. ρέματα, λεκάνες, ζώνες). <b>Δεν</b> είναι τα διοικητικά όρια (αυτά είναι στο AOI/Διοικητικά).
+</div>
+
+<b><span class="ico-map">🗺</span> Map</b> = προεπισκόπηση στον χάρτη (zoom) <b>χωρίς</b> αλλαγή On/Off.<br/>
+<b>👁 On/Off</b> = εμφανίζει/κρύβει layer (πολλαπλές επιλογές).<br/>
+<b>➕ / 🧹</b> (ανά αρχείο) = προσθήκη/εκκαθάριση επιλογής στο <b>κεντρικό panel</b>.<br/>
+</div>
+<div class="hint" id="filesMsg" style="display:none;margin-top:6px"></div>
+</div>
+</div></section>
+
+<section class="panel-card side-card meteo-data-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">📡 Μετεωρολογικά (Data)</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('meteoDataBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="meteoDataBody">
+    <div class="nested-panels">
+<section class="panel-card side-card nested-card meteo-card is-collapsed"><div class="section">
+<div class="panel-topbar">
+<div class="hdr-left">📡 Μετεωρολογικοί Σταθμοί</div>
+<div class="hdr-right"><button class="icon-btn" onclick="toggleCollapse('meteoBody', this)" style="width:28px;height:24px">+</button>
+</div>
+</div>
+<div class="section-body collapsed" id="meteoBody">
+
+<div class="station-row-hdr">
+  <div class="station-row-label">Κύριος Σταθμός</div>
+  <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
+<button class="mini-btn btn-map map-only-btn" onclick="meteoPrimaryMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
+    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations-2" onclick="toggleMeteoPrimaryLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών"><span class="ico-eye">👁</span> Off</button>
+  </div>
+</div>
+<div class="station-row-body">
+  <select id="meteoStationSelect" style="flex:1" aria-label="meteoStationSelect">
+    <option value="">Επιλογή κύριου σταθμού...</option>
+  </select>
+  <button class="mini-btn btn-on" onclick="setPrimaryStation()" title="Ορισμός ως Κύριος Σταθμός &amp; άμεση λήψη">➕</button>
+  <button class="mini-btn btn-gray" onclick="clearPrimaryStation()" title="Διαγραφή κύριου σταθμού">🧹</button>
+  <button class="mini-btn btn-map" onclick="openPrimaryWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
+</div>
+<div class="status-stack" id="primaryStatusWrap" style="margin-top:2px;">
+<div class="status-pill status-neutral" id="primaryStatus">Κύριος: Αναμονή…</div>
+</div>
+
+<div class="station-row-hdr" style="margin-top:10px;">
+  <div class="station-row-label">Παρακολούθηση (πολλαπλοί σταθμοί)</div>
+  <div class="map-btns" title="Κουμπιά χάρτη (μόνο χάρτης)">
+<button class="mini-btn btn-map map-only-btn" onclick="meteoWatchMap()" title="Χάρτης: προεπισκόπηση στον χάρτη (zoom) χωρίς αλλαγή On/Off"><span class="ico-map">🗺</span> Map</button>
+    <button class="mini-btn btn-off map-only-btn" id="btn-onoff-meteoStations" onclick="toggleMeteoWatchLayer()" title="Χάρτης: On/Off markers επιλεγμένων σταθμών"><span class="ico-eye">👁</span> Off</button>
+  </div>
+</div>
+<div class="station-row-body">
+  <select id="monitorStationSelect" style="flex:1" aria-label="monitorStationSelect">
+    <option value="">Επιλογή σταθμού παρακολούθησης...</option>
+  </select>
+  <button class="mini-btn btn-on" onclick="addToWatchlistFromMonitor()" title="Προσθήκη στους Επιπλέον σταθμούς &amp; άμεση λήψη">➕</button>
+  <button class="mini-btn btn-gray" onclick="clearWatchlist()" title="Καθαρισμός παρακολούθησης">🧹</button>
+  <button class="mini-btn btn-map" onclick="openMonitorWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
+</div>
+<div class="status-stack" id="meteoStatusWrap" style="margin-top:2px;">
+<div class="status-pill status-neutral" id="extrasStatus">Επιπλέον: Αναμονή…</div>
+</div>
+<div class="meteo-msg" id="meteoMsg" style="display:none"></div>
+<details class="no-print" style="margin-top:8px;">
+<summary style="cursor:pointer;font-size:11px;color:#6b7a86;">➕ Προσθήκη custom σταθμού (με URL)</summary>
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; align-items:center;">
+<input id="customStationName" placeholder="Όνομα (π.χ. ΧΑΛΑΝΔΡΙ)" style="flex:1; min-width:220px; padding:8px; border:1px solid #dfe7ee; border-radius:10px; font-size:12px;" aria-label="Όνομα (π.χ. ΧΑΛΑΝΔΡΙ)"/>
+<input id="customStationUrl" placeholder="URL (Open‑Meteo API ή penteli link)" style="flex:2; min-width:320px; padding:8px; border:1px solid #dfe7ee; border-radius:10px; font-size:12px;" aria-label="URL (Open‑Meteo API ή penteli link)"/>
+<button class="mini-btn btn-on" onclick="addCustomStation()" title="Προσθήκη custom σταθμού">➕</button>
+</div>
+<div id="customStationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">Αποθηκεύεται τοπικά στον browser.</div>
+</details>
+<div class="no-print" id="watchlistWrap" style="margin-top:6px;">
+<div id="watchlist" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+</div>
+</div>
+</div></section>
+<section class="panel-card side-card nested-card forecast-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">🌤 Forecast Source</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('forecastSourceBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="forecastSourceBody">
+    <div id="forecastLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση πηγών πρόγνωσης…</div>
+    <table style="margin-top:0;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding-left:10px;"><span class="th-ic">🌐</span>Πηγή</th>
+          <th style="text-align:right;padding-right:10px;"><span class="th-ic">🔗</span>Web</th>
+        </tr>
+      </thead>
+      <tbody id="forecastRows"></tbody>
+    </table>
+    <div class="hint" id="forecastHint" style="margin-top:0;">
+      <b>🔗 Web</b> = άνοιγμα της πηγής πρόγνωσης σε νέα καρτέλα.
+    </div>
+    <div class="hint" id="forecastMsg" style="display:none;margin-top:6px"></div>
+  </div>
+</div></section>
+
+<section class="panel-card side-card nested-card idf-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">☔ Καμπύλες Όμβριων <span style="opacity:.85;font-weight:600;">(IDF Curves)</span></div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('idfBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="idfBody">
+    <div class="hint" style="margin:0;border-radius:0;">Εδώ θα προστεθούν πηγές/αρχεία IDF (καμπύλες όμβριων) για επιλεγμένες περιοχές.</div>
+    <div class="hint" style="margin-top:6px;">(Προσεχώς) 🔗 Web / 📄 αρχεία / επιλογή στο κεντρικό panel.</div>
+  </div>
+</div></section>
+    </div>
+  </div>
+</div></section>
+
+<section class="panel-card side-card waterlevel-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">📏 Στάθμη Ρεμάτων <span style="opacity:.85;font-weight:600;">(Water Level Sensors)</span></div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('waterLevelBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="waterLevelBody">
+    <div id="waterLevelLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση αισθητήρων στάθμης…</div>
+
+    <table style="margin-top:0;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding-left:10px;"><span class="th-ic">🌊</span>Αισθητήρας</th>
+          <th style="text-align:right;padding-right:10px;"><span class="th-ic">🔗</span>Web</th>
+        </tr>
+      </thead>
+      <tbody id="waterLevelRows"></tbody>
+    </table>
+
+    <div class="hint" id="waterLevelHint" style="margin-top:0;">
+      <b>🔗 Web</b> = άνοιγμα της σελίδας του αισθητήρα σε νέα καρτέλα.
+    </div>
+    <div class="hint" id="waterLevelMsg" style="display:none;margin-top:6px"></div>
+  </div>
+</div></section>
+
+</aside>
+<main class="main-panel">
+
+<section class="panel-card main-data-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Δεδομένα</div><button class="icon-btn" onclick="toggleCollapse('mainDataBody', this)">+</button></div><div id="mainDataBody" class="collapsed"><div class="tool-wrap">
+<div class="box data-box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="dataPanelDetails" open="" style="margin:0;">
+<summary class="monitor-panel-summary param-summary has-actions" style="cursor:pointer;">
+<span class="param-title">Παράμετροι</span>
+
+<div class="summary-actions no-print">
+<button class="param-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetParametersToDefaults();" title="Επαναφορά παραμέτρων στις προεπιλογές" type="button">🧹</button>
+</div>
+</summary>
+
+<div class="data-panel-body">
+<div class="data-hdr">
+<div class="data-actions no-print">
+<select class="mini-btn hdr-btn btn-scenario" id="modelScenario" onchange="onScenarioChange(this)" title="Επιλογή σεναρίου" aria-label="modelScenario">
+<option value="">Επιλογή σεναρίου</option>
+<option value="wind">Άνεμος</option>
+<option value="rain">Βροχή</option>
+<option value="heatwave">Καύσωνας</option>
+<option value="frost_snow">Παγετός / Χιόνια</option>
+</select>
+<div class="cohazards" id="coHazards" title="Συνδυαστικά φαινόμενα (δευτερεύοντα). Δεν αλλάζουν τους υπολογισμούς του κύριου σεναρίου.">
+<button class="mini-btn hdr-btn cohz cohz-wind" data-hz="wind" onclick="toggleCoHazard('wind')" type="button">+Άνεμος</button>
+<button class="mini-btn hdr-btn cohz cohz-rain" data-hz="rain" onclick="toggleCoHazard('rain')" type="button">+Βροχή</button>
+<button class="mini-btn hdr-btn cohz cohz-heatwave" data-hz="heatwave" onclick="toggleCoHazard('heatwave')" type="button">+Καύσωνας</button>
+<button class="mini-btn hdr-btn cohz cohz-frost_snow" data-hz="frost_snow" onclick="toggleCoHazard('frost_snow')" type="button">+Παγετός</button>
+</div>
+<button class="mini-btn hdr-btn btn-live-off" id="btnLiveStation" onclick="toggleLive()" title="Αυτόματη ανανέωση ανά 90s">Live OFF</button>
+<button class="mini-btn hdr-btn btn-local-off" id="btnLocalScenario" onclick="toggleLocalScenario()" title="Ενεργοποίηση τοπικού σεναρίου">Local Scenario OFF</button>
+<div class="ai-dd" id="aiTargetGroup" title="AI προορισμός (αποθηκεύεται)">
+<select class="mini-btn hdr-btn ai-select ai-chatgpt" id="aiProviderSelect" onchange="setAITarget(this.value)" title="AI: ChatGPT/Gemini (αποθηκεύεται)" aria-label="aiProviderSelect">
+<option value="chatgpt">AI: ChatGPT</option>
+<option value="gemini">AI: Gemini</option>
+</select>
+</div>
+<button class="mini-btn hdr-btn btn-ai" id="btnAIAnalysis" onclick="runAIAnalysis(event)" title="Συλλογή δεδομένων &amp; ανάλυση με AI (Shift+Click = EXTRA FULL)">AI analysis</button>
+<input id="localScenarioToggle" style="display:none" type="checkbox" aria-label="localScenarioToggle">
+</input></div>
+</div>
+</div>
+</details>
+</div>
+</div><div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="monitorPanelDetails" style="margin:0;">
+<summary class="monitor-panel-summary" style="cursor:pointer;">
+              Μετεωρολογικός Σταθμός (Monitor)
+            </summary>
+<div class="monitor-panel-body">
+<details id="primaryStationDetails" style="margin:0;">
+<summary class="station-summary has-actions" id="stationSummary" style="cursor:pointer;margin-bottom:6px;">
+<span class="station-meta-line" id="stationMetaLine">
+<span class="meta-item name-item"><span id="stationName">—</span></span>
+<span class="meta-item"><b>Timestamp:</b> <span id="stationTimestampInline">—</span></span>
+<span class="meta-item"><b>LAT:</b> <span id="stationLat">—</span></span>
+<span class="meta-item"><b>LON:</b> <span id="stationLon">—</span></span>
+<span class="meta-item"><b>ELEV:</b> <span id="stationElev">—</span></span>
+<span style="display:none"><b>Timestamp:</b> <span id="stationTimestamp">—</span></span>
+</span>
+<div class="summary-actions no-print">
+<button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button>
+<button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button>
+<button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
+<button class="meta-icon-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetPrimaryStationQuick()" title="Επαναφορά Κύριου Σταθμού">🧹</button>
+</div>
+</summary>
+
+<div id="primaryStationContent">
+<div class="latest-row" id="stationLatestRow">
+<div class="latest-chips" id="stationLatestChips">—</div>
+<span class="latest-text" id="stationLatestValues">—</span>
+</div>
+<div class="station-mini">
+<div class="station-card">
+<div class="t">Βροχή (mm/h)</div>
+<div class="v"><span id="stationRainRate">—</span></div>
+</div>
+<div class="station-card">
+<div class="t">ΔP (mm) <span id="stationTotalSrc" style="font-size:10px;color:#6b7a86"></span></div>
+<div class="v"><span id="stationDP">—</span></div>
+</div>
+<div class="station-card">
+<div class="t">R60 (mm)</div>
+<div class="v"><span id="stationR60">—</span></div>
+</div>
+</div>
+<div class="station-actions no-print">
+<button class="mini-btn btn-auto-default" id="btnAutoStation" onclick="applyAutoI()">Load</button>
+<button class="mini-btn btn-gray" id="btnClearStation" onclick="clearStationSeries()">Καθαρισμός</button>
+</div>
+<div id="stationMsg" style="font-size:10px;color:#6b7a86;margin-top:6px;font-style:italic;">—</div>
+</div>
+</details>
+<div id="stationMultiList" style="margin-top:10px; display:none;"></div>
+<details id="seriesDetails" style="margin-top:10px;">
+<summary class="monitor-section-title has-actions" style="cursor:pointer;margin-bottom:6px;">
+<span>Ιστορικό Κύριου Σταθμού</span>
+<span id="seriesStationName" style="font-weight:800;color:#b03030;margin-left:6px;">—</span>
+
+
+
+<span style="margin-left:6px;"><b>Timestamp:</b> <span id="seriesTimestampInline">—</span></span>
+<span style="margin-left:6px;"><b>LAT:</b> <span id="seriesLat">—</span></span>
+<span style="margin-left:6px;"><b>LON:</b> <span id="seriesLon">—</span></span>
+<span style="margin-left:6px;"><b>ELEV:</b> <span id="seriesElev">—</span></span>
+<div class="summary-actions no-print">
+<button class="meta-icon-btn no-print" id="btnSeriesOpenPrimary" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveUrl()" title="Άνοιγμα URL σταθμού">🔗</button>
+<button class="meta-icon-btn no-print" id="btnSeriesMapPrimary" onclick="event.preventDefault();event.stopPropagation();openPrimaryActiveMap()" title="Εστίαση στον χάρτη">📍</button>
+<button class="meta-icon-btn no-print" id="btnSeriesRefreshPrimary" onclick="event.preventDefault();event.stopPropagation();refreshPrimaryOnly(this)" title="Ανανέωση δεδομένων (μόνο αυτού του σταθμού)">⟳</button>
+</div>
+</summary>
+
+<div class="db-controls no-print" id="seriesControls" style="margin:8px 0 10px">
+<span style="font-weight:700">Τελευταίες:</span>
+<input class="db-limit" id="seriesLimit" max="500" min="1" type="number" value="50" aria-label="seriesLimit"/>
+<button class="mini-btn btn-gray" id="btnSeriesLoad" title="Φόρτωση των τελευταίων N εγγραφών από DB και συγχώνευση στο monitoring">Load DB</button>
+<button class="mini-btn btn-gray" id="btnSeriesExport" title="Εξαγωγή CSV (φιλτραρισμένη προβολή)">Export CSV</button>
+<button class="mini-btn btn-gray" id="btnSeriesView" title="Εναλλαγή προβολής στηλών (κοινή με DB)">Προβολή: BASIC</button>
+<button class="mini-btn btn-gray" id="btnSeriesFilters" title="Ενεργοποίηση/Απενεργοποίηση φίλτρων">Φίλτρο: ON</button>
+<button class="mini-btn btn-gray" id="btnSeriesClearFilters" title="Καθαρισμός φίλτρων" type="button">Clear</button>
+<span class="db-status" id="seriesStatus" style="margin-left:auto">—</span>
+</div>
+<div class="db-table-wrap">
+<table class="db-table" id="seriesTable">
+<thead>
+<tr id="seriesHeadRow"></tr>
+<tr class="db-filter-row" id="seriesFilterRow"></tr>
+</thead>
+<tbody id="seriesRows">
+<tr><td colspan="99" style="color:#6b7a86;font-style:italic">—</td></tr>
+</tbody>
+</table>
+</div>
+</details>
+<details id="dbSeriesDetails" style="margin-top:10px;">
+<summary class="monitor-section-title" style="cursor:pointer;margin-bottom:6px;">
+<span>Ιστορικό από Βάση (DB)</span>
+<span id="dbSeriesSummaryName" style="color:#6b7a86;margin-left:6px"></span>
+</summary>
+<div class="db-controls no-print">
+<label style="font-size:11px;color:#6b7a86;font-weight:800">Τελευταίες:</label>
+<input class="db-limit" id="dbLimit" max="500" min="1" type="number" value="50" aria-label="dbLimit">
+<button class="mini-btn btn-gray" id="btnDbLoad" title="Φόρτωση από Firestore">Load DB</button>
+<button class="mini-btn btn-gray" id="btnDbImport" title="Γέμισε το Ιστορικό (buffer) από τη βάση">Import → Ιστορικό</button>
+<button class="mini-btn btn-gray" id="btnDbExport" title="Εξαγωγή CSV">Export CSV</button>
+<button class="mini-btn btn-gray" id="btnDbView" title="Εναλλαγή προβολής στηλών">Προβολή: BASIC</button>
+<button class="mini-btn btn-gray" id="btnDbFilters" title="Excel-style φίλτρα ανά στήλη">Φίλτρο: ON</button>
+<button class="mini-btn btn-gray" id="btnDbClearFilters" title="Καθαρισμός όλων των φίλτρων" type="button">Clear</button>
+<span class="db-status" id="dbStatus">—</span>
+</input></div>
+<div class="db-table-wrap">
+<table class="db-table" id="dbTable">
+<thead>
+<tr id="dbHeadRow"></tr>
+<tr class="db-filter-row" id="dbFilterRow"></tr>
+</thead>
+<tbody id="dbRows"><tr><td colspan="8" style="color:#6b7a86;font-style:italic">—</td></tr></tbody>
+</table>
+</div>
+</details>
+</div>
+</details>
+</div><div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="coHazardsPanelDetails" style="margin:0;">
+<summary class="monitor-panel-summary has-actions" style="cursor:pointer;">
+<span class="summary-flex">
+<span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span>
+<span class="summary-right">
+<span class="cohazards-badges" id="coHazardsBadges"></span>
+
+</span>
+</span>
+<div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών" type="button">🧹</button>
+</div>
+</summary>
+
+<div class="cohazards-panel-body">
+<div class="cohazards-global" id="coHazardsGlobal">
+<div class="cohazards-panel-inner">
+<div class="cohazards-metrics" id="coHazardsMetrics">—</div>
+<div class="cohazards-note">*Τα συνδυαστικά είναι συμπληρωματικά. Οι υπολογισμοί/πίνακες κάτω ακολουθούν το <b>Κύριο Σενάριο</b>.</div>
+</div>
+</div>
+</div>
+</details>
+</div><div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="boundariesPanelDetails" style="margin:0;">
+<summary class="monitor-panel-summary has-actions" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Διοικητικά Όρια: <span id="selectedBoundaryName">—</span></span><span class="summary-right"></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedBoundary()" title="Reset" type="button">🧹</button>
+</div>
+</summary>
+
+<div class="monitor-panel-body" style="margin-top:0">
+<div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
+          Διάλεξε ένα αρχείο από την ενότητα <b>Διοικητικά Όρια</b> (<span class="ico-map">🗺</span> Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
+        </div>
+</div>
+</details>
+</div><div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="streamsPanelDetails" style="margin:0;">
+<summary class="monitor-panel-summary has-actions" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Υδρογραφικό Δίκτυο: <span id="selectedStreamName">—</span></span><span class="summary-right"></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedStream()" title="Reset" type="button">🧹</button>
+</div>
+</summary>
+
+<div class="monitor-panel-body" style="margin-top:0">
+<div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
+          Διάλεξε ένα αρχείο από την ενότητα <b>Υδρογραφικό Δίκτυο</b> (<span class="ico-map">🗺</span> Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
+        </div>
+</div>
+</details>
+</div><div class="box top-panel-box scenario-area-panel" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="selectedZoneDetails" style="margin:0;">
+<summary class="monitor-panel-summary has-actions" style="cursor:pointer;">
+<span class="summary-flex">
+<span class="summary-left">Επιλεγμένη περιοχή/ζώνη: <span id="selectedBasinName">—</span></span>
+<span class="summary-right">
+
+</span>
+</span>
+<div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();resetSelectedZone()" title="Reset" type="button">🧹</button>
+</div>
+</summary>
+
+<div class="monitor-panel-body" style="margin-top:0">
+<div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
+          Διάλεξε ένα αρχείο από την ενότητα <b>Λεκάνες Απορροής</b> (<span class="ico-map">🗺</span> Map ή 👁 On) και πάτησε <b>➕</b> στην κεφαλίδα για να ενημερωθεί η επιλογή.
+        </div>
+</div>
+</details>
+</div></div></section><section class="panel-card scenario-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Επιχειρησιακό Σενάριο</div><button class="icon-btn" onclick="toggleCollapse('scenarioCardBody', this)">+</button></div><div id="scenarioCardBody" class="collapsed"><div id="scenarioArea">
+<div class="scenario-panel" id="panel_rain">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="rainScenarioDetails" style="margin:0;">
+<summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Βροχή">Βροχή</span></span></span></summary>
+<div class="scenario-area-body">
+<details class="scenario-cohazards-details" open="">
+<summary class="monitor-section-title has-actions" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span><span class="summary-right"><span class="cohazards-badges" id="coHazardsBadges_ctx_rain"></span></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών" type="button">⟲</button>
+</div>
+</summary>
+
+<div class="cohazards-context-box">
+<div class="cohazards-panel-inner">
+<div class="cohazards-metrics" id="coHazardsMetrics_ctx_rain">—</div>
+<div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+</div>
+</div>
+</details>
+<div class="grid-2">
+<div class="box" style="background:#fff3cd;border-color:#f1d27a">
+<div class="row">
+<label>Ένταση i (mm/h):</label>
+<input id="rainI" step="0.1" type="number" value="0" aria-label="rainI"/>
+</div>
+<div class="row">
+<label>Διάρκεια D (min):</label>
+<input id="rainD" step="0.1" type="number" value="0" aria-label="rainD"/>
+</div>
+<div style="font-size:11px;color:#6b7a86;text-align:right;">
+            *Αν D=0 → χρησιμοποιείται Tc (ελάχιστο 5 min)
+          </div>
+</div>
+<div class="box" style="background:#f8fbff;border-color:#d6e6ff">
+<h3>Σύντομη εκτίμηση</h3>
+<div class="row"><label>Ένταση i:</label><div class="ro" id="rainSumI">—</div></div>
+<div class="row"><label>Διάρκεια D (χρησιμοποιούμενη):</label><div class="ro" id="rainSumDused">—</div></div>
+<div class="row"><label>Συνολικός υετός (mm):</label><div class="ro" id="rainSumP">—</div></div>
+<div class="row"><label>Qpeak:</label><div class="ro" id="rainSumQpeak">—</div></div>
+<div class="row"><label>Έλεγχος έναντι Qcap:</label><div class="ro" id="rainSumRisk">—</div></div>
+</div>
+</div>
+<div class="panels-row">
+<div class="box" style="background:#eaf7ff;border-color:#bfe4ff">
+<h3>1. ΓΕΩΜΕΤΡΙΑ</h3>
+<div class="row"><label>Εμβαδόν A (m²):</label><input id="area" step="1" type="number" value="0" aria-label="area"/></div>
+<div class="row"><label>Μήκος ροής L (m):</label><input id="length" step="1" type="number" value="0" aria-label="length"/></div>
+<div class="row"><label>Υψομ. διαφορά H (m):</label><input id="height" step="0.1" type="number" value="0" aria-label="height"/></div>
+<div class="row"><label>Συντελεστής C:</label><input id="coef" step="0.01" type="number" value="0.40" aria-label="coef"/></div>
+<div style="margin-top:10px">
+<canvas height="180" id="basinCanvas" width="340"></canvas>
+</div>
+</div>
+<div class="box" style="background:#eef9f1;border-color:#cfeee0">
+<h3>2. ΣΥΛΛΟΓΗ (ΦΡΕΑΤΙΑ)</h3>
+<div class="row"><label>Πλήθος:</label><input id="drains" step="1" type="number" value="0" aria-label="drains"/></div>
+<div class="row"><label>Ικανότητα/φρεάτιο (m³/s):</label><input id="drainCap" step="0.01" type="number" value="0" aria-label="drainCap"/></div>
+<div style="font-size:11px;color:#6b7a86;margin-top:6px">
+            *Qcap_δικτύου = πλήθος × ικανότητα/φρεάτιο
+          </div>
+</div>
+<div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+<h3>3. ΔΙΟΔΕΥΣΗ (ΡΕΜΑ)</h3>
+<div class="row"><label>Πλάτος πυθμένα b (m):</label><input id="strWidth" step="0.1" type="number" value="0" aria-label="strWidth"/></div>
+<div class="row"><label>Πλάγιες κλίσεις z (H:V):</label><input id="strZ" step="0.1" type="number" value="0" aria-label="strZ"/></div>
+<div class="row"><label>Βάθος h (m):</label><input id="strDepth" step="0.1" type="number" value="0" aria-label="strDepth"/></div>
+<div class="row">
+<label>n (Manning):</label>
+<select id="strType" aria-label="strType">
+<option value="0.030">0.030 (Σκυρόδεμα)</option>
+<option value="0.035">0.035 (Μεικτό/Τραχύ)</option>
+<option value="0.045">0.045 (Φυσική κοίτη)</option>
+<option value="0.060">0.060 (Πολύ τραχύ)</option>
+</select>
+</div>
+<div class="row"><label>Μήκος (m) (0=L):</label><input id="strLen" step="1" type="number" value="0" aria-label="strLen"/></div>
+<div class="row"><label>Πτώση (m) (0=H):</label><input id="strDrop" step="0.1" type="number" value="0" aria-label="strDrop"/></div>
+<div class="row">
+<label>Ύψος νερού y (m):</label>
+<input id="strY" placeholder="Auto" step="0.01" type="number" value="" aria-label="Auto"/>
+</div>
+<div class="station-actions no-print" style="margin-top:6px">
+<button class="mini-btn btn-gray" onclick="resetStrY()">Auto y</button>
+<button class="mini-btn btn-map" onclick="openMapModal()">Χάρτης</button>
+</div>
+<div style="margin-top:10px">
+<canvas height="180" id="channelCanvas" width="340"></canvas>
+</div>
+</div>
+</div>
+<div class="summary-box">
+<div class="stat"><div class="k">Κλίση S</div><div class="v" id="res-slope">—</div></div>
+<div class="stat"><div class="k">Tc (Kirpich)</div><div class="v" id="res-tc">—</div></div>
+<div class="stat"><div class="k" style="color:#d35400">Qpeak</div><div class="v" id="res-qsel">—</div></div>
+<div class="stat"><div class="k">Qcap Δικτύου</div><div class="v" id="res-drains">—</div></div>
+<div class="stat"><div class="k">Qcap Ρέματος</div><div class="v" id="res-stream">—</div></div>
+<div class="stat"><div class="k">Έλεγχος</div><div class="v" id="res-adequacy">—</div></div>
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>i (mm/h)</th>
+<th>D (min)</th>
+<th>P (mm)</th>
+<th>Qpeak (m³/s)</th>
+<th>V (m³)</th>
+<th>Επικινδυνότητα</th>
+<th>Δίκτυο</th>
+<th>Ρέμα</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+<div class="footer-grid">
+<div class="legend">
+<h4>Σημειώσεις</h4>
+<div style="font-size:12px;color:#2c3e50;font-weight:800;line-height:1.35">
+            • Qpeak: Μέθοδος Rational (0.278·C·i·A_km²)<br/>
+            • Tc: Kirpich (min) • D: αν D=0 → D= max(5, Tc)<br/>
+            • Ρέμα: Manning σε τραπεζοειδή διατομή (b, z, h)<br/>
+</div>
+</div>
+<div class="legend">
+<h4>Υπόμνημα (Peq = P·C)</h4>
+<div class="item"><span class="swatch" style="background:#eafaf1"></span> Χαμηλή (&lt;10 mm)</div>
+<div class="item"><span class="swatch" style="background:#fff7e6"></span> Μέτρια (10–25 mm)</div>
+<div class="item"><span class="swatch" style="background:#ffe9d6"></span> Υψηλή (25–40 mm)</div>
+<div class="item"><span class="swatch" style="background:#ffe0e0"></span> Πολύ Υψηλή (40–60 mm)</div>
+<div class="item"><span class="swatch" style="background:#ffd1d1"></span> Ακραία (≥60 mm)</div>
+</div>
+</div>
+</div>
+</details>
+</div>
+</div>
+<div class="scenario-panel" id="panel_wind">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="windScenarioDetails" open="" style="margin:0;">
+<summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Άνεμος">Άνεμος</span></span></span></summary>
+<div class="scenario-area-body">
+<details class="scenario-cohazards-details" open="">
+<summary class="monitor-section-title has-actions" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span><span class="summary-right"><span class="cohazards-badges" id="coHazardsBadges_ctx_wind"></span></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών" type="button">⟲</button>
+</div>
+</summary>
+
+<div class="cohazards-context-box">
+<div class="cohazards-panel-inner">
+<div class="cohazards-metrics" id="coHazardsMetrics_ctx_wind">—</div>
+<div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+</div>
+</div>
+</details>
+<div class="grid-2">
+<div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
+<div class="row"><label>Όριο προειδοποίησης (km/h):</label><input id="windWarnKmh" step="1" type="number" value="50" aria-label="windWarnKmh"/></div>
+<div class="row"><label>Όριο υψηλού κινδύνου (km/h):</label><input id="windHighKmh" step="1" type="number" value="70" aria-label="windHighKmh"/></div>
+<div style="font-size:11px;color:#6b7a86;text-align:right;">*Χρησιμοποιείται η τρέχουσα ταχύτητα (ή/και ριπή αν υπάρχει)</div>
+</div>
+<div class="box" style="background:#f8fbff;border-color:#d6e6ff">
+<h3>Σύντομη εκτίμηση</h3>
+<div class="row"><label>Τρέχουσα ταχύτητα:</label><div class="ro" id="windNow">—</div></div>
+<div class="row"><label>Διεύθυνση:</label><div class="ro" id="windDir">—</div></div>
+<div class="row"><label>Κίνδυνος:</label><div class="ro" id="windRisk">—</div></div>
+</div>
+</div>
+<div class="panels-row">
+<div class="box" style="background:#f0fff4;border-color:#c9f2d5">
+<h3>1. Έκθεση / Ευπάθειες</h3>
+<div class="ops-list">
+<ul>
+<li>Δέντρα/κλαδιά – πάρκα, δενδροστοιχίες, σχολικές αυλές</li>
+<li>Πινακίδες, στέγαστρα, κάδοι, προσωρινές κατασκευές</li>
+<li>Εργοτάξια/σκαλωσιές, ελαφριές στέγες, υλικά στο ύπαιθρο</li>
+</ul>
+</div>
+</div>
+<div class="box" style="background:#fff7e6;border-color:#f2d3a0">
+<h3>2. Επιχειρησιακές ενέργειες</h3>
+<div class="ops-list">
+<ul>
+<li>Περιπολίες σε ευπαθή σημεία (δέντρα/πινακίδες)</li>
+<li>Ενημέρωση εργοταξίων για ασφάλιση υλικών</li>
+<li>Ετοιμότητα συνεργείων για πτώσεις κλαδιών/αντικειμένων</li>
+</ul>
+</div>
+</div>
+<div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+<h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
+<div class="row"><label>Hotspot:</label><input id="windHotspot" placeholder="π.χ. Πάρκο, κεντρικές λεωφόροι, εργοτάξιο…" aria-label="π.χ. Πάρκο, κεντρικές λεωφόροι, εργοτάξιο…"/></div>
+<div class="row"><label>Σχόλιο:</label><input id="windNote" placeholder="σύντομη σημείωση…" aria-label="σύντομη σημείωση…"/></div>
+</div>
+</div>
+</div>
+</details>
+</div>
+</div>
+<div class="scenario-panel" id="panel_heatwave">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="heatwaveScenarioDetails" open="" style="margin:0;">
+<summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Καύσωνας">Καύσωνας</span></span></span></summary>
+<div class="scenario-area-body">
+<details class="scenario-cohazards-details" open="">
+<summary class="monitor-section-title has-actions" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span><span class="summary-right"><span class="cohazards-badges" id="coHazardsBadges_ctx_heatwave"></span></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών" type="button">⟲</button>
+</div>
+</summary>
+
+<div class="cohazards-context-box">
+<div class="cohazards-panel-inner">
+<div class="cohazards-metrics" id="coHazardsMetrics_ctx_heatwave">—</div>
+<div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+</div>
+</div>
+</details>
+<div class="grid-2">
+<div class="box" style="background:#fff3cd;border-color:#f1d27a">
+<div class="row"><label>Όριο μέτριου κινδύνου (°C HI):</label><input id="heatWarnHI" step="0.1" type="number" value="37" aria-label="heatWarnHI"/></div>
+<div class="row"><label>Όριο υψηλού κινδύνου (°C HI):</label><input id="heatHighHI" step="0.1" type="number" value="41" aria-label="heatHighHI"/></div>
+<div style="font-size:11px;color:#6b7a86;text-align:right;">*HI = Δείκτης δυσφορίας/Heat Index (αν υπάρχει)</div>
+</div>
+<div class="box" style="background:#fff7f7;border-color:#ffd1d1">
+<h3>Σύντομη εκτίμηση</h3>
+<div class="row"><label>Θερμοκρασία:</label><div class="ro" id="heatTempNow">—</div></div>
+<div class="row"><label>Δείκτης δυσφορίας (HI):</label><div class="ro" id="heatIndexNow">—</div></div>
+<div class="row"><label>Κίνδυνος:</label><div class="ro" id="heatRisk">—</div></div>
+</div>
+</div>
+<div class="panels-row">
+<div class="box" style="background:#f0fff4;border-color:#c9f2d5">
+<h3>1. Ευάλωτοι πληθυσμοί / σημεία</h3>
+<div class="ops-list">
+<ul>
+<li>Ηλικιωμένοι, παιδιά, άτομα με χρόνια νοσήματα</li>
+<li>Εργαζόμενοι σε εξωτερικούς χώρους</li>
+<li>Περιοχές με χαμηλή σκίαση/υψηλή θερμική νησίδα</li>
+</ul>
+</div>
+</div>
+<div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
+<h3>2. Μέτρα Δήμου</h3>
+<div class="ops-list">
+<ul>
+<li>Λειτουργία/ενημέρωση κλιματιζόμενων χώρων (cooling centers)</li>
+<li>Ενημέρωση δημοτών (ενυδάτωση, αποφυγή έκθεσης 12:00–17:00)</li>
+<li>Ετοιμότητα για ευπαθείς δομές (ΚΑΠΗ, σχολεία, δομές φιλοξενίας)</li>
+</ul>
+</div>
+</div>
+<div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+<h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
+<div class="row"><label>Hotspot:</label><input id="heatHotspot" placeholder="π.χ. πλατείες χωρίς σκιά, γειτονιές…" aria-label="π.χ. πλατείες χωρίς σκιά, γειτονιές…"/></div>
+<div class="row"><label>Σχόλιο:</label><input id="heatNote" placeholder="σύντομη σημείωση…" aria-label="σύντομη σημείωση…"/></div>
+</div>
+</div>
+</div>
+</details>
+</div>
+</div>
+
+</div><div class="scenario-panel" id="panel_frost_snow">
+</div></div></section></main>
+</div>
+<div class="no-print" id="mapModal">
+<div id="mapCard">
+<div id="mapTop">
+<div><span class="ico-map">🗺</span> Προβολή Χάρτη (πολλαπλά layers)</div>
+<div style="display:flex; gap:8px; align-items:center;">
+<button class="mini-btn btn-gray" onclick="turnAllOff()">Off όλα</button>
+<button class="mini-btn btn-gray" onclick="closeMapModal()">Κλείσιμο</button>
+</div>
+</div>
+<div id="mapBox"></div>
+</div>
+
+</div>
+  <script src="nireas_part01_ui_core.js"></script>
+  <script src="nireas_part02_bootstrap_init.js"></script>
+  <script src="nireas_part03_aoi.js"></script>
+  <script src="nireas_part04_forecast_sources.js"></script>
+  <script src="nireas_part05_resources.js"></script>
+  <script src="nireas_part06_map_modal_logic.js"></script>
+  <script src="nireas_part07_meteo_ai.js"></script>
+  <script src="nireas_part08_db_calc_boot.js"></script>
+<script type="module" src="firebase.js"></script>
+</body>
+</html>
