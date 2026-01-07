@@ -216,6 +216,9 @@ async function init(){
     document.getElementById('loader').style.display = 'none';
   }
 }
+document.addEventListener('DOMContentLoaded', () => {
+  try{ init(); }catch(e){ console.error('Init failed:', e); }
+});
 
 function renderBoundariesList(){
   const tbody = document.getElementById('boundaryRows');
