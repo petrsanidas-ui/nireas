@@ -1774,6 +1774,10 @@ async function init(){
 
     await loadProjectLayersRegistryFromTree(files);
 
+    
+
+    await loadCategoryRegistriesIntoProjectMeta();
+
     // UI binds
     bindGeoFilesUI();
 
@@ -2048,6 +2052,55 @@ async function loadProjectLayersRegistryFromTree(files){
     PROJECT_LAYERS_BY_FILE = new Map();
   }
 }
+
+// Merge per-category registries (streams/basins) into PROJECT_LAYERS_BY_FILE so AOI filtering works
+async function loadCategoryRegistriesIntoProjectMeta(){
+  try{
+    const mergeOne = async (path, category)=>{
+      try{
+        const resp = await fetch(DATA_BASE + path, { cache: 'no-store' });
+        if(!resp.ok) return;
+        const arr = await resp.json();
+        if(!Array.isArray(arr)) return;
+
+        for(const raw of arr){
+          const file = String(raw?.file || '').trim();
+          if(!file) continue;
+
+          // Normalize municipality_ids
+          let mu = [];
+          if(Array.isArray(raw?.municipality_ids)) mu = raw.municipality_ids.map(String).filter(Boolean);
+          else if(typeof raw?.municipality_id === 'string' && raw.municipality_id.trim()) mu = [raw.municipality_id.trim()];
+
+          const prev = PROJECT_LAYERS_BY_FILE.get(file) || {};
+          const next = { ...prev };
+
+          // Fill (do not clobber explicit values already defined in project_layers_registry)
+          if(!next.name && raw?.name) next.name = String(raw.name);
+          if(!next.category && category) next.category = category;
+
+          if((!Array.isArray(next.municipality_ids) || !next.municipality_ids.length) && mu.length){
+            next.municipality_ids = mu;
+          }
+
+          // Merge tags (optional)
+          const tagsPrev = Array.isArray(next.tags) ? next.tags.map(String) : [];
+          const tagsRaw  = Array.isArray(raw?.tags) ? raw.tags.map(String) : [];
+          const mergedTags = Array.from(new Set([...tagsPrev, ...tagsRaw].filter(Boolean)));
+          if(mergedTags.length) next.tags = mergedTags;
+
+          PROJECT_LAYERS_BY_FILE.set(file, next);
+        }
+      }catch(_){}
+    };
+
+    await Promise.all([
+      mergeOne('data/streams/streams_registry.json', 'streams'),
+      mergeOne('data/basins/basins_registry.json', 'basins')
+    ]);
+  }catch(_){}
+}
+
 
 
 
