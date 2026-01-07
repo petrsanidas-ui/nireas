@@ -211,43 +211,42 @@ async function fetchStationData(mode='both'){
     else updateExtrasStatus('Επιπλέον: (κανένας)', 'neutral');
   }
 
-  const settled = await Promise.allSettled(
-    targets.map(t => fetchStationDataSingle(t.url, t.name, t.primary))
-  );
-
   const results = [];
   let primaryErr = null;
   let primaryOk = false;
   const extrasErrors = [];
 
-  settled.forEach((s, i)=>{
-    const t = targets[i];
-    if(s.status === 'fulfilled'){
-      if(s.value) results.push(s.value);
-
-      if(t.primary){
-        if(s.value && s.value.ok === true){
-          primaryOk = true;
-        } else {
-          const er = (s.value && s.value.error) ? s.value.error : 'δεν φορτώθηκαν δεδομένα';
-          primaryErr = `${t.name || t.url}: ${er}`;
-        }
+  const handleResult = (t, value, errorMsg)=>{
+    if(value) results.push(value);
+    if(t.primary){
+      if(value && value.ok === true){
+        primaryOk = true;
       } else {
-        if(!(s.value && s.value.ok === true)){
-          const nm = (s.value?.name || t.name || t.url);
-          const er = (s.value?.error || 'δεν φορτώθηκαν δεδομένα');
-          extrasErrors.push(`${nm}: ${er}`);
-        }
+        const er = errorMsg || ((value && value.error) ? value.error : 'δεν φορτώθηκαν δεδομένα');
+        primaryErr = `${t.name || t.url}: ${er}`;
       }
     } else {
-      const er = (s.reason && s.reason.message) ? s.reason.message : String(s.reason || 'σφάλμα');
-      if(t.primary){
-        primaryErr = `${t.name || t.url}: ${er}`;
-      } else {
-        extrasErrors.push(`${t.name || t.url}: ${er}`);
+      if(!(value && value.ok === true)){
+        const nm = (value?.name || t.name || t.url);
+        const er = errorMsg || (value?.error || 'δεν φορτώθηκαν δεδομένα');
+        extrasErrors.push(`${nm}: ${er}`);
       }
     }
-  });
+    if(mode !== 'primary'){
+      renderStationMultiList(results);
+    }
+  };
+
+  const tasks = targets.map(t =>
+    fetchStationDataSingle(t.url, t.name, t.primary)
+      .then(value => handleResult(t, value, null))
+      .catch(err => {
+        const er = (err && err.message) ? err.message : String(err || 'σφάλμα');
+        handleResult(t, null, er);
+      })
+  );
+
+  await Promise.allSettled(tasks);
 
   // Update multi list only when we fetched extras (or both)
   if(mode !== 'primary'){

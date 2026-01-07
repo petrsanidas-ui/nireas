@@ -62,6 +62,8 @@ function initStartupSplash(){
 
   splash.addEventListener('click', close, { passive: true });
   window.addEventListener('keydown', close, { once: true });
+  window.__closeStartupSplash = close;
+  setTimeout(close, 2000);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -84,12 +86,21 @@ const GH_BRANCH = 'main';
 const API_TREE  = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/git/trees/${GH_BRANCH}?recursive=1`;
 const RAW_URL   = `https://raw.githubusercontent.com/${GH_USER}/${GH_REPO}/${GH_BRANCH}/`;
 
+function emptyAoiSelected(){
+  return { municipality_ids: [], pref_unit_ids: [], region_ids: [] };
+}
+
 // Data loading mode:
 // - 'local' : load from local "data/" folder (works on localhost and GitHub Pages; supports offline local server)
 // - 'github': auto-discover files via GitHub API tree (requires internet and is rate-limited)
-const DATA_MODE = 'local';
+const DEFAULT_DATA_MODE = 'local';
+const FORCE_RAW_ON_FILE = (location.protocol === 'file:');
+let DATA_MODE = DEFAULT_DATA_MODE;
 
-const DATA_BASE = (DATA_MODE === 'github') ? RAW_URL : '';
+let DATA_BASE = (DATA_MODE === 'github') ? RAW_URL : '';
+if(FORCE_RAW_ON_FILE){
+  DATA_BASE = RAW_URL;
+}
 
 let DATA_GROUPS = { boundaries: [], streams: [], basins: [] }; // NOTE ORDER
 
@@ -135,10 +146,10 @@ let PREVIEW_LAYER = null;          // temporary layer for Map button preview
 
 /* ===== Selected Meteo Stations layer (map) ===== */
 const STATIONS_META = new Map();   // url -> {name,url,lat,lon,elev}
-let METEO_PRIMARY_VISIBLE = false;
-let METEO_WATCH_VISIBLE = false;
-let METEO_STATIONS_LAYER = null;  // persistent selected markers layer
-let METEO_STATIONS_PREVIEW = null;// preview-only layer (Map button)
+var METEO_PRIMARY_VISIBLE = false;
+var METEO_WATCH_VISIBLE = false;
+var METEO_STATIONS_LAYER = null;  // persistent selected markers layer
+var METEO_STATIONS_PREVIEW = null;// preview-only layer (Map button)
 const METEO_MARKERS = new Map();  // url -> Leaflet marker (persistent)
 
 function getSelectedStationUrls(){
