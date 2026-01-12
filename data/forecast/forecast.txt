@@ -1,3 +1,4 @@
 https://www.windy.com/?37.983,23.733,5
 https://poseidon.hcmr.gr/el/map?model=meteo&param=t2m&date=2026-01-05T09:00:00Z&coords=39.62835226231253,19.74385500587962,5.5
 https://www.meteo.gr/cf.cfm?city_id=88
+https://api.open-meteo.com/v1/forecast?latitude=38.0237&longitude=23.8007&hourly=temperature_2m,rain,snowfall,precipitation,wind_speed_10m,wind_gusts_10m,soil_temperature_0_to_7cm,surface_temperature&models=ecmwf_ifs&forecast_days=1
