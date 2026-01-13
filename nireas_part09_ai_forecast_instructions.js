@@ -24,6 +24,38 @@ const AI_FORECAST_INSTRUCTIONS_HTML = `
     <div style="font-size:11px;color:#6b7a86;">
       Σημείωση: Τα δεδομένα μπορεί να είναι τοπικά/ζωντανά· μην τα συνδυάζεις με εξωτερικές πηγές.
     </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #d6dde4;">
+      <div style="font-weight:800;margin-bottom:6px;">Αυτόματη αποστολή σε API</div>
+      <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));font-size:12px;color:#2b3a44;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input id="aiAutoSendToggle" type="checkbox" />
+          Ενεργοποίηση αποστολής
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          Provider
+          <select id="aiAutoSendProvider" style="height:28px;">
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+            <option value="custom">Custom Endpoint</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          Model
+          <input id="aiAutoSendModel" type="text" placeholder="gpt-4o-mini / gemini-1.5-pro" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          API Key
+          <input id="aiAutoSendKey" type="password" placeholder="paste key" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          Custom URL (optional)
+          <input id="aiAutoSendEndpoint" type="text" placeholder="https://example.com/ai" />
+        </label>
+      </div>
+      <div style="font-size:11px;color:#6b7a86;margin-top:6px;">
+        Τα στοιχεία αποθηκεύονται τοπικά στον browser (localStorage).
+      </div>
+    </div>
   </div>
 `;
 
@@ -31,5 +63,41 @@ function initAIForecastInstructions(){
   const el = document.getElementById('aiForecastInstructions');
   if(!el) return;
   el.innerHTML = AI_FORECAST_INSTRUCTIONS_HTML;
+
+  const toggle = document.getElementById('aiAutoSendToggle');
+  const provider = document.getElementById('aiAutoSendProvider');
+  const model = document.getElementById('aiAutoSendModel');
+  const key = document.getElementById('aiAutoSendKey');
+  const endpoint = document.getElementById('aiAutoSendEndpoint');
+
+  if(!toggle || !provider || !model || !key || !endpoint) return;
+
+  const saved = {
+    enabled: localStorage.getItem('NIREAS_AI_AUTO_SEND') === '1',
+    provider: localStorage.getItem('NIREAS_AI_AUTO_SEND_PROVIDER') || 'openai',
+    model: localStorage.getItem('NIREAS_AI_AUTO_SEND_MODEL') || '',
+    key: localStorage.getItem('NIREAS_AI_AUTO_SEND_KEY') || '',
+    endpoint: localStorage.getItem('NIREAS_AI_AUTO_SEND_ENDPOINT') || ''
+  };
+
+  toggle.checked = saved.enabled;
+  provider.value = saved.provider;
+  model.value = saved.model;
+  key.value = saved.key;
+  endpoint.value = saved.endpoint;
+
+  const save = () => {
+    localStorage.setItem('NIREAS_AI_AUTO_SEND', toggle.checked ? '1' : '0');
+    localStorage.setItem('NIREAS_AI_AUTO_SEND_PROVIDER', provider.value);
+    localStorage.setItem('NIREAS_AI_AUTO_SEND_MODEL', model.value.trim());
+    localStorage.setItem('NIREAS_AI_AUTO_SEND_KEY', key.value.trim());
+    localStorage.setItem('NIREAS_AI_AUTO_SEND_ENDPOINT', endpoint.value.trim());
+  };
+
+  toggle.addEventListener('change', save);
+  provider.addEventListener('change', save);
+  model.addEventListener('change', save);
+  key.addEventListener('change', save);
+  endpoint.addEventListener('change', save);
 }
 /* ===================== /AI FORECAST INSTRUCTIONS ===================== */
