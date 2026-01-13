@@ -377,6 +377,40 @@
   </div>
 </div></section>
 
+<section class="panel-card side-card nested-card forecast-card is-collapsed"><div class="section">
+  <div class="panel-topbar">
+    <div class="hdr-left">⛅ Weather Forecast</div>
+    <div class="hdr-right">
+      <button class="icon-btn" onclick="toggleCollapse('weatherForecastBody', this)" style="width:28px;height:24px">+</button>
+    </div>
+  </div>
+  <div class="section-body collapsed" id="weatherForecastBody">
+    <div id="weatherForecastLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση καιρού…</div>
+    <div style="overflow:auto;">
+      <table style="margin-top:0; min-width:920px;">
+        <thead>
+          <tr>
+            <th id="weatherThTime" style="text-align:left;padding-left:10px;"><span class="th-ic">🕒</span>Ώρα</th>
+            <th id="weatherThTemp"><span class="th-ic">🌡️</span>Θερμοκρασία</th>
+            <th id="weatherThRain"><span class="th-ic">🌧️</span>Βροχή</th>
+            <th id="weatherThSnowfall"><span class="th-ic">❄️</span>Χιονόπτωση</th>
+            <th id="weatherThPrecip"><span class="th-ic">💧</span>Κατακρήμν.</th>
+            <th id="weatherThWind"><span class="th-ic">🌬️</span>Άνεμος</th>
+            <th id="weatherThGusts"><span class="th-ic">💨</span>Ριπές</th>
+            <th id="weatherThSoilTemp"><span class="th-ic">🪵</span>Θερμ. εδάφους</th>
+            <th id="weatherThSurfaceTemp"><span class="th-ic">🧱</span>Θερμ. επιφάνειας</th>
+          </tr>
+        </thead>
+        <tbody id="weatherForecastRows"></tbody>
+      </table>
+    </div>
+    <div class="hint" id="weatherForecastHint" style="margin-top:0;">
+      Δεδομένα από Open‑Meteo (μοντέλο ECMWF IFS) για τις επόμενες 24 ώρες.
+    </div>
+    <div class="hint" id="weatherForecastMsg" style="display:none;margin-top:6px"></div>
+  </div>
+</div></section>
+
 <section class="panel-card side-card nested-card idf-card is-collapsed"><div class="section">
   <div class="panel-topbar">
     <div class="hdr-left">☔ Καμπύλες Όμβριων <span style="opacity:.85;font-weight:600;">(IDF Curves)</span></div>
