@@ -126,7 +126,12 @@ function formatWeatherTime(value){
   if(!value) return '—';
   const d = new Date(value);
   if(Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString('el-GR', { hour: '2-digit', minute: '2-digit' });
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${hh}:${min} ${dd}-${mm}-${yyyy}`;
 }
 
 function setWeatherHeaderUnits(units){
@@ -180,6 +185,7 @@ function renderWeatherForecastRows(payloads){
         if(idx <= 1){
           td.style.textAlign = 'left';
           td.style.paddingLeft = '10px';
+          if(idx === 1) td.style.whiteSpace = 'nowrap';
         }else{
           td.style.textAlign = 'center';
         }
