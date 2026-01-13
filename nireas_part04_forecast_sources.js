@@ -185,6 +185,7 @@ function renderWeatherForecastRows(payloads){
         if(idx <= 1){
           td.style.textAlign = 'left';
           td.style.paddingLeft = '10px';
+          if(idx === 1) td.style.whiteSpace = 'nowrap';
         }else{
           td.style.textAlign = 'center';
         }
