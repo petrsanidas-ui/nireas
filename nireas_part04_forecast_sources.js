@@ -103,10 +103,6 @@ async function loadForecastSourcesFromTree(treeFiles){
 
 /* ===================== WEATHER FORECAST (OPEN-METEO) ===================== */
 const WEATHER_FORECAST_DEFAULT_URL = 'https://api.open-meteo.com/v1/forecast?latitude=38.0237&longitude=23.8007&hourly=temperature_2m,rain,snowfall,precipitation,wind_speed_10m,wind_gusts_10m,soil_temperature_0_to_7cm,surface_temperature&models=ecmwf_ifs&forecast_days=1';
-const WEATHER_FORECAST_AUTO_KEY = 'NIREAS_WEATHER_FORECAST_AUTO';
-const WEATHER_FORECAST_AUTO_MIN_KEY = 'NIREAS_WEATHER_FORECAST_AUTO_MIN';
-let WEATHER_FORECAST_REFRESH_TIMER = null;
-let WEATHER_FORECAST_LAST_FILES = null;
 
 const WEATHER_HEADER_MAP = {
   source: { id: 'weatherThSource', label: 'Πηγή' },
@@ -202,66 +198,6 @@ function renderWeatherForecastRows(payloads){
   });
 }
 
-function refreshWeatherForecastNow(){
-  if(!WEATHER_FORECAST_LAST_FILES){
-    return loadWeatherForecast([]);
-  }
-  return loadWeatherForecast(WEATHER_FORECAST_LAST_FILES);
-}
-
-function updateWeatherForecastAutoStatus(minutes, enabled){
-  const el = document.getElementById('weatherForecastAutoStatus');
-  if(!el) return;
-  if(!enabled){
-    el.textContent = '';
-    return;
-  }
-  el.textContent = `Ενεργό (${minutes} λεπτά)`;
-}
-
-function setWeatherForecastAutoRefresh(minutes){
-  if(WEATHER_FORECAST_REFRESH_TIMER){
-    clearInterval(WEATHER_FORECAST_REFRESH_TIMER);
-    WEATHER_FORECAST_REFRESH_TIMER = null;
-  }
-  if(!minutes || minutes < 1) return;
-  WEATHER_FORECAST_REFRESH_TIMER = setInterval(() => {
-    refreshWeatherForecastNow();
-  }, minutes * 60 * 1000);
-}
-
-function initWeatherForecastControls(){
-  const refreshBtn = document.getElementById('weatherForecastRefreshBtn');
-  const toggle = document.getElementById('weatherForecastAutoToggle');
-  const minutesInput = document.getElementById('weatherForecastAutoMinutes');
-  if(refreshBtn){
-    refreshBtn.onclick = () => refreshWeatherForecastNow();
-  }
-  if(!toggle || !minutesInput) return;
-
-  const savedAuto = localStorage.getItem(WEATHER_FORECAST_AUTO_KEY) === '1';
-  const savedMinutes = Number(localStorage.getItem(WEATHER_FORECAST_AUTO_MIN_KEY) || minutesInput.value || 30);
-  minutesInput.value = savedMinutes;
-  toggle.checked = savedAuto;
-
-  const applyAuto = () => {
-    const minutes = Number(minutesInput.value || 0);
-    const enabled = toggle.checked;
-    localStorage.setItem(WEATHER_FORECAST_AUTO_KEY, enabled ? '1' : '0');
-    localStorage.setItem(WEATHER_FORECAST_AUTO_MIN_KEY, String(minutes || 0));
-    updateWeatherForecastAutoStatus(minutes, enabled);
-    if(enabled && minutes >= 1){
-      setWeatherForecastAutoRefresh(minutes);
-    }else{
-      setWeatherForecastAutoRefresh(0);
-    }
-  };
-
-  toggle.addEventListener('change', applyAuto);
-  minutesInput.addEventListener('change', applyAuto);
-  applyAuto();
-}
-
 function parseWeatherForecastSources(text){
   const lines = String(text ?? '')
     .split(/\r?\n/)
@@ -309,10 +245,6 @@ async function loadWeatherForecastSourcesFromTree(treeFiles){
 }
 
 async function loadWeatherForecast(treeFiles){
-  WEATHER_FORECAST_LAST_FILES = treeFiles;
-  if(!document.getElementById('weatherForecastRefreshBtn')){
-    initWeatherForecastControls();
-  }
   const loader = document.getElementById('weatherForecastLoader');
   const msg = document.getElementById('weatherForecastMsg');
   if(loader) loader.style.display = 'block';
