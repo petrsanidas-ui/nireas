@@ -1,0 +1,1 @@
+https://api.open-meteo.com/v1/forecast?latitude=38.0237&longitude=23.8007&hourly=temperature_2m,rain,snowfall,precipitation,wind_speed_10m,wind_gusts_10m,soil_temperature_0_to_7cm,surface_temperature&models=ecmwf_ifs&forecast_days=1
