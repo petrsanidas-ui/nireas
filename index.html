@@ -386,6 +386,19 @@
   </div>
   <div class="section-body collapsed" id="weatherForecastBody">
     <div id="weatherForecastLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση καιρού…</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 8px;">
+      <button class="mini-btn btn-gray" id="weatherForecastRefreshBtn" title="Ανανέωση πρόγνωσης">Ανανέωση</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#2b3a44;">
+        <input id="weatherForecastAutoToggle" type="checkbox" />
+        Αυτόματη ανανέωση
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#2b3a44;">
+        Κάθε
+        <input id="weatherForecastAutoMinutes" type="number" min="5" step="5" value="30" style="width:64px;" />
+        λεπτά
+      </label>
+      <span id="weatherForecastAutoStatus" style="font-size:11px;color:#6b7a86;"></span>
+    </div>
     <div style="overflow:auto;">
       <table style="margin-top:0; min-width:1040px;">
         <thead>
@@ -689,7 +702,15 @@
         </div>
 </div>
 </details>
-</div></div></section><section class="panel-card scenario-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Επιχειρησιακό Σενάριο</div><button class="icon-btn" onclick="toggleCollapse('scenarioCardBody', this)">+</button></div><div id="scenarioCardBody" class="collapsed"><div id="scenarioArea">
+</div></div></section>
+
+<section class="panel-card main-data-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Οδηγίες AI Πρόγνωσης</div><button class="icon-btn" onclick="toggleCollapse('aiForecastBody', this)">+</button></div><div id="aiForecastBody" class="collapsed"><div class="tool-wrap">
+<div class="box top-panel-box" style="background:#f2f6fb;border-color:#dfe7ee">
+  <div id="aiForecastInstructions"></div>
+</div>
+</div></div></section>
+
+<section class="panel-card scenario-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Επιχειρησιακό Σενάριο</div><button class="icon-btn" onclick="toggleCollapse('scenarioCardBody', this)">+</button></div><div id="scenarioCardBody" class="collapsed"><div id="scenarioArea">
 <div class="scenario-panel" id="panel_rain">
 <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
 <details id="rainScenarioDetails" style="margin:0;">
@@ -974,6 +995,7 @@
   <script src="nireas_part05_resources.js"></script>
   <script src="nireas_part06_map_modal_logic.js"></script>
   <script src="nireas_part07_meteo_ai.js"></script>
+  <script src="nireas_part09_ai_forecast_instructions.js"></script>
   <script src="nireas_part08_db_calc_boot.js"></script>
 <script type="module" src="firebase.js"></script>
 </body>

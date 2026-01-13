@@ -1260,6 +1260,53 @@ function __aiToast(msg){
   }catch(_){}
 }
 
+function getAIAutoSendConfig(){
+  return {
+    enabled: localStorage.getItem('NIREAS_AI_AUTO_SEND') === '1',
+    provider: localStorage.getItem('NIREAS_AI_AUTO_SEND_PROVIDER') || 'openai',
+    model: localStorage.getItem('NIREAS_AI_AUTO_SEND_MODEL') || '',
+    key: localStorage.getItem('NIREAS_AI_AUTO_SEND_KEY') || '',
+    endpoint: localStorage.getItem('NIREAS_AI_AUTO_SEND_ENDPOINT') || ''
+  };
+}
+
+function sendAIPromptAuto(prompt, cfg){
+  if(!cfg || !cfg.enabled) return Promise.resolve(false);
+  const provider = cfg.provider || 'openai';
+  const model = cfg.model || (provider === 'gemini' ? 'gemini-1.5-pro' : 'gpt-4o-mini');
+  const headers = { 'Content-Type': 'application/json' };
+
+  let url = '';
+  let body = {};
+
+  if(provider === 'gemini'){
+    if(!cfg.key) return Promise.resolve(false);
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(cfg.key)}`;
+    body = { contents: [{ parts: [{ text: prompt }] }] };
+  }else if(provider === 'custom'){
+    if(!cfg.endpoint) return Promise.resolve(false);
+    url = cfg.endpoint;
+    if(cfg.key) headers.Authorization = `Bearer ${cfg.key}`;
+    body = { prompt };
+  }else{
+    if(!cfg.key) return Promise.resolve(false);
+    url = cfg.endpoint || 'https://api.openai.com/v1/chat/completions';
+    headers.Authorization = `Bearer ${cfg.key}`;
+    body = { model, messages: [{ role: 'user', content: prompt }], temperature: 0.2 };
+  }
+
+  return fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+    .then(resp => {
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      __aiToast(`✅ Αυτόματη αποστολή ολοκληρώθηκε (${provider}).`);
+      return true;
+    })
+    .catch(err => {
+      __aiToast(`⚠️ Αυτόματη αποστολή απέτυχε (${provider}): ${err?.message || err}`);
+      return false;
+    });
+}
+
 
 function runAIAnalysis(ev){
   // Shift+Click => EXTRA FULL (more raw page text). Default already includes the full structured data.
@@ -1477,6 +1524,11 @@ ${pageText}
 - Να είσαι σύντομος, με bullets, και να πατάς στα δεδομένα (timestamps/τιμές) που σου δίνονται.
 
 ` + payloadText;
+
+  const autoSendCfg = getAIAutoSendConfig();
+  if(autoSendCfg.enabled){
+    sendAIPromptAuto(prompt, autoSendCfg);
+  }
 
   const n = prompt.length;
   const modeTxt = extraFull ? "EXTRA_FULL" : "FULL";
