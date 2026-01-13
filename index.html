@@ -387,9 +387,10 @@
   <div class="section-body collapsed" id="weatherForecastBody">
     <div id="weatherForecastLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση καιρού…</div>
     <div style="overflow:auto;">
-      <table style="margin-top:0; min-width:920px;">
+      <table style="margin-top:0; min-width:1040px;">
         <thead>
           <tr>
+            <th id="weatherThSource" style="text-align:left;padding-left:10px;"><span class="th-ic">🌐</span>Πηγή</th>
             <th id="weatherThTime" style="text-align:left;padding-left:10px;"><span class="th-ic">🕒</span>Ώρα</th>
             <th id="weatherThTemp"><span class="th-ic">🌡️</span>Θερμοκρασία</th>
             <th id="weatherThRain"><span class="th-ic">🌧️</span>Βροχή</th>
@@ -405,7 +406,7 @@
       </table>
     </div>
     <div class="hint" id="weatherForecastHint" style="margin-top:0;">
-      Δεδομένα από Open‑Meteo (μοντέλο ECMWF IFS) για τις επόμενες 24 ώρες.
+      Τα δεδομένα αντλούνται από τις πηγές του φακέλου <code>data/forecast/Weather Forecast</code>.
     </div>
     <div class="hint" id="weatherForecastMsg" style="display:none;margin-top:6px"></div>
   </div>

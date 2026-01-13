@@ -146,7 +146,7 @@ async function init(){
 
     // Forecast / water level sources
     try{ await loadForecastSourcesFromTree(files); }catch(e){ console.warn('Forecast sources load failed', e); }
-    try{ await loadWeatherForecast(); }catch(e){ console.warn('Weather forecast load failed', e); }
+    try{ await loadWeatherForecast(files); }catch(e){ console.warn('Weather forecast load failed', e); }
     try{ await loadWaterLevelSourcesFromTree(files); }catch(e){ console.warn('Water level sources load failed', e); }
 
     // HR / Vehicles / Materials
