@@ -101,6 +101,110 @@ async function loadForecastSourcesFromTree(treeFiles){
   }
 }
 
+/* ===================== WEATHER FORECAST (OPEN-METEO) ===================== */
+const WEATHER_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast?latitude=38.0237&longitude=23.8007&hourly=temperature_2m,rain,snowfall,precipitation,wind_speed_10m,wind_gusts_10m,soil_temperature_0_to_7cm,surface_temperature&models=ecmwf_ifs&forecast_days=1';
+
+const WEATHER_HEADER_MAP = {
+  temperature_2m: { id: 'weatherThTemp', label: 'Θερμοκρασία' },
+  rain: { id: 'weatherThRain', label: 'Βροχή' },
+  snowfall: { id: 'weatherThSnowfall', label: 'Χιονόπτωση' },
+  precipitation: { id: 'weatherThPrecip', label: 'Κατακρήμν.' },
+  wind_speed_10m: { id: 'weatherThWind', label: 'Άνεμος' },
+  wind_gusts_10m: { id: 'weatherThGusts', label: 'Ριπές' },
+  soil_temperature_0_to_7cm: { id: 'weatherThSoilTemp', label: 'Θερμ. εδάφους' },
+  surface_temperature: { id: 'weatherThSurfaceTemp', label: 'Θερμ. επιφάνειας' }
+};
+
+function formatWeatherNumber(value){
+  if(value === null || value === undefined || Number.isNaN(value)) return '—';
+  if(typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return String(value);
+}
+
+function formatWeatherTime(value){
+  if(!value) return '—';
+  const d = new Date(value);
+  if(Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString('el-GR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function setWeatherHeaderUnits(units){
+  Object.entries(WEATHER_HEADER_MAP).forEach(([key, meta]) => {
+    const el = document.getElementById(meta.id);
+    if(!el) return;
+    const unit = units?.[key];
+    el.textContent = `${meta.label}${unit ? ` (${unit})` : ''}`;
+  });
+}
+
+function renderWeatherForecastRows(payload){
+  const tbody = document.getElementById('weatherForecastRows');
+  if(!tbody) return;
+  tbody.innerHTML = '';
+
+  const hourly = payload?.hourly;
+  const times = Array.isArray(hourly?.time) ? hourly.time : [];
+  if(!times.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="9" style="padding:10px;color:#6b7a86;">(Δεν βρέθηκαν δεδομένα)</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  for(let i = 0; i < times.length; i += 1){
+    const tr = document.createElement('tr');
+    const cols = [
+      formatWeatherTime(times[i]),
+      formatWeatherNumber(hourly?.temperature_2m?.[i]),
+      formatWeatherNumber(hourly?.rain?.[i]),
+      formatWeatherNumber(hourly?.snowfall?.[i]),
+      formatWeatherNumber(hourly?.precipitation?.[i]),
+      formatWeatherNumber(hourly?.wind_speed_10m?.[i]),
+      formatWeatherNumber(hourly?.wind_gusts_10m?.[i]),
+      formatWeatherNumber(hourly?.soil_temperature_0_to_7cm?.[i]),
+      formatWeatherNumber(hourly?.surface_temperature?.[i])
+    ];
+
+    cols.forEach((val, idx) => {
+      const td = document.createElement('td');
+      if(idx === 0){
+        td.style.textAlign = 'left';
+        td.style.paddingLeft = '10px';
+      }else{
+        td.style.textAlign = 'center';
+      }
+      td.textContent = val;
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  }
+}
+
+async function loadWeatherForecast(){
+  const loader = document.getElementById('weatherForecastLoader');
+  const msg = document.getElementById('weatherForecastMsg');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display = 'none'; msg.textContent = ''; }
+
+  try{
+    const resp = await fetch(WEATHER_FORECAST_URL, { cache: 'no-store' });
+    if(!resp.ok) throw new Error('Αποτυχία λήψης Open‑Meteo (HTTP ' + resp.status + ')');
+    const payload = await resp.json();
+    setWeatherHeaderUnits(payload?.hourly_units);
+    renderWeatherForecastRows(payload);
+  }catch(e){
+    console.warn('Weather Forecast:', e);
+    if(msg){
+      msg.style.display = 'block';
+      msg.textContent = 'Weather Forecast: ' + (e?.message || String(e));
+    }
+    renderWeatherForecastRows(null);
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
 /* ===================== WATER LEVEL SENSORS (WEB SOURCES) ===================== */
 function waterLevelLabelFromUrl(url){
   try{
