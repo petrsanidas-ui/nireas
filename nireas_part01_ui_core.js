@@ -789,15 +789,6 @@ try{
 
   try{ setScenarioSummaryPlaceholder(false); }catch(_){ }
   try{ ensurePanelExpanded('scenarioCardBody'); }catch(_){ }
-  try{
-    if(v === 'frost_snow'){
-      const frostPanel = document.getElementById('panel_frost_snow');
-      if(frostPanel){
-        frostPanel.classList.add('active');
-        frostPanel.setAttribute('aria-hidden', 'false');
-      }
-    }
-  }catch(_){ }
 
   // Turn green only after the user actively makes a choice
   sel.classList.add('scenario-active');
