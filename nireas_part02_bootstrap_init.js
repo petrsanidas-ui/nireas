@@ -111,7 +111,6 @@ async function init(){
 
     restoreUiStateEarly();
     initAIAnalysisUI();
-    try{ initAIForecastInstructions(); }catch(e){ console.warn("initAIForecastInstructions failed", e); }
     updateMeteoStationsRowButton();
 
     const files = (DATA_MODE === 'github')
