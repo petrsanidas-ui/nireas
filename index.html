@@ -691,12 +691,6 @@
 </details>
 </div></div></section>
 
-<section class="panel-card main-data-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Οδηγίες AI Πρόγνωσης</div><button class="icon-btn" onclick="toggleCollapse('aiForecastBody', this)">+</button></div><div id="aiForecastBody" class="collapsed"><div class="tool-wrap">
-<div class="box top-panel-box" style="background:#f2f6fb;border-color:#dfe7ee">
-  <div id="aiForecastInstructions"></div>
-</div>
-</div></div></section>
-
 <section class="panel-card scenario-card is-collapsed"><div class="panel-topbar"><div style="display:flex;align-items:center;gap:10px;white-space:nowrap;">Επιχειρησιακό Σενάριο</div><button class="icon-btn" onclick="toggleCollapse('scenarioCardBody', this)">+</button></div><div id="scenarioCardBody" class="collapsed"><div id="scenarioArea">
 <div class="scenario-panel" id="panel_rain">
 <div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
@@ -960,6 +954,67 @@
 </div>
 
 </div><div class="scenario-panel" id="panel_frost_snow">
+<div class="box top-panel-box scenario-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="frostScenarioDetails" open="" style="margin:0;">
+<summary class="monitor-panel-summary" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Σενάριο: <span class="scenario-name" data-scn-name="Παγετός / Χιόνια">Παγετός / Χιόνια</span></span></span></summary>
+<div class="scenario-area-body">
+<details class="scenario-cohazards-details" open="">
+<summary class="monitor-section-title has-actions" style="cursor:pointer;margin-bottom:6px;"><span class="summary-flex"><span class="summary-left">Συνδυαστικά Φαινόμενα (Co‑Hazards)</span><span class="summary-right"><span class="cohazards-badges" id="coHazardsBadges_ctx_frost_snow"></span></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();(window.clearCoHazards?window.clearCoHazards():null)" title="Reset Συνδυαστικών" type="button">⟲</button>
+</div>
+</summary>
+
+<div class="cohazards-context-box">
+<div class="cohazards-panel-inner">
+<div class="cohazards-metrics" id="coHazardsMetrics_ctx_frost_snow">—</div>
+<div class="cohazards-note">*Σύνοψη συνδυαστικών για το ενεργό σενάριο.</div>
+</div>
+</div>
+</details>
+<div class="grid-2">
+<div class="box" style="background:#eaf2ff;border-color:#c9dafd">
+<div class="row"><label>Όριο μέτριου κινδύνου (°C):</label><input id="frostTemp0" step="0.1" type="number" value="2" aria-label="frostTemp0"/></div>
+<div class="row"><label>Όριο υψηλού κινδύνου (°C):</label><input id="frostTempHigh" step="0.1" type="number" value="-2" aria-label="frostTempHigh"/></div>
+<div style="font-size:11px;color:#6b7a86;text-align:right;">*Χρησιμοποιείται η τρέχουσα θερμοκρασία (και υετός για τον πάγο)</div>
+</div>
+<div class="box" style="background:#f7fbff;border-color:#d6e6ff">
+<h3>Σύντομη εκτίμηση</h3>
+<div class="row"><label>Θερμοκρασία:</label><div class="ro" id="frostTempNow">—</div></div>
+<div class="row"><label>Αίσθηση ψύχους:</label><div class="ro" id="frostChillNow">—</div></div>
+<div class="row"><label>Κίνδυνος παγετού:</label><div class="ro" id="frostRisk">—</div></div>
+<div class="row"><label>Κίνδυνος πάγου:</label><div class="ro" id="iceRisk">—</div></div>
+</div>
+</div>
+<div class="panels-row">
+<div class="box" style="background:#f0fff4;border-color:#c9f2d5">
+<h3>1. Κρίσιμες υποδομές / σημεία</h3>
+<div class="ops-list">
+<ul>
+<li>Δρόμοι με σκίαση, γέφυρες, ανηφόρες, κόμβοι</li>
+<li>Δίκτυα ύδρευσης, ευάλωτες εγκαταστάσεις, αποθήκες</li>
+<li>Ευπαθείς πληθυσμοί και σημεία με χαμηλή προσβασιμότητα</li>
+</ul>
+</div>
+</div>
+<div class="box" style="background:#e7f6ff;border-color:#b6e6ff">
+<h3>2. Επιχειρησιακές ενέργειες</h3>
+<div class="ops-list">
+<ul>
+<li>Προετοιμασία αλατιέρας/αντιπαγετικών υλικών</li>
+<li>Ενημέρωση πολιτών για ολισθηρότητα και χαμηλές θερμοκρασίες</li>
+<li>Έλεγχος/επιφυλακή συνεργείων αποχιονισμού</li>
+</ul>
+</div>
+</div>
+<div class="box" style="background:#f6f0ff;border-color:#e3d5ff">
+<h3>3. Σημειώσεις / Τοπικές παράμετροι</h3>
+<div class="row"><label>Hotspot:</label><input id="frostHotspot" placeholder="π.χ. ορεινά τμήματα, σημεία σκίασης…" aria-label="π.χ. ορεινά τμήματα, σημεία σκίασης…"/></div>
+<div class="row"><label>Σχόλιο:</label><input id="frostNote" placeholder="σύντομη σημείωση…" aria-label="σύντομη σημείωση…"/></div>
+</div>
+</div>
+</div>
+</details>
+</div>
 </div></div></section></main>
 </div>
 <div class="no-print" id="mapModal">
@@ -982,7 +1037,6 @@
   <script src="nireas_part05_resources.js"></script>
   <script src="nireas_part06_map_modal_logic.js"></script>
   <script src="nireas_part07_meteo_ai.js"></script>
-  <script src="nireas_part09_ai_forecast_instructions.js"></script>
   <script src="nireas_part08_db_calc_boot.js"></script>
 <script type="module" src="firebase.js"></script>
 </body>
