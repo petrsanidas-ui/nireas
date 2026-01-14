@@ -385,30 +385,19 @@
     </div>
   </div>
   <div class="section-body collapsed" id="weatherForecastBody">
-    <div id="weatherForecastLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση καιρού…</div>
-    <div style="overflow:auto;">
-      <table style="margin-top:0; min-width:1040px;">
-        <thead>
-          <tr>
-            <th id="weatherThSource" style="text-align:left;padding-left:10px;"><span class="th-ic">🌐</span>Πηγή</th>
-            <th id="weatherThTime" style="text-align:left;padding-left:10px;"><span class="th-ic">🕒</span>Ώρα</th>
-            <th id="weatherThTemp"><span class="th-ic">🌡️</span>Θερμοκρασία</th>
-            <th id="weatherThRain"><span class="th-ic">🌧️</span>Βροχή</th>
-            <th id="weatherThSnowfall"><span class="th-ic">❄️</span>Χιονόπτωση</th>
-            <th id="weatherThPrecip"><span class="th-ic">💧</span>Κατακρήμν.</th>
-            <th id="weatherThWind"><span class="th-ic">🌬️</span>Άνεμος</th>
-            <th id="weatherThGusts"><span class="th-ic">💨</span>Ριπές</th>
-            <th id="weatherThSoilTemp"><span class="th-ic">🪵</span>Θερμ. εδάφους</th>
-            <th id="weatherThSurfaceTemp"><span class="th-ic">🧱</span>Θερμ. επιφάνειας</th>
-          </tr>
-        </thead>
-        <tbody id="weatherForecastRows"></tbody>
-      </table>
+    <div id="weatherForecastSourceLoader" class="hint" style="margin:0;border-radius:0;">Φόρτωση πηγών καιρού…</div>
+    <div class="station-row-body" style="margin-top:6px;">
+      <select id="weatherForecastSourceSelect" style="flex:1" aria-label="weatherForecastSourceSelect">
+        <option value="">Επιλογή πηγής πρόγνωσης...</option>
+      </select>
+      <button class="mini-btn btn-on" onclick="addWeatherForecastSource()" title="Προσθήκη στο κεντρικό panel">➕</button>
+      <button class="mini-btn btn-gray" onclick="clearWeatherForecastSelection()" title="Καθαρισμός επιλογών">🧹</button>
+      <button class="mini-btn btn-map" onclick="openSelectedWeatherForecastWeb()" title="Άνοιγμα σε νέα καρτέλα">🔗 Web</button>
     </div>
-    <div class="hint" id="weatherForecastHint" style="margin-top:0;">
-      Τα δεδομένα αντλούνται από τις πηγές του φακέλου <code>data/forecast/Weather Forecast</code>.
+    <div class="hint" id="weatherForecastSourceHint" style="margin-top:6px;">
+      Επίλεξε πηγή και πάτησε <b>➕</b> για να εμφανιστεί στο κεντρικό panel «Weather Forecast».
     </div>
-    <div class="hint" id="weatherForecastMsg" style="display:none;margin-top:6px"></div>
+    <div class="hint" id="weatherForecastSourceMsg" style="display:none;margin-top:6px"></div>
   </div>
 </div></section>
 
@@ -641,6 +630,44 @@
 <div class="cohazards-note">*Τα συνδυαστικά είναι συμπληρωματικά. Οι υπολογισμοί/πίνακες κάτω ακολουθούν το <b>Κύριο Σενάριο</b>.</div>
 </div>
 </div>
+</div>
+</details>
+</div><div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
+<details id="weatherForecastPanelDetails" style="margin:0;">
+<summary class="monitor-panel-summary has-actions" style="cursor:pointer;"><span class="summary-flex"><span class="summary-left">Weather Forecast: <span id="weatherForecastSelectedSummary">—</span></span><span class="summary-right"></span></span><div class="summary-actions no-print">
+<button class="summary-reset-btn no-print" onclick="event.preventDefault();event.stopPropagation();clearWeatherForecastSelection()" title="Reset" type="button">🧹</button>
+</div>
+</summary>
+
+<div class="monitor-panel-body" style="margin-top:0">
+<div style="margin-top:6px;padding:8px 10px;background:rgba(255,255,255,.22);border:1px solid rgba(0,0,0,.06);border-radius:12px;font-size:12px;color:#2b3a44;">
+          Επίλεξε πηγή από το αριστερό panel <b>⛅ Weather Forecast</b> και πάτησε <b>➕</b> για να εμφανιστεί εδώ.
+        </div>
+<div id="weatherForecastSelectedList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+<div id="weatherForecastMainLoader" class="hint" style="margin:6px 0 0 0;border-radius:10px;">Φόρτωση καιρού…</div>
+<div style="overflow:auto;margin-top:6px;">
+  <table style="margin-top:0; min-width:1040px;">
+    <thead>
+      <tr>
+        <th id="weatherThSource" style="text-align:left;padding-left:10px;"><span class="th-ic">🌐</span>Πηγή</th>
+        <th id="weatherThTime" style="text-align:left;padding-left:10px;"><span class="th-ic">🕒</span>Ώρα</th>
+        <th id="weatherThTemp"><span class="th-ic">🌡️</span>Θερμοκρασία</th>
+        <th id="weatherThRain"><span class="th-ic">🌧️</span>Βροχή</th>
+        <th id="weatherThSnowfall"><span class="th-ic">❄️</span>Χιονόπτωση</th>
+        <th id="weatherThPrecip"><span class="th-ic">💧</span>Κατακρήμν.</th>
+        <th id="weatherThWind"><span class="th-ic">🌬️</span>Άνεμος</th>
+        <th id="weatherThGusts"><span class="th-ic">💨</span>Ριπές</th>
+        <th id="weatherThSoilTemp"><span class="th-ic">🪵</span>Θερμ. εδάφους</th>
+        <th id="weatherThSurfaceTemp"><span class="th-ic">🧱</span>Θερμ. επιφάνειας</th>
+      </tr>
+    </thead>
+    <tbody id="weatherForecastRows"></tbody>
+  </table>
+</div>
+<div class="hint" id="weatherForecastMainHint" style="margin-top:6px;">
+  Τα δεδομένα αντλούνται από τις πηγές του φακέλου <code>data/forecast/Weather Forecast</code>.
+</div>
+<div class="hint" id="weatherForecastMainMsg" style="display:none;margin-top:6px"></div>
 </div>
 </details>
 </div><div class="box top-panel-box" style="background:#97c9d1;border-color:#dfe7ee">
