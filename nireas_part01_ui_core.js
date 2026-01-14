@@ -779,6 +779,7 @@ try{
 
 
   try{ setScenarioSummaryPlaceholder(false); }catch(_){ }
+  try{ ensurePanelExpanded('scenarioCardBody'); }catch(_){ }
 
   // Turn green only after the user actively makes a choice
   sel.classList.add('scenario-active');
@@ -1448,6 +1449,20 @@ function toggleCollapse(id, btn){
   const card = (btn && btn.closest('.panel-card')) || el.closest('.panel-card');
   if(card){
     card.classList.toggle('is-collapsed', isHidden);
+  }
+}
+
+function ensurePanelExpanded(id){
+  const el = document.getElementById(id);
+  if(!el || !el.classList.contains('collapsed')) return;
+
+  el.classList.remove('collapsed');
+  const card = el.closest('.panel-card');
+  if(card){
+    card.classList.remove('is-collapsed');
+    const btn = card.querySelector(`button[onclick*="toggleCollapse('${id}'"]`) ||
+      card.querySelector(`button[onclick*='toggleCollapse("${id}"']`);
+    if(btn) btn.textContent = '−';
   }
 }
 
