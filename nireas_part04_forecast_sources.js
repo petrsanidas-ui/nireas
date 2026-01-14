@@ -103,6 +103,10 @@ async function loadForecastSourcesFromTree(treeFiles){
 
 /* ===================== WEATHER FORECAST (OPEN-METEO) ===================== */
 const WEATHER_FORECAST_DEFAULT_URL = 'https://api.open-meteo.com/v1/forecast?latitude=38.0237&longitude=23.8007&hourly=temperature_2m,rain,snowfall,precipitation,wind_speed_10m,wind_gusts_10m,soil_temperature_0_to_7cm,surface_temperature&models=ecmwf_ifs&forecast_days=1';
+const weatherForecastState = {
+  sources: [],
+  selected: []
+};
 
 const WEATHER_HEADER_MAP = {
   source: { id: 'weatherThSource', label: 'Πηγή' },
@@ -198,6 +202,107 @@ function renderWeatherForecastRows(payloads){
   });
 }
 
+function renderWeatherForecastSourcePicker(){
+  const select = document.getElementById('weatherForecastSourceSelect');
+  if(!select) return;
+  select.innerHTML = '';
+
+  if(!Array.isArray(weatherForecastState.sources) || !weatherForecastState.sources.length){
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Δεν βρέθηκαν πηγές πρόγνωσης';
+    select.appendChild(opt);
+    select.disabled = true;
+    return;
+  }
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Επιλογή πηγής πρόγνωσης...';
+  select.appendChild(placeholder);
+
+  weatherForecastState.sources.forEach(source => {
+    const opt = document.createElement('option');
+    opt.value = source.url;
+    opt.textContent = source.label || source.url || '—';
+    select.appendChild(opt);
+  });
+  select.disabled = false;
+}
+
+function updateWeatherForecastSummary(){
+  const summary = document.getElementById('weatherForecastSelectedSummary');
+  if(!summary) return;
+  const names = weatherForecastState.selected.map(s => s.label || s.url).filter(Boolean);
+  if(!names.length){
+    summary.textContent = '—';
+    return;
+  }
+  const trimmed = names.slice(0, 3);
+  summary.textContent = trimmed.join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
+}
+
+function renderWeatherForecastSelectedList(){
+  const wrap = document.getElementById('weatherForecastSelectedList');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+
+  weatherForecastState.selected.forEach(source => {
+    const chip = document.createElement('div');
+    chip.className = 'chip watch';
+    chip.title = source.url || '';
+
+    const label = document.createElement('b');
+    label.textContent = source.label || source.url || '—';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '✕';
+    btn.title = 'Αφαίρεση';
+    btn.addEventListener('click', () => removeWeatherForecastSource(source.url));
+
+    chip.appendChild(label);
+    chip.appendChild(btn);
+    wrap.appendChild(chip);
+  });
+
+  updateWeatherForecastSummary();
+}
+
+function addWeatherForecastSource(){
+  const select = document.getElementById('weatherForecastSourceSelect');
+  if(!select) return;
+  const url = select.value;
+  if(!url) return;
+  const source = weatherForecastState.sources.find(item => item.url === url);
+  if(!source) return;
+  if(!weatherForecastState.selected.some(item => item.url === url)){
+    weatherForecastState.selected.push(source);
+  }
+  renderWeatherForecastSelectedList();
+  loadWeatherForecastSelected();
+}
+
+function removeWeatherForecastSource(url){
+  if(!url) return;
+  weatherForecastState.selected = weatherForecastState.selected.filter(item => item.url !== url);
+  renderWeatherForecastSelectedList();
+  loadWeatherForecastSelected();
+}
+
+function clearWeatherForecastSelection(){
+  weatherForecastState.selected = [];
+  renderWeatherForecastSelectedList();
+  loadWeatherForecastSelected();
+}
+
+function openSelectedWeatherForecastWeb(){
+  const select = document.getElementById('weatherForecastSourceSelect');
+  if(!select) return;
+  const source = weatherForecastState.sources.find(item => item.url === select.value);
+  if(source?.url) openForecastWeb(source.url);
+}
+
 function parseWeatherForecastSources(text){
   const lines = String(text ?? '')
     .split(/\r?\n/)
@@ -244,16 +349,58 @@ async function loadWeatherForecastSourcesFromTree(treeFiles){
   return deduped.length ? deduped : [{ url: WEATHER_FORECAST_DEFAULT_URL, label: 'Open‑Meteo' }];
 }
 
-async function loadWeatherForecast(treeFiles){
-  const loader = document.getElementById('weatherForecastLoader');
-  const msg = document.getElementById('weatherForecastMsg');
+async function initWeatherForecast(treeFiles){
+  const loader = document.getElementById('weatherForecastSourceLoader');
+  const msg = document.getElementById('weatherForecastSourceMsg');
   if(loader) loader.style.display = 'block';
   if(msg){ msg.style.display = 'none'; msg.textContent = ''; }
 
   try{
     const sources = await loadWeatherForecastSourcesFromTree(treeFiles);
+    weatherForecastState.sources = sources;
+    renderWeatherForecastSourcePicker();
+    renderWeatherForecastSelectedList();
+    loadWeatherForecastSelected();
+  }catch(e){
+    console.warn('Weather Forecast:', e);
+    if(msg){
+      msg.style.display = 'block';
+      msg.textContent = 'Weather Forecast: ' + (e?.message || String(e));
+    }
+    weatherForecastState.sources = [];
+    renderWeatherForecastSourcePicker();
+    renderWeatherForecastSelectedList();
+    renderWeatherForecastRows([]);
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
+async function loadWeatherForecastSelected(){
+  const loader = document.getElementById('weatherForecastMainLoader');
+  const msg = document.getElementById('weatherForecastMainMsg');
+  const hint = document.getElementById('weatherForecastMainHint');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display = 'none'; msg.textContent = ''; }
+
+  const selected = weatherForecastState.selected;
+  if(!Array.isArray(selected) || !selected.length){
+    renderWeatherForecastRows([]);
+    if(hint){
+      hint.textContent = 'Επίλεξε πηγή από το αριστερό panel «⛅ Weather Forecast».';
+    }
+    if(loader) loader.style.display = 'none';
+    return;
+  }
+
+  if(hint){
+    hint.textContent = 'Τα δεδομένα αντλούνται από τις πηγές του φακέλου data/forecast/Weather Forecast.';
+  }
+
+  try{
     const payloads = [];
-    for(const source of sources){
+    const errors = [];
+    for(const source of selected){
       try{
         const resp = await fetch(source.url, { cache: 'no-store' });
         if(!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -261,10 +408,15 @@ async function loadWeatherForecast(treeFiles){
         if(data?.hourly_units) setWeatherHeaderUnits(data.hourly_units);
         payloads.push({ label: source.label, data });
       }catch(e){
+        errors.push(source?.label || source?.url || '—');
         console.warn('Weather Forecast source failed:', source?.url, e);
       }
     }
     renderWeatherForecastRows(payloads);
+    if(errors.length && msg){
+      msg.style.display = 'block';
+      msg.textContent = `Weather Forecast: Αποτυχία φόρτωσης για ${errors.join(', ')}`;
+    }
   }catch(e){
     console.warn('Weather Forecast:', e);
     if(msg){
