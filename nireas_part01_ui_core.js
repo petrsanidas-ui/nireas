@@ -526,6 +526,7 @@ function setModelScenario(val){
   try{ applyScenarioUI(MODEL_SCENARIO); }catch(_){}
 
   try{ scheduleSaveUiState(); }catch(_){}
+}
 
 /* ===== Scenario-based UI: show only relevant panels (from 'Λεκάνη και κάτω') ===== */
 function applyScenarioUI(scn){
@@ -710,7 +711,6 @@ function refreshScenarioPanels(){
   if(frostRiskEl) frostRiskEl.innerHTML = __riskLabel(fLevel);
   const iceRiskEl = document.getElementById('iceRisk');
   if(iceRiskEl) iceRiskEl.innerHTML = __riskLabel(iceLevel, (Number.isFinite(rr) ? `(υετός ${__fmt(rr,' mm/h')})` : ''));
-}
 }
 
 
