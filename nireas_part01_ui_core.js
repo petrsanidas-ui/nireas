@@ -626,10 +626,27 @@ function refreshScenarioPanels(){
   const s = getLatestPrimarySample();
   if(!s){
     // keep panels clean if nothing loaded yet
-    ['windNow','windDir','windRisk','heatTempNow','heatIndexNow','heatRisk','frostTempNow','frostChillNow','frostRisk','iceRisk']
+    ['rainNow','rainRisk','windNow','windDir','windRisk','heatTempNow','heatIndexNow','heatRisk','frostTempNow','frostChillNow','frostRisk','iceRisk']
       .forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='—'; });
     return;
   }
+
+  // ---- RAIN ----
+  const rr = (typeof s.rainRate === 'number') ? s.rainRate : ((typeof s.rr === 'number') ? s.rr : null);
+  const rainWarn = Number(document.getElementById('rainWarnMmH')?.value);
+  const rainHigh = Number(document.getElementById('rainHighMmH')?.value);
+
+  let rLevel = 'none';
+  if(Number.isFinite(rr)){
+    if(Number.isFinite(rainHigh) && rr >= rainHigh) rLevel = 'high';
+    else if(Number.isFinite(rainWarn) && rr >= rainWarn) rLevel = 'med';
+    else rLevel = 'low';
+  }
+
+  const rainNowEl = document.getElementById('rainNow');
+  if(rainNowEl) rainNowEl.textContent = Number.isFinite(rr) ? __fmt(rr, ' mm/h') : '—';
+  const rainRiskEl = document.getElementById('rainRisk');
+  if(rainRiskEl) rainRiskEl.innerHTML = __riskLabel(rLevel);
 
   // ---- WIND ----
   const windTxt = (s.wind != null) ? String(s.wind) : '';
@@ -689,8 +706,6 @@ function refreshScenarioPanels(){
 
   // ---- FROST / SNOW ----
   const chill = (typeof s.chill === 'number') ? s.chill : null;
-  const rr = (typeof s.rainRate === 'number') ? s.rainRate : ((typeof s.rr === 'number') ? s.rr : null);
-
   const t0 = Number(document.getElementById('frostTemp0')?.value);
   const tHigh = Number(document.getElementById('frostTempHigh')?.value);
 
