@@ -508,7 +508,7 @@ function getSelectGroupPairs(selectEl, groupLabel){
 let MODEL_SCENARIO = ''; // rain | wind | heatwave | frost_snow | storm | dust_smoke | fog
 
 function setModelScenario(val){
-  MODEL_SCENARIO = (val == null) ? '' : String(val);
+  MODEL_SCENARIO = (val == null) ? '' : String(val).trim();
 // reflect on UI (title only — calculations remain the same for now)
   const mapName = {
     rain:'Βροχή',
@@ -526,15 +526,17 @@ function setModelScenario(val){
   try{ applyScenarioUI(MODEL_SCENARIO); }catch(_){}
 
   try{ scheduleSaveUiState(); }catch(_){}
+}
 
 /* ===== Scenario-based UI: show only relevant panels (from 'Λεκάνη και κάτω') ===== */
 function applyScenarioUI(scn){
-  const val = (scn == null) ? '' : String(scn);
+  const val = (scn == null) ? '' : String(scn).trim();
 
   const root = document.getElementById('scenarioArea');
   if(!root) return;
 
   const panels = root.querySelectorAll('.scenario-panel');
+  const panelEls = Array.from(panels);
 
   // No scenario selected -> hide everything under "Λεκάνη και κάτω"
   if(!val){
@@ -558,6 +560,13 @@ function applyScenarioUI(scn){
     p.classList.toggle('active', on);
     try{ p.setAttribute('aria-hidden', on ? 'false' : 'true'); }catch(_){}
   });
+
+  if(target && !panelEls.some(p=>p.id === target)){
+    panelEls.forEach(p=>{
+      p.classList.add('active');
+      try{ p.setAttribute('aria-hidden', 'false'); }catch(_){}
+    });
+  }
 
   // Keep "Επιλεγμένη περιοχή" in sync with the currently selected basin (until we add dedicated area selection)
   try{
@@ -711,7 +720,6 @@ function refreshScenarioPanels(){
   const iceRiskEl = document.getElementById('iceRisk');
   if(iceRiskEl) iceRiskEl.innerHTML = __riskLabel(iceLevel, (Number.isFinite(rr) ? `(υετός ${__fmt(rr,' mm/h')})` : ''));
 }
-}
 
 
 /* ====== Scenario UI helper: show '—' when no scenario is selected (dropdown on placeholder) ====== */
@@ -760,7 +768,7 @@ function loadScenarioState(){
 function onScenarioChange(sel){
   if(!sel) return;
 
-  const v = String(sel.value || '');
+  const v = String(sel.value || '').trim();
 
   // Placeholder selected -> keep initial (grey) look and clear persisted selection
   if(!v){
@@ -777,8 +785,19 @@ try{
 
   setModelScenario(v);
 
+  try{ applyScenarioUI(v); }catch(_){ }
 
   try{ setScenarioSummaryPlaceholder(false); }catch(_){ }
+  try{ ensurePanelExpanded('scenarioCardBody'); }catch(_){ }
+  try{
+    if(v === 'frost_snow'){
+      const frostPanel = document.getElementById('panel_frost_snow');
+      if(frostPanel){
+        frostPanel.classList.add('active');
+        frostPanel.setAttribute('aria-hidden', 'false');
+      }
+    }
+  }catch(_){ }
 
   // Turn green only after the user actively makes a choice
   sel.classList.add('scenario-active');
@@ -1448,6 +1467,20 @@ function toggleCollapse(id, btn){
   const card = (btn && btn.closest('.panel-card')) || el.closest('.panel-card');
   if(card){
     card.classList.toggle('is-collapsed', isHidden);
+  }
+}
+
+function ensurePanelExpanded(id){
+  const el = document.getElementById(id);
+  if(!el || !el.classList.contains('collapsed')) return;
+
+  el.classList.remove('collapsed');
+  const card = el.closest('.panel-card');
+  if(card){
+    card.classList.remove('is-collapsed');
+    const btn = card.querySelector(`button[onclick*="toggleCollapse('${id}'"]`) ||
+      card.querySelector(`button[onclick*='toggleCollapse("${id}"']`);
+    if(btn) btn.textContent = '−';
   }
 }
 
