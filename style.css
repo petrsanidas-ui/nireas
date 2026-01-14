@@ -906,9 +906,21 @@
       .summary-box{grid-template-columns:repeat(2,1fr)}
     }
     
-    /* ===== Scenario-based panels (Rain / Wind / Heatwave / Frost) ===== */
-    .scenario-panel{display:none;}
-    .scenario-panel.active{display:block;}
+/* ===== Scenario-based panels (Rain / Wind / Heatwave / Frost) ===== */
+.scenario-panel{display:none;}
+.scenario-panel.active{display:block;}
+body[data-model-scenario="rain"] .scenario-panel,
+body[data-model-scenario="wind"] .scenario-panel,
+body[data-model-scenario="heatwave"] .scenario-panel,
+body[data-model-scenario="frost_snow"] .scenario-panel{
+  display:none;
+}
+body[data-model-scenario="rain"] #panel_rain,
+body[data-model-scenario="wind"] #panel_wind,
+body[data-model-scenario="heatwave"] #panel_heatwave,
+body[data-model-scenario="frost_snow"] #panel_frost_snow{
+  display:block;
+}
     .ro{
       font-weight:800;
       color:var(--ink);
