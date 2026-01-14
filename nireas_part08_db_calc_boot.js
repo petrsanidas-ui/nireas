@@ -1964,7 +1964,7 @@ window.clearCoHazards = function(){
 
   function bindScenarioInputs(){
     try{
-      ['windWarnKmh','windHighKmh','heatWarnHI','heatHighHI','frostWarnT','frostHighT']
+      ['windWarnKmh','windHighKmh','heatWarnHI','heatHighHI','frostTemp0','frostTempHigh']
         .forEach(id=>{
           const el = document.getElementById(id);
           if(!el) return;

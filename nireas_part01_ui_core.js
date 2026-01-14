@@ -526,6 +526,7 @@ function setModelScenario(val){
   try{ applyScenarioUI(MODEL_SCENARIO); }catch(_){}
 
   try{ scheduleSaveUiState(); }catch(_){}
+}
 
 /* ===== Scenario-based UI: show only relevant panels (from 'Λεκάνη και κάτω') ===== */
 function applyScenarioUI(scn){
@@ -711,7 +712,6 @@ function refreshScenarioPanels(){
   const iceRiskEl = document.getElementById('iceRisk');
   if(iceRiskEl) iceRiskEl.innerHTML = __riskLabel(iceLevel, (Number.isFinite(rr) ? `(υετός ${__fmt(rr,' mm/h')})` : ''));
 }
-}
 
 
 /* ====== Scenario UI helper: show '—' when no scenario is selected (dropdown on placeholder) ====== */
@@ -779,6 +779,7 @@ try{
 
 
   try{ setScenarioSummaryPlaceholder(false); }catch(_){ }
+  try{ ensurePanelExpanded('scenarioCardBody'); }catch(_){ }
 
   // Turn green only after the user actively makes a choice
   sel.classList.add('scenario-active');
@@ -1448,6 +1449,20 @@ function toggleCollapse(id, btn){
   const card = (btn && btn.closest('.panel-card')) || el.closest('.panel-card');
   if(card){
     card.classList.toggle('is-collapsed', isHidden);
+  }
+}
+
+function ensurePanelExpanded(id){
+  const el = document.getElementById(id);
+  if(!el || !el.classList.contains('collapsed')) return;
+
+  el.classList.remove('collapsed');
+  const card = el.closest('.panel-card');
+  if(card){
+    card.classList.remove('is-collapsed');
+    const btn = card.querySelector(`button[onclick*="toggleCollapse('${id}'"]`) ||
+      card.querySelector(`button[onclick*='toggleCollapse("${id}"']`);
+    if(btn) btn.textContent = '−';
   }
 }
 
