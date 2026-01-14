@@ -508,7 +508,7 @@ function getSelectGroupPairs(selectEl, groupLabel){
 let MODEL_SCENARIO = ''; // rain | wind | heatwave | frost_snow | storm | dust_smoke | fog
 
 function setModelScenario(val){
-  MODEL_SCENARIO = (val == null) ? '' : String(val);
+  MODEL_SCENARIO = (val == null) ? '' : String(val).trim();
 // reflect on UI (title only — calculations remain the same for now)
   const mapName = {
     rain:'Βροχή',
@@ -530,7 +530,7 @@ function setModelScenario(val){
 
 /* ===== Scenario-based UI: show only relevant panels (from 'Λεκάνη και κάτω') ===== */
 function applyScenarioUI(scn){
-  const val = (scn == null) ? '' : String(scn);
+  const val = (scn == null) ? '' : String(scn).trim();
 
   const root = document.getElementById('scenarioArea');
   if(!root) return;
@@ -760,7 +760,7 @@ function loadScenarioState(){
 function onScenarioChange(sel){
   if(!sel) return;
 
-  const v = String(sel.value || '');
+  const v = String(sel.value || '').trim();
 
   // Placeholder selected -> keep initial (grey) look and clear persisted selection
   if(!v){
@@ -777,6 +777,7 @@ try{
 
   setModelScenario(v);
 
+  try{ applyScenarioUI(v); }catch(_){ }
 
   try{ setScenarioSummaryPlaceholder(false); }catch(_){ }
   try{ ensurePanelExpanded('scenarioCardBody'); }catch(_){ }
