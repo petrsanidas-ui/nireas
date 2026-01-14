@@ -536,6 +536,7 @@ function applyScenarioUI(scn){
   if(!root) return;
 
   const panels = root.querySelectorAll('.scenario-panel');
+  const panelEls = Array.from(panels);
 
   // No scenario selected -> hide everything under "Λεκάνη και κάτω"
   if(!val){
@@ -559,6 +560,13 @@ function applyScenarioUI(scn){
     p.classList.toggle('active', on);
     try{ p.setAttribute('aria-hidden', on ? 'false' : 'true'); }catch(_){}
   });
+
+  if(target && !panelEls.some(p=>p.id === target)){
+    panelEls.forEach(p=>{
+      p.classList.add('active');
+      try{ p.setAttribute('aria-hidden', 'false'); }catch(_){}
+    });
+  }
 
   // Keep "Επιλεγμένη περιοχή" in sync with the currently selected basin (until we add dedicated area selection)
   try{
@@ -781,6 +789,15 @@ try{
 
   try{ setScenarioSummaryPlaceholder(false); }catch(_){ }
   try{ ensurePanelExpanded('scenarioCardBody'); }catch(_){ }
+  try{
+    if(v === 'frost_snow'){
+      const frostPanel = document.getElementById('panel_frost_snow');
+      if(frostPanel){
+        frostPanel.classList.add('active');
+        frostPanel.setAttribute('aria-hidden', 'false');
+      }
+    }
+  }catch(_){ }
 
   // Turn green only after the user actively makes a choice
   sel.classList.add('scenario-active');
