@@ -1506,6 +1506,9 @@ function updatePrimaryStatus(msg, level='neutral'){
 function updateExtrasStatus(msg, level='neutral'){
   setStatusById('extrasStatus', msg, level);
 }
+function updateWeatherForecastStatus(msg, level='neutral'){
+  setStatusById('weatherForecastStatus', msg, level);
+}
 // backward compatibility (sets both)
 function updateMeteoStatus(msg, level='neutral'){
   // Optional informational message area for the METEO section.
