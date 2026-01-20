@@ -389,12 +389,18 @@ async function loadWeatherForecastSelected(){
     if(hint){
       hint.textContent = 'Επίλεξε πηγή από το αριστερό panel «⛅ Weather Forecast».';
     }
+    if(typeof updateWeatherForecastStatus === 'function'){
+      updateWeatherForecastStatus('Weather Forecast: (δεν έχει επιλεγεί)', 'warn');
+    }
     if(loader) loader.style.display = 'none';
     return;
   }
 
   if(hint){
     hint.textContent = 'Τα δεδομένα αντλούνται από τις πηγές του φακέλου data/forecast/Weather Forecast.';
+  }
+  if(typeof updateWeatherForecastStatus === 'function'){
+    updateWeatherForecastStatus('Weather Forecast: Λήψη…', 'neutral');
   }
 
   try{
@@ -417,6 +423,15 @@ async function loadWeatherForecastSelected(){
       msg.style.display = 'block';
       msg.textContent = `Weather Forecast: Αποτυχία φόρτωσης για ${errors.join(', ')}`;
     }
+    if(typeof updateWeatherForecastStatus === 'function'){
+      if(payloads.length && !errors.length){
+        updateWeatherForecastStatus('Weather Forecast: Λήψη OK', 'ok');
+      }else if(payloads.length && errors.length){
+        updateWeatherForecastStatus('Weather Forecast: Μερική φόρτωση', 'warn');
+      }else{
+        updateWeatherForecastStatus('Weather Forecast: Αποτυχία φόρτωσης', 'warn');
+      }
+    }
   }catch(e){
     console.warn('Weather Forecast:', e);
     if(msg){
@@ -424,6 +439,9 @@ async function loadWeatherForecastSelected(){
       msg.textContent = 'Weather Forecast: ' + (e?.message || String(e));
     }
     renderWeatherForecastRows([]);
+    if(typeof updateWeatherForecastStatus === 'function'){
+      updateWeatherForecastStatus('Weather Forecast: Σφάλμα λήψης δεδομένων', 'warn');
+    }
   }finally{
     if(loader) loader.style.display = 'none';
   }
