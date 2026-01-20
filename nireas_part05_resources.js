@@ -1,5 +1,6 @@
 /* ===================== HUMAN RESOURCES (HR) ===================== */
 const HR_DEFAULT_PATH = 'data/resources/human_resources.json';
+const HR_SHEET_LINK_PATH = 'data/resources/hr.txt';
 let HR_DATA = [];
 let HR_LAST_LOADED_PATH = HR_DEFAULT_PATH;
 
@@ -12,6 +13,122 @@ function hrNormalize(s){
   }catch(_){
     return String(s||'').toLowerCase();
   }
+}
+
+function hrExtractSheetId(value){
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+  const match = raw.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if(match) return match[1];
+  return raw;
+}
+
+function hrCsvParse(text){
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(ch === '"'){
+      if(inQuotes && text[i + 1] === '"'){
+        cell += '"';
+        i++;
+      }else{
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if(ch === ',' && !inQuotes){
+      row.push(cell);
+      cell = '';
+      continue;
+    }
+    if((ch === '\n' || ch === '\r') && !inQuotes){
+      if(ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell);
+      if(row.length > 1 || row[0] !== ''){
+        rows.push(row);
+      }
+      row = [];
+      cell = '';
+      continue;
+    }
+    cell += ch;
+  }
+  row.push(cell);
+  if(row.length > 1 || row[0] !== ''){
+    rows.push(row);
+  }
+  return rows;
+}
+
+function hrNormalizeHeaderName(name){
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[Αα]/g, 'a')
+    .replace(/[Ββ]/g, 'b')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function hrSheetRowsToPeople(rows){
+  if(!rows.length) return [];
+  const headerRow = rows[0].map(hrNormalizeHeaderName);
+  const idx = (name) => headerRow.indexOf(hrNormalizeHeaderName(name));
+  const get = (row, name) => {
+    const i = idx(name);
+    return i >= 0 ? String(row[i] || '').trim() : '';
+  };
+  const people = [];
+  let counter = 0;
+  for(const row of rows.slice(1)){
+    if(!row.some(c => String(c || '').trim())) continue;
+    const municipalityId = get(row, 'municipality_id') || 'chalandri';
+    const municipalityIds = get(row, 'municipality_ids');
+    counter += 1;
+    const skillsRaw = get(row, 'skills');
+    const skills = skillsRaw
+      ? skillsRaw.split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+    const fullName = get(row, 'full_name') || get(row, 'name');
+    const role = get(row, 'specialty_role') || get(row, 'specialty/role') || get(row, 'role');
+    const branch = get(row, 'branch');
+    const employment = get(row, 'employment_relationship');
+    const department = get(row, 'department');
+    const unit = get(row, 'unit') || department;
+    const workPhone = get(row, 'work_phone');
+    const mobilePhone = get(row, 'mobile_phone');
+    const phone = workPhone || mobilePhone || get(row, 'phone');
+    const address = get(row, 'residential_address');
+    const person = {
+      person_id: get(row, 'person_id') || `hr_${String(counter).padStart(3, '0')}`,
+      name: fullName,
+      category: branch || employment || get(row, 'category'),
+      role: role,
+      unit: unit,
+      skills: skills,
+      status: get(row, 'status'),
+      municipality_id: municipalityId,
+      phone: phone,
+      email: get(row, 'email'),
+      branch: branch,
+      department: department,
+      employment_relationship: employment,
+      work_phone: workPhone,
+      mobile_phone: mobilePhone,
+      address: address,
+      license_category: get(row, 'license_category'),
+      special_category: get(row, 'special_category'),
+      blood_group: get(row, 'blood_group'),
+      notes: get(row, 'notes')
+    };
+    if(municipalityIds){
+      person.municipality_ids = municipalityIds.split(',').map(x => x.trim()).filter(Boolean);
+    }
+    people.push(person);
+  }
+  return people;
 }
 
 function hrCoverageIds(r){
@@ -61,6 +178,8 @@ function hrStatusMeta(r){
 function hrTextBlob(r){
   const parts = [];
   ['name','role','unit','category','notes','phone','email'].forEach(k=>{ if(r && r[k]) parts.push(String(r[k])); });
+  ['branch','department','employment_relationship','work_phone','mobile_phone','address','license_category','special_category','blood_group']
+    .forEach(k=>{ if(r && r[k]) parts.push(String(r[k])); });
   try{
     if(Array.isArray(r.skills)) parts.push(r.skills.join(' '));
   }catch(_){ }
@@ -111,6 +230,48 @@ async function hrReload(){
     if(msg){
       msg.style.display='block';
       msg.textContent = 'HR: ' + (e?.message || String(e));
+    }
+    renderHumanResources();
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
+async function hrLoadFromSheetId(sheetId){
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  const resp = await fetch(url, { cache: 'no-store' });
+  if(!resp.ok) throw new Error('Αποτυχία λήψης HR Sheet (HTTP ' + resp.status + ')');
+  const text = await resp.text();
+  const rows = hrCsvParse(text);
+  const people = hrSheetRowsToPeople(rows);
+  if(!people.length) throw new Error('Το HR Sheet δεν περιέχει δεδομένα.');
+  HR_DATA = people;
+  renderHumanResources();
+}
+
+async function hrReloadAuto(){
+  const loader = document.getElementById('hrLoader');
+  const msg = document.getElementById('hrMsg');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display='none'; msg.textContent=''; }
+
+  try{
+    const resp = await fetch(encodeURI(HR_SHEET_LINK_PATH), { cache: 'no-store' });
+    if(resp.ok){
+      const linkText = await resp.text();
+      const sheetId = hrExtractSheetId(linkText.split('\n')[0]);
+      if(sheetId){
+        await hrLoadFromSheetId(sheetId);
+        return;
+      }
+    }
+    await hrReload();
+  }catch(e){
+    console.warn('HR auto load:', e);
+    HR_DATA = [];
+    if(msg){
+      msg.style.display='block';
+      msg.textContent = 'HR (Auto): ' + (e?.message || String(e));
     }
     renderHumanResources();
   }finally{
@@ -254,6 +415,8 @@ function bindHumanResourcesUI(){
 
 /* ===================== VEHICLES (Technical Means) ===================== */
 const VEH_DEFAULT_PATH = 'data/resources/vehicles.json';
+const VEH_SHEET_DEFAULT_ID = '1EkTVFr6r5cGSAfHzC2wlhl2PAmfrG4G6sqGgEJSgbU8';
+const VEH_SHEET_LINK_PATH = 'data/resources/Technical Means_Vehicles.txt';
 let VEH_DATA = [];
 let VEH_LAST_LOADED_PATH = VEH_DEFAULT_PATH;
 
@@ -345,6 +508,111 @@ function vehClearFilters(){
   renderVehicles();
 }
 
+function vehExtractSheetId(value){
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+  const match = raw.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if(match) return match[1];
+  return raw;
+}
+
+function vehCsvParse(text){
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(ch === '"'){
+      if(inQuotes && text[i + 1] === '"'){
+        cell += '"';
+        i++;
+      }else{
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if(ch === ',' && !inQuotes){
+      row.push(cell);
+      cell = '';
+      continue;
+    }
+    if((ch === '\n' || ch === '\r') && !inQuotes){
+      if(ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell);
+      if(row.length > 1 || row[0] !== ''){
+        rows.push(row);
+      }
+      row = [];
+      cell = '';
+      continue;
+    }
+    cell += ch;
+  }
+  row.push(cell);
+  if(row.length > 1 || row[0] !== ''){
+    rows.push(row);
+  }
+  return rows;
+}
+
+function vehMapStatus(value){
+  const raw = String(value || '').trim();
+  if(!raw) return 'available';
+  const lowered = raw.toLowerCase();
+  const mapping = {
+    'in_service': 'assigned',
+    'in service': 'assigned',
+    'decommissioned': 'unavailable',
+    'reserved': 'assigned',
+    'out_of_service': 'unavailable',
+    'out of service': 'unavailable',
+    'awaiting_parts': 'maintenance',
+    'inspection_kteo': 'maintenance',
+    'available': 'available',
+    'unavailable': 'unavailable'
+  };
+  return mapping[lowered] || raw;
+}
+
+function vehSheetRowsToVehicles(rows){
+  if(!rows.length) return [];
+  const headerRow = rows[0].map(c => String(c || '').trim().toLowerCase().replace(/[\s\-]+/g, ' '));
+  const idx = (name) => headerRow.indexOf(name);
+  const get = (row, name) => {
+    const i = idx(name);
+    return i >= 0 ? String(row[i] || '').trim() : '';
+  };
+  const vehicles = [];
+  let counter = 0;
+  for(const row of rows.slice(1)){
+    if(!row.some(c => String(c || '').trim())) continue;
+    const municipalityId = get(row, 'municipality_id') || 'chalandri';
+    counter += 1;
+    const brand = get(row, 'brand');
+    const model = get(row, 'model');
+    const nameParts = [brand, model].filter(x => x && x !== '-');
+    const name = nameParts.length ? nameParts.join(' ') : get(row, 'type');
+    vehicles.push({
+      vehicle_id: `veh_${municipalityId}_${String(counter).padStart(3, '0')}`,
+      name: name,
+      plate: get(row, 'registration number'),
+      type: get(row, 'type'),
+      category: get(row, 'category'),
+      fuel: get(row, 'fuel'),
+      base: get(row, 'parking'),
+      service: get(row, 'department'),
+      license_category: get(row, 'license category'),
+      status: vehMapStatus(get(row, 'status')),
+      municipality_id: municipalityId,
+      brand: brand,
+      model: model,
+      notes: get(row, 'special category')
+    });
+  }
+  return vehicles;
+}
+
 async function vehReload(){
   const loader = document.getElementById('vehLoader');
   const msg = document.getElementById('vehMsg');
@@ -365,6 +633,50 @@ async function vehReload(){
     if(msg){
       msg.style.display='block';
       msg.textContent = 'Vehicles: ' + (e?.message || String(e));
+    }
+    renderVehicles();
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
+async function vehLoadFromSheetId(sheetId){
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  const resp = await fetch(url, { cache: 'no-store' });
+  if(!resp.ok) throw new Error('Αποτυχία λήψης Google Sheet (HTTP ' + resp.status + ')');
+  const text = await resp.text();
+  const rows = vehCsvParse(text);
+  const vehicles = vehSheetRowsToVehicles(rows);
+  if(!vehicles.length) throw new Error('Το Sheet δεν περιέχει δεδομένα.');
+  VEH_DATA = vehicles;
+  renderVehicles();
+}
+
+async function vehReloadAuto(){
+  const loader = document.getElementById('vehLoader');
+  const msg = document.getElementById('vehMsg');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display='none'; msg.textContent=''; }
+
+  try{
+    const resp = await fetch(encodeURI(VEH_SHEET_LINK_PATH), { cache: 'no-store' });
+    if(resp.ok){
+      const linkText = await resp.text();
+      const sheetId = vehExtractSheetId(linkText.split('\n')[0]);
+      if(sheetId){
+        const input = document.getElementById('vehSheetId');
+        if(input) input.value = sheetId;
+        await vehLoadFromSheetId(sheetId);
+        return;
+      }
+    }
+    await vehReload();
+  }catch(e){
+    console.warn('Vehicles auto load:', e);
+    VEH_DATA = [];
+    if(msg){
+      msg.style.display='block';
+      msg.textContent = 'Vehicles (Auto): ' + (e?.message || String(e));
     }
     renderVehicles();
   }finally{
@@ -403,6 +715,30 @@ async function loadVehiclesFromTree(treeFiles){
     if(msg){
       msg.style.display='block';
       msg.textContent = 'Vehicles: ' + (e?.message || String(e));
+    }
+    renderVehicles();
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
+async function vehReloadFromSheet(){
+  const loader = document.getElementById('vehLoader');
+  const msg = document.getElementById('vehMsg');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display='none'; msg.textContent=''; }
+
+  const input = document.getElementById('vehSheetId');
+  const sheetId = vehExtractSheetId(input?.value || VEH_SHEET_DEFAULT_ID);
+  try{
+    if(!sheetId) throw new Error('Δεν βρέθηκε Sheet ID.');
+    await vehLoadFromSheetId(sheetId);
+  }catch(e){
+    console.warn('Vehicles sheet load:', e);
+    VEH_DATA = [];
+    if(msg){
+      msg.style.display='block';
+      msg.textContent = 'Vehicles (Sheet): ' + (e?.message || String(e));
     }
     renderVehicles();
   }finally{
@@ -507,6 +843,8 @@ function bindVehiclesUI(){
   const a = document.getElementById('vehUseAOI');
   const v = document.getElementById('vehOnlyAvailable');
   const st = document.getElementById('vehStatus');
+  const sheet = document.getElementById('vehSheetId');
+  if(sheet && !sheet.value) sheet.value = VEH_SHEET_DEFAULT_ID;
 
   if(s && !s.dataset.bound){
     s.addEventListener('input', debounce(()=>renderVehicles(), 120));
