@@ -162,7 +162,9 @@
   </div>
   <div class="section-body collapsed" id="vehiclesBody">
     <div class="veh-controls no-print">
-      <button class="mini-btn btn-load" id="btnVehLoad" onclick="vehReload()" type="button">Load</button>
+      <button class="mini-btn btn-load" id="btnVehLoad" onclick="vehReloadAuto()" type="button">Load</button>
+      <input class="veh-search" id="vehSheetId" type="text" placeholder="Google Sheet ID/URL" aria-label="vehSheetId"/>
+      <button class="mini-btn btn-gray" onclick="vehReloadFromSheet()" title="Φόρτωση από Google Sheet" type="button">Sheet</button>
       <label class="veh-chip"><input type="checkbox" id="vehUseAOI" checked> AOI</label>
       <label class="veh-chip"><input type="checkbox" id="vehOnlyAvailable"> Διαθέσιμα</label>
       <select id="vehStatus" class="mini-btn btn-gray" title="Κατάσταση" aria-label="vehStatus">
