@@ -16,6 +16,7 @@ async function buildLocalFilesIndex(){
   add('data/boundaries/admin_areas_registry.json');
   add('data/geo/project_layers_registry.json');
   add('data/forecast/forecast.txt');
+  add('data/forecast/Weather Forecast');
   add('data/WaterLevelSensors/WaterLevelSensors.txt');
   add('data/resources/human_resources.json');
   add('data/resources/vehicles.json');
