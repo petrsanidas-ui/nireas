@@ -63,10 +63,19 @@ function hrCsvParse(text){
   return rows;
 }
 
+function hrNormalizeHeaderName(name){
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[Αα]/g, 'a')
+    .replace(/[Ββ]/g, 'b')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
 function hrSheetRowsToPeople(rows){
   if(!rows.length) return [];
-  const headerRow = rows[0].map(c => String(c || '').trim().toLowerCase().replace(/[\s\-]+/g, ' '));
-  const idx = (name) => headerRow.indexOf(name);
+  const headerRow = rows[0].map(hrNormalizeHeaderName);
+  const idx = (name) => headerRow.indexOf(hrNormalizeHeaderName(name));
   const get = (row, name) => {
     const i = idx(name);
     return i >= 0 ? String(row[i] || '').trim() : '';
@@ -82,16 +91,36 @@ function hrSheetRowsToPeople(rows){
     const skills = skillsRaw
       ? skillsRaw.split(',').map(x => x.trim()).filter(Boolean)
       : [];
+    const fullName = get(row, 'full_name') || get(row, 'name');
+    const role = get(row, 'specialty_role') || get(row, 'specialty/role') || get(row, 'role');
+    const branch = get(row, 'branch');
+    const employment = get(row, 'employment_relationship');
+    const department = get(row, 'department');
+    const unit = get(row, 'unit') || department;
+    const workPhone = get(row, 'work_phone');
+    const mobilePhone = get(row, 'mobile_phone');
+    const phone = workPhone || mobilePhone || get(row, 'phone');
+    const address = get(row, 'residential_address');
     const person = {
       person_id: get(row, 'person_id') || `hr_${String(counter).padStart(3, '0')}`,
-      name: get(row, 'name'),
-      category: get(row, 'category'),
-      role: get(row, 'role'),
-      unit: get(row, 'unit'),
+      name: fullName,
+      category: branch || employment || get(row, 'category'),
+      role: role,
+      unit: unit,
       skills: skills,
       status: get(row, 'status'),
       municipality_id: municipalityId,
-      phone: get(row, 'phone'),
+      phone: phone,
+      email: get(row, 'email'),
+      branch: branch,
+      department: department,
+      employment_relationship: employment,
+      work_phone: workPhone,
+      mobile_phone: mobilePhone,
+      address: address,
+      license_category: get(row, 'license_category'),
+      special_category: get(row, 'special_category'),
+      blood_group: get(row, 'blood_group'),
       notes: get(row, 'notes')
     };
     if(municipalityIds){
@@ -149,6 +178,8 @@ function hrStatusMeta(r){
 function hrTextBlob(r){
   const parts = [];
   ['name','role','unit','category','notes','phone','email'].forEach(k=>{ if(r && r[k]) parts.push(String(r[k])); });
+  ['branch','department','employment_relationship','work_phone','mobile_phone','address','license_category','special_category','blood_group']
+    .forEach(k=>{ if(r && r[k]) parts.push(String(r[k])); });
   try{
     if(Array.isArray(r.skills)) parts.push(r.skills.join(' '));
   }catch(_){ }
