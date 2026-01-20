@@ -1,5 +1,6 @@
 /* ===================== HUMAN RESOURCES (HR) ===================== */
 const HR_DEFAULT_PATH = 'data/resources/human_resources.json';
+const HR_SHEET_LINK_PATH = 'data/resources/hr.txt';
 let HR_DATA = [];
 let HR_LAST_LOADED_PATH = HR_DEFAULT_PATH;
 
@@ -12,6 +13,93 @@ function hrNormalize(s){
   }catch(_){
     return String(s||'').toLowerCase();
   }
+}
+
+function hrExtractSheetId(value){
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+  const match = raw.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if(match) return match[1];
+  return raw;
+}
+
+function hrCsvParse(text){
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(ch === '"'){
+      if(inQuotes && text[i + 1] === '"'){
+        cell += '"';
+        i++;
+      }else{
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if(ch === ',' && !inQuotes){
+      row.push(cell);
+      cell = '';
+      continue;
+    }
+    if((ch === '\n' || ch === '\r') && !inQuotes){
+      if(ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell);
+      if(row.length > 1 || row[0] !== ''){
+        rows.push(row);
+      }
+      row = [];
+      cell = '';
+      continue;
+    }
+    cell += ch;
+  }
+  row.push(cell);
+  if(row.length > 1 || row[0] !== ''){
+    rows.push(row);
+  }
+  return rows;
+}
+
+function hrSheetRowsToPeople(rows){
+  if(!rows.length) return [];
+  const headerRow = rows[0].map(c => String(c || '').trim().toLowerCase().replace(/[\s\-]+/g, ' '));
+  const idx = (name) => headerRow.indexOf(name);
+  const get = (row, name) => {
+    const i = idx(name);
+    return i >= 0 ? String(row[i] || '').trim() : '';
+  };
+  const people = [];
+  let counter = 0;
+  for(const row of rows.slice(1)){
+    if(!row.some(c => String(c || '').trim())) continue;
+    const municipalityId = get(row, 'municipality_id') || 'chalandri';
+    const municipalityIds = get(row, 'municipality_ids');
+    counter += 1;
+    const skillsRaw = get(row, 'skills');
+    const skills = skillsRaw
+      ? skillsRaw.split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+    const person = {
+      person_id: get(row, 'person_id') || `hr_${String(counter).padStart(3, '0')}`,
+      name: get(row, 'name'),
+      category: get(row, 'category'),
+      role: get(row, 'role'),
+      unit: get(row, 'unit'),
+      skills: skills,
+      status: get(row, 'status'),
+      municipality_id: municipalityId,
+      phone: get(row, 'phone'),
+      notes: get(row, 'notes')
+    };
+    if(municipalityIds){
+      person.municipality_ids = municipalityIds.split(',').map(x => x.trim()).filter(Boolean);
+    }
+    people.push(person);
+  }
+  return people;
 }
 
 function hrCoverageIds(r){
@@ -111,6 +199,48 @@ async function hrReload(){
     if(msg){
       msg.style.display='block';
       msg.textContent = 'HR: ' + (e?.message || String(e));
+    }
+    renderHumanResources();
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
+async function hrLoadFromSheetId(sheetId){
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  const resp = await fetch(url, { cache: 'no-store' });
+  if(!resp.ok) throw new Error('Αποτυχία λήψης HR Sheet (HTTP ' + resp.status + ')');
+  const text = await resp.text();
+  const rows = hrCsvParse(text);
+  const people = hrSheetRowsToPeople(rows);
+  if(!people.length) throw new Error('Το HR Sheet δεν περιέχει δεδομένα.');
+  HR_DATA = people;
+  renderHumanResources();
+}
+
+async function hrReloadAuto(){
+  const loader = document.getElementById('hrLoader');
+  const msg = document.getElementById('hrMsg');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display='none'; msg.textContent=''; }
+
+  try{
+    const resp = await fetch(encodeURI(HR_SHEET_LINK_PATH), { cache: 'no-store' });
+    if(resp.ok){
+      const linkText = await resp.text();
+      const sheetId = hrExtractSheetId(linkText.split('\n')[0]);
+      if(sheetId){
+        await hrLoadFromSheetId(sheetId);
+        return;
+      }
+    }
+    await hrReload();
+  }catch(e){
+    console.warn('HR auto load:', e);
+    HR_DATA = [];
+    if(msg){
+      msg.style.display='block';
+      msg.textContent = 'HR (Auto): ' + (e?.message || String(e));
     }
     renderHumanResources();
   }finally{
