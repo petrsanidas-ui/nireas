@@ -40,12 +40,18 @@
     "pref_unit_id": "north_athens",
     "name": "Π.Ε. Βόρειου Τομέα Αθηνών",
     "municipality_ids": [
-      "chalandri",
       "agia_paraskevi",
-      "filothei_psychiko",
       "marousi",
+      "vrilissia",
+      "irakleio",
+      "kifisia",
+      "lykovrysi_pefki",
+      "metamorfosi",
+      "nea_ionia",
       "papagou_cholargos",
-      "vrilissia"
+      "penteli",
+      "filothei_psychiko",
+      "chalandri"
     ]
   },
   {
