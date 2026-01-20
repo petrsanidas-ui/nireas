@@ -38,32 +38,38 @@
   {
     "type": "municipality",
     "municipality_id": "irakleio",
-    "name": "Ηράκλειο"
+    "name": "Ηράκλειο",
+    "file": "data/boundaries/geojson/municipal_irakleio.geojson"
   },
   {
     "type": "municipality",
     "municipality_id": "kifisia",
-    "name": "Κηφισιά"
+    "name": "Κηφισιά",
+    "file": "data/boundaries/geojson/municipal_kifisia.geojson"
   },
   {
     "type": "municipality",
     "municipality_id": "lykovrysi_pefki",
-    "name": "Λυκόβρυση-Πεύκη"
+    "name": "Λυκόβρυση-Πεύκη",
+    "file": "data/boundaries/geojson/municipal_lykovrysi_pefki.geojson"
   },
   {
     "type": "municipality",
     "municipality_id": "metamorfosi",
-    "name": "Μεταμόρφωση"
+    "name": "Μεταμόρφωση",
+    "file": "data/boundaries/geojson/municipal_metamorfosi.geojson"
   },
   {
     "type": "municipality",
     "municipality_id": "nea_ionia",
-    "name": "Νέα Ιωνία"
+    "name": "Νέα Ιωνία",
+    "file": "data/boundaries/geojson/municipal_nea_ionia.geojson"
   },
   {
     "type": "municipality",
     "municipality_id": "penteli",
-    "name": "Πεντέλη"
+    "name": "Πεντέλη",
+    "file": "data/boundaries/geojson/municipal_penteli.geojson"
   },
   {
     "type": "pref_unit",
