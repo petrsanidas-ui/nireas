@@ -28,6 +28,10 @@ python scripts/sync_vehicles_from_sheet.py \
 - `Status` values are normalized to known UI states (`available`, `assigned`, `unavailable`).
 - `Special Category` is copied into the `notes` field in `vehicles.json`.
 
+## In-app manual load (no server)
+You can paste a Google Sheet ID/URL in the Vehicles panel and press **Sheet** to load
+data directly in the UI (session-only, no file writes).
+
 ## Optional: Webhook + Apps Script (automatic sync)
 If you want **automatic** updates when the Google Sheet changes, you can trigger a webhook.
 
