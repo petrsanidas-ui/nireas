@@ -83,14 +83,15 @@ async function loadAdminAreasRegistryFromTree(files){
       const name = String(raw?.name || '').trim();
       const file = String(raw?.file || '').trim();
       const hasMembers = Array.isArray(raw?.municipality_ids) || Array.isArray(raw?.pref_unit_ids);
-      // For municipality we require a GeoJSON file. For pref_unit/region we allow:
+      // For municipalities we prefer GeoJSON boundaries, but allow missing files
+      // to support AOI filtering even when boundaries are unavailable.
+      // For pref_unit/region we allow:
       // - GeoJSON boundary (file), OR
       // - group-only entry with members (municipality_ids / pref_unit_ids)
       if(!type || !name) return null;
-      if(type === 'municipality' && !file) return null;
       if((type === 'pref_unit' || type === 'region') && !file && !hasMembers) return null;
 
-      const e = { ...raw, type, name, file };
+      const e = { ...raw, type, name, file, has_boundary: Boolean(file) };
 
       // enforce id field by type
       const id = adminAreaIdFromEntry(e);
@@ -406,12 +407,15 @@ function renderAOIList(){
       const rows = arr.map(e=>{
         const id = adminAreaIdFromEntry(e);
         const checked = isChecked(e) ? 'checked' : '';
+        const meta = (!e.file && normalizeAdminAreaType(e.type)==='municipality')
+          ? 'Δήμος (χωρίς όρια)'
+          : title;
         return `
           <label class="aoi-item">
             <input type="checkbox" class="aoi-check" data-type="${escapeHtml(normalizeAdminAreaType(e.type))}" data-id="${escapeHtml(id)}"
                    data-file="${escapeHtml(e.file)}" data-name="${escapeHtml(e.name)}" ${checked}/>
             <span class="aoi-name">${escapeHtml(e.name)}</span>
-            <span class="aoi-meta">${escapeHtml(title)}</span>
+            <span class="aoi-meta">${escapeHtml(meta)}</span>
           </label>
         `;
       }).join('');
@@ -430,12 +434,15 @@ function renderAOIList(){
     wrap.innerHTML = entries.map(e=>{
       const id = adminAreaIdFromEntry(e);
       const checked = isChecked(e) ? 'checked' : '';
+      const meta = (!e.file && normalizeAdminAreaType(e.type)==='municipality')
+        ? 'Δήμος (χωρίς όρια)'
+        : typeTag(e.type);
       return `
         <label class="aoi-item">
           <input type="checkbox" class="aoi-check" data-type="${escapeHtml(normalizeAdminAreaType(e.type))}" data-id="${escapeHtml(id)}"
                  data-file="${escapeHtml(e.file)}" data-name="${escapeHtml(e.name)}" ${checked}/>
           <span class="aoi-name">${escapeHtml(e.name)}</span>
-          <span class="aoi-meta">${escapeHtml(typeTag(e.type))}</span>
+          <span class="aoi-meta">${escapeHtml(meta)}</span>
         </label>
       `;
     }).join('');
