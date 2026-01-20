@@ -36,6 +36,36 @@
     "file": "data/boundaries/geojson/municipal_vrilissia.geojson"
   },
   {
+    "type": "municipality",
+    "municipality_id": "irakleio",
+    "name": "Ηράκλειο"
+  },
+  {
+    "type": "municipality",
+    "municipality_id": "kifisia",
+    "name": "Κηφισιά"
+  },
+  {
+    "type": "municipality",
+    "municipality_id": "lykovrysi_pefki",
+    "name": "Λυκόβρυση-Πεύκη"
+  },
+  {
+    "type": "municipality",
+    "municipality_id": "metamorfosi",
+    "name": "Μεταμόρφωση"
+  },
+  {
+    "type": "municipality",
+    "municipality_id": "nea_ionia",
+    "name": "Νέα Ιωνία"
+  },
+  {
+    "type": "municipality",
+    "municipality_id": "penteli",
+    "name": "Πεντέλη"
+  },
+  {
     "type": "pref_unit",
     "pref_unit_id": "north_athens",
     "name": "Π.Ε. Βόρειου Τομέα Αθηνών",
