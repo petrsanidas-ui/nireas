@@ -32,6 +32,10 @@ python scripts/sync_vehicles_from_sheet.py \
 You can paste a Google Sheet ID/URL in the Vehicles panel and press **Sheet** to load
 data directly in the UI (session-only, no file writes).
 
+## Auto-load from a link file
+If you place a link in `data/resources/Technical Means_Vehicles.txt`, the **Load** button
+will read the first line and load that sheet automatically (fallbacks to vehicles.json if missing).
+
 ## Optional: Webhook + Apps Script (automatic sync)
 If you want **automatic** updates when the Google Sheet changes, you can trigger a webhook.
 

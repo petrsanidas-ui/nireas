@@ -255,6 +255,7 @@ function bindHumanResourcesUI(){
 /* ===================== VEHICLES (Technical Means) ===================== */
 const VEH_DEFAULT_PATH = 'data/resources/vehicles.json';
 const VEH_SHEET_DEFAULT_ID = '1EkTVFr6r5cGSAfHzC2wlhl2PAmfrG4G6sqGgEJSgbU8';
+const VEH_SHEET_LINK_PATH = 'data/resources/Technical Means_Vehicles.txt';
 let VEH_DATA = [];
 let VEH_LAST_LOADED_PATH = VEH_DEFAULT_PATH;
 
@@ -478,6 +479,50 @@ async function vehReload(){
   }
 }
 
+async function vehLoadFromSheetId(sheetId){
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  const resp = await fetch(url, { cache: 'no-store' });
+  if(!resp.ok) throw new Error('Αποτυχία λήψης Google Sheet (HTTP ' + resp.status + ')');
+  const text = await resp.text();
+  const rows = vehCsvParse(text);
+  const vehicles = vehSheetRowsToVehicles(rows);
+  if(!vehicles.length) throw new Error('Το Sheet δεν περιέχει δεδομένα.');
+  VEH_DATA = vehicles;
+  renderVehicles();
+}
+
+async function vehReloadAuto(){
+  const loader = document.getElementById('vehLoader');
+  const msg = document.getElementById('vehMsg');
+  if(loader) loader.style.display = 'block';
+  if(msg){ msg.style.display='none'; msg.textContent=''; }
+
+  try{
+    const resp = await fetch(encodeURI(VEH_SHEET_LINK_PATH), { cache: 'no-store' });
+    if(resp.ok){
+      const linkText = await resp.text();
+      const sheetId = vehExtractSheetId(linkText.split('\n')[0]);
+      if(sheetId){
+        const input = document.getElementById('vehSheetId');
+        if(input) input.value = sheetId;
+        await vehLoadFromSheetId(sheetId);
+        return;
+      }
+    }
+    await vehReload();
+  }catch(e){
+    console.warn('Vehicles auto load:', e);
+    VEH_DATA = [];
+    if(msg){
+      msg.style.display='block';
+      msg.textContent = 'Vehicles (Auto): ' + (e?.message || String(e));
+    }
+    renderVehicles();
+  }finally{
+    if(loader) loader.style.display = 'none';
+  }
+}
+
 async function loadVehiclesFromTree(treeFiles){
   const loader = document.getElementById('vehLoader');
   const msg = document.getElementById('vehMsg');
@@ -526,15 +571,7 @@ async function vehReloadFromSheet(){
   const sheetId = vehExtractSheetId(input?.value || VEH_SHEET_DEFAULT_ID);
   try{
     if(!sheetId) throw new Error('Δεν βρέθηκε Sheet ID.');
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-    const resp = await fetch(url, { cache: 'no-store' });
-    if(!resp.ok) throw new Error('Αποτυχία λήψης Google Sheet (HTTP ' + resp.status + ')');
-    const text = await resp.text();
-    const rows = vehCsvParse(text);
-    const vehicles = vehSheetRowsToVehicles(rows);
-    if(!vehicles.length) throw new Error('Το Sheet δεν περιέχει δεδομένα.');
-    VEH_DATA = vehicles;
-    renderVehicles();
+    await vehLoadFromSheetId(sheetId);
   }catch(e){
     console.warn('Vehicles sheet load:', e);
     VEH_DATA = [];
